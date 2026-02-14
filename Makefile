@@ -74,6 +74,10 @@ test:
 	  user-container \
 	  python -m tests.test_agent_integration
 
+# Run locally (like production install, no Docker needed)
+local:
+	python3 zeno.py
+
 # Frontend development (runs on host, proxies to container backend)
 frontend-dev:
 	cd frontend && npm run dev

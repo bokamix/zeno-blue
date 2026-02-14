@@ -43,10 +43,13 @@ def main():
     os.environ.setdefault("DB_PATH", str(data_dir / "data" / "runtime.db"))
     os.environ.setdefault("SKILLS_DIR", str(ROOT / "user_container" / "skills"))
 
-    # Load user config (only ~/.zeno/.env — setup screen saves API key here)
-    env_file = data_dir / ".env"
-    if env_file.exists():
-        _load_dotenv(env_file)
+    # Load config from .env files (project root first, then ~/.zeno/.env overrides)
+    project_env = ROOT / ".env"
+    if project_env.exists():
+        _load_dotenv(project_env)
+    user_env = data_dir / ".env"
+    if user_env.exists():
+        _load_dotenv(user_env)
 
     port = int(os.environ.get("ZENO_PORT", "18000"))
     host = os.environ.get("ZENO_HOST", "127.0.0.1")

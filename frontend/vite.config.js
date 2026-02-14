@@ -6,6 +6,7 @@ export default defineConfig({
   plugins: [
     vue(),
     VitePWA({
+      injectRegister: false,
       registerType: 'autoUpdate',
       workbox: {
         // Exclude large viewer chunks from precaching (they're lazy-loaded anyway)
@@ -36,12 +37,12 @@ export default defineConfig({
           },
           {
             urlPattern: /\.(?:js|css|woff2?|png|jpg|svg)$/,
-            handler: 'CacheFirst',
+            handler: 'StaleWhileRevalidate',
             options: {
               cacheName: 'static-assets',
               expiration: {
                 maxEntries: 100,
-                maxAgeSeconds: 60 * 60 * 24 * 30 // 30 days
+                maxAgeSeconds: 60 * 60 * 24 * 7 // 7 days
               }
             }
           }
@@ -71,7 +72,6 @@ export default defineConfig({
       '/auth': 'http://localhost:18000',  // JWT callback from central
       '/admin': 'http://localhost:18000',
       '/settings': 'http://localhost:18000',
-      '/billing': 'http://localhost:8080',
       '/login': 'http://localhost:8080',
       '/register': 'http://localhost:8080',
       '/logout': 'http://localhost:8080'
