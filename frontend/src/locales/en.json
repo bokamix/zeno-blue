@@ -1,0 +1,417 @@
+{
+  "setup": {
+    "subtitle": "Configure your AI agent to get started",
+    "provider": "LLM Provider",
+    "apiKey": "API Key",
+    "start": "Get Started",
+    "saving": "Saving..."
+  },
+  "common": {
+    "loading": "Loading...",
+    "cancel": "Cancel",
+    "close": "Close",
+    "save": "Save",
+    "saving": "Saving...",
+    "saved": "Saved",
+    "delete": "Delete",
+    "download": "Download",
+    "send": "Send",
+    "stop": "Stop",
+    "stopping": "Stopping...",
+    "start": "Start",
+    "restart": "Restart",
+    "connect": "Connect",
+    "disconnect": "Disconnect",
+    "enable": "Enable",
+    "disable": "Disable",
+    "done": "Done.",
+    "and": "and",
+    "create": "Create"
+  },
+  "nav": {
+    "apps": "Apps",
+    "integrations": "Integrations",
+    "scheduler": "Scheduler",
+    "settings": "Settings",
+    "newChat": "New Chat",
+    "hideSidebar": "Hide sidebar",
+    "showSidebar": "Show sidebar"
+  },
+  "sidebar": {
+    "files": "Files",
+    "chats": "Chats",
+    "noFilesYet": "No files yet",
+    "noConversations": "No conversations yet",
+    "showMore": "+{count} more",
+    "showLess": "Show less",
+    "scrollToTop": "Back to top",
+    "emptyConversation": "Empty conversation",
+    "dropFilesHere": "Drop files here",
+    "deleteConversation": "Delete",
+    "archiveConversation": "Archive",
+    "renameConversation": "Rename",
+    "enterName": "Enter conversation name",
+    "archived": "Archived",
+    "restore": "Restore",
+    "deletePermanently": "Delete permanently",
+    "confirmDelete": "Are you sure you want to delete this conversation?",
+    "confirmDeletePermanent": "Are you sure you want to permanently delete this conversation? This cannot be undone.",
+    "deleteFile": "Delete",
+    "renameFile": "Rename",
+    "confirmDeleteFile": "Are you sure you want to delete '{name}'?",
+    "downloadAsZip": "Download as ZIP",
+    "createFolder": "Create folder",
+    "createFile": "Create file",
+    "folderNamePlaceholder": "Folder name",
+    "fileNamePlaceholder": "file.txt",
+    "fileNameHint": "Include the file extension",
+    "openInTab": "Open in tab",
+    "viewScheduler": "View scheduler details",
+    "storage": "Storage",
+    "storageUsed": "{used} of {total}"
+  },
+  "dates": {
+    "today": "Today",
+    "yesterday": "Yesterday",
+    "thisWeek": "This week",
+    "older": "Older"
+  },
+  "time": {
+    "now": "now",
+    "minutes": "{n}m",
+    "hours": "{n}h",
+    "days": "{n}d",
+    "yesterday": "Yesterday"
+  },
+  "days": {
+    "monday": "Monday",
+    "tuesday": "Tuesday",
+    "wednesday": "Wednesday",
+    "thursday": "Thursday",
+    "friday": "Friday",
+    "saturday": "Saturday",
+    "sunday": "Sunday"
+  },
+  "chat": {
+    "messagePlaceholder": "Message ZENO...",
+    "scrollToBottom": "Scroll to bottom",
+    "files": "Files",
+    "dropFilesHere": "Drop files here",
+    "dropFilesOrImages": "Drop files or images here",
+    "removeAttachment": "Remove attachment",
+    "attachFiles": "Attach files",
+    "attachedFiles": "Attached files:",
+    "uploadingFiles": "Uploading files...",
+    "newMessages": "New messages",
+    "markUnread": "Mark as unread from here",
+    "inputHint": {
+      "shiftEnter": "Shift + Enter",
+      "forNewLine": "for new line",
+      "atSymbol": "{'@'}",
+      "toMentionFiles": "to mention files",
+      "dragAndDrop": "You can drag & drop or paste files here"
+    },
+    "costTooltip": "Total cost of this conversation",
+    "automationStarted": "Automation started in background",
+    "editMessage": "Edit message"
+  },
+  "modals": {
+    "scheduledJobs": {
+      "title": "Scheduled Jobs",
+      "noJobs": "No scheduled jobs yet.",
+      "askAssistant": "Ask the assistant to create recurring tasks.",
+      "next": "Next",
+      "runs": "Runs",
+      "recentRuns": "Recent Runs",
+      "noRunsYet": "No runs yet.",
+      "noPreview": "No preview available",
+      "viewDetails": "View Details",
+      "runNow": "Run Now",
+      "scheduledTask": "Scheduled task"
+    },
+    "schedulerDetail": {
+      "title": "Scheduler Details",
+      "whatItDoes": "What it does",
+      "schedule": "Schedule",
+      "cronExpression": "Cron Expression",
+      "runsAt": "Runs",
+      "nextRun": "Next Run",
+      "editSchedule": "Edit Schedule",
+      "editPrompt": "Edit Prompt",
+      "promptPlaceholder": "Enter the task prompt...",
+      "cronHint": "Format: minute hour day month weekday (e.g., 0 9 * * * for daily at 9am)",
+      "context": "Context",
+      "steps": "Steps",
+      "variables": "Variables",
+      "files": "Files",
+      "allRuns": "All Runs",
+      "noPreview": "No preview available",
+      "noRunsYet": "No runs yet. The scheduler will create conversations when it runs.",
+      "totalRuns": "Total runs",
+      "lastRun": "Last run",
+      "created": "Created",
+      "deleteScheduler": "Delete Scheduler",
+      "runNow": "Run Now",
+      "frequency": "Frequency",
+      "everyMinutes": "Every X minutes",
+      "interval": "Interval",
+      "daily": "Daily",
+      "weekly": "Weekly",
+      "monthly": "Monthly",
+      "customDays": "Custom days",
+      "dayOfWeek": "Day of week",
+      "dayOfMonth": "Day of month",
+      "selectDays": "Select days",
+      "time": "Time",
+      "everyDay": "Daily at {time}",
+      "everyWeekday": "Every {day} at {time}",
+      "everyWeekdays": "Every {days} at {time}",
+      "everyMonthDay": "{day}th of every month at {time}",
+      "everyXMinutes": "Every {minutes} minute(s)"
+    },
+    "integrations": {
+      "title": "Integrations",
+      "connected": "Connected",
+      "available": "Available",
+      "noIntegrations": "No integrations available.",
+      "configureOAuth": "Configure OAuth providers in your environment."
+    },
+    "apps": {
+      "title": "Apps",
+      "noApps": "No apps running.",
+      "rename": "Rename app",
+      "enterName": "Enter app name",
+      "confirmDelete": "Are you sure you want to delete '{name}'? This cannot be undone."
+    },
+    "settings": {
+      "title": "Settings",
+      "manageAccount": "Manage Account",
+      "manageAccountDesc": "View balance, billing, and account settings",
+      "theme": "Theme",
+      "themeDark": "Dark",
+      "themeLight": "Light",
+      "sidebar": "Sidebar",
+      "sidebarLeft": "Left",
+      "sidebarRight": "Right",
+      "language": "Language",
+      "prepaidBalance": "Prepaid Balance",
+      "contactAdmin": "Contact administrator to add funds.",
+      "soundNotifications": "Sound Notifications",
+      "soundOn": "On",
+      "soundOff": "Off",
+      "modelProvider": "AI Model",
+      "preferences": "Preferences",
+      "system": "System",
+      "restartContainer": "Restart Container",
+      "restartContainerDesc": "Restart the agent container",
+      "restarting": "Restarting...",
+      "restart": "Restart",
+      "signOut": "Sign Out",
+      "signOutDesc": "Log out of your account",
+      "help": "Help & Support",
+      "helpDesc": "Chat with us if you need help",
+      "transactionHistory": "Transaction History",
+      "noTransactions": "No transactions yet",
+      "transactionsError": "Failed to load transactions",
+      "completed": "Completed"
+    },
+    "cancelConfirm": {
+      "title": "Stop execution?",
+      "message": "The current task will be interrupted.",
+      "confirmButton": "Stop"
+    }
+  },
+  "loading": {
+    "hideActivityLog": "Hide activity log",
+    "showActivityLog": "Show activity log",
+    "stopExecution": "Stop execution",
+    "statusRunningCommand": "Running command...",
+    "statusCreatingFile": "Creating file...",
+    "statusSearchingWeb": "Searching the web...",
+    "statusThinking": "Thinking...",
+    "statusWorking": "Working...",
+    "longThinkingHint": "I'm thinking a bit longer, but that's normal. You can have multiple chats running at once.",
+    "createNewChat": "Create a new chat"
+  },
+  "activity": {
+    "runningCommand": "Running: {cmd}",
+    "executingCommand": "Executing command...",
+    "creatingFile": "Creating: {file}",
+    "writingFile": "Writing file...",
+    "editingFile": "Editing: {file}",
+    "readingFile": "Reading: {file}",
+    "listingDirectory": "Browsing files...",
+    "searchingFiles": "Searching in files...",
+    "fetchingWeb": "Fetching web page...",
+    "searchingWeb": "Searching the web...",
+    "searchingKnowledge": "Searching knowledge base...",
+    "askingUser": "Waiting for your input...",
+    "delegatingTask": "Delegating subtask...",
+    "exploringCode": "Exploring codebase...",
+    "thinking": "Thinking...",
+    "planning": "Planning approach...",
+    "analyzing": "Analyzing request...",
+    "working": "Working..."
+  },
+  "prompts": {
+    "question": {
+      "needsInput": "Zeno needs your input",
+      "customAnswer": "Or type a custom answer...",
+      "typeAnswer": "Type your answer..."
+    },
+    "oauth": {
+      "title": "Authorization Required",
+      "defaultReason": "This action requires you to authorize access.",
+      "loginWith": "Login with {provider}",
+      "popupNote": "A popup will open for you to authorize access. After completing authorization, the assistant will continue automatically."
+    }
+  },
+  "pwa": {
+    "install": {
+      "title": "Install ZENO",
+      "clickIcon": "Click the",
+      "shareIcon": "Share",
+      "icon": "icon",
+      "scrollAndSelect": "Scroll and select",
+      "addToHomeScreen": "Add to Home Screen",
+      "understood": "Got it",
+      "androidDescription": "Add the app to your home screen for quick access",
+      "notNow": "Not now",
+      "installButton": "Install"
+    }
+  },
+  "emptyState": {
+    "loading": "Loading...",
+    "heroAutomate": "Automate",
+    "heroAnything": "anything.",
+    "heroWords": ["emails", "reports", "meetings", "tasks", "anything"],
+    "tryExample": "Try an example"
+  },
+  "suggestions": {
+    "whileYouWait": "While you wait, try:",
+    "continueWith": "Continue with:",
+    "thinking": "Thinking",
+    "searching": "Searching",
+    "delegating": "Delegating",
+    "startedInBackground": "Started in background - check sidebar",
+    "buttonCollapsed": "What can I do?",
+    "buttonExpanded": "I'll save you time every day",
+    "business": {
+      "label": "Build online business",
+      "prompt": "I want to build an online business. Walk me through the entire process step by step:\n1. Ask about my skills, experience, and how much time I can dedicate\n2. Based on that, suggest 3 specific business ideas\n3. Help me choose one - ask questions that will help me decide\n4. Validate the idea - find competitors, assess the potential\n5. Finally, create a landing page for this business\n\nStart with the first step."
+    },
+    "social": {
+      "label": "What people say about my company?",
+      "prompt": "I want to know what people are saying about my company online. Ask me for the company name and products, then search Twitter, Reddit, forums, and other sources. Create a summary: what people praise, what they complain about, what questions they have."
+    },
+    "landing": {
+      "label": "Analyze my landing page",
+      "prompt": "I need headline variants for A/B testing on my landing page. Ask me for the page URL, analyze it, and then suggest 10 different headline variants - from safe to bold."
+    },
+    "plan": {
+      "label": "Plan my day",
+      "prompt": "Plan my day for today. Check my emails and calendar, see what I have to do, and tell me:\n- What's most urgent today\n- What can I postpone\n- Suggest the order of actions"
+    },
+    "marketing": {
+      "label": "Marketing strategy",
+      "prompt": "Help me plan a marketing strategy for my company. Start by asking:\n- What I do and what I sell\n- Who is my customer\n- What's my budget and time\n- What I've already tried\n\nBased on that, propose a concrete action plan for the next month with priorities."
+    },
+    "presentation": {
+      "label": "Create presentation",
+      "prompt": "Help me create a presentation. First ask me:\n- What's the purpose of the presentation and who is the audience\n- What I want to convey (main points)\n- How many slides I need\n- What style (formal, creative, minimalist)\n\nThen create the presentation according to my guidelines."
+    }
+  },
+  "capabilities": {
+    "business": {
+      "label": "Build a business",
+      "description": "Get ideas, validate them, create a landing page",
+      "prompt": "I want to build an online business. Walk me through the entire process step by step:\n1. Ask about my skills, experience, and how much time I can dedicate\n2. Based on that, suggest 3 specific business ideas\n3. Help me choose one - ask questions that will help me decide\n4. Validate the idea - find competitors, assess the potential\n5. Finally, create a landing page for this business\n\nStart with the first step."
+    },
+    "social": {
+      "label": "Brand monitoring",
+      "description": "See what people say about your company",
+      "prompt": "I want to know what people are saying about my company online. Ask me for the company name and products, then search Twitter, Reddit, forums, and other sources. Create a summary: what people praise, what they complain about, what questions they have."
+    },
+    "landing": {
+      "label": "Analyze website",
+      "description": "Get headline variants for A/B testing",
+      "prompt": "I need headline variants for A/B testing on my landing page. Ask me for the page URL, analyze it, and then suggest 10 different headline variants - from safe to bold."
+    },
+    "plan": {
+      "label": "Plan my day",
+      "description": "Check calendar, prioritize tasks",
+      "prompt": "Plan my day for today. Check my emails and calendar, see what I have to do, and tell me:\n- What's most urgent today\n- What can I postpone\n- Suggest the order of actions"
+    },
+    "marketing": {
+      "label": "Marketing plan",
+      "description": "Strategy and action plan for next month",
+      "prompt": "Help me plan a marketing strategy for my company. Start by asking:\n- What I do and what I sell\n- Who is my customer\n- What's my budget and time\n- What I've already tried\n\nBased on that, propose a concrete action plan for the next month with priorities."
+    },
+    "presentation": {
+      "label": "Create slides",
+      "description": "Build a presentation from scratch",
+      "prompt": "Help me create a presentation. First ask me:\n- What's the purpose of the presentation and who is the audience\n- What I want to convey (main points)\n- How many slides I need\n- What style (formal, creative, minimalist)\n\nThen create the presentation according to my guidelines."
+    }
+  },
+  "errors": {
+    "insufficientBalance": {
+      "title": "Insufficient Balance",
+      "message": "Your prepaid balance has been depleted. Contact the administrator to top up your account."
+    },
+    "executionStopped": "Execution stopped by user",
+    "error": "Error",
+    "uploadError": "Upload error",
+    "deleteError": "Delete error",
+    "archiveError": "Failed to archive conversation",
+    "restoreError": "Failed to restore conversation",
+    "serverUnavailable": {
+      "title": "Server Unavailable",
+      "message": "Unable to connect to the server. Please check your connection.",
+      "retry": "Try Again"
+    }
+  },
+  "confirmations": {
+    "deleteJob": "Are you sure you want to delete this scheduled job?",
+    "disconnectProvider": "Disconnect {provider}?"
+  },
+  "language": {
+    "en": "English",
+    "pl": "Polski"
+  },
+  "toast": {
+    "fileDeleted": "File deleted successfully",
+    "fileUploaded": "File uploaded successfully",
+    "folderCreated": "Folder created",
+    "fileCreated": "File created",
+    "fileMoved": "File moved",
+    "fileRenamed": "File renamed",
+    "conversationDeleted": "Conversation deleted",
+    "conversationArchived": "Conversation archived",
+    "conversationRestored": "Conversation restored"
+  },
+  "update": {
+    "pending_with_jobs": "Update pending. Will apply after current task completes ({jobs} active)...",
+    "in_progress": "Updating... Please wait."
+  },
+  "viewer": {
+    "showCode": "Show code",
+    "hideCode": "Hide code"
+  },
+  "delegates": {
+    "hired": "Hired {count} agent | Hired {count} agents",
+    "working": "{count} working"
+  },
+  "topUp": {
+    "title": "Top Up Balance",
+    "addFunds": "Add Funds",
+    "processing": "Processing...",
+    "securedByPolar": "Secured by Polar",
+    "polarDescription": "You will be redirected to our payment provider to complete your purchase.",
+    "goToCheckout": "Go to Checkout",
+    "success": "Payment successful! Your balance has been updated.",
+    "successPending": "Payment received! Your balance will update in a moment...",
+    "balanceUpdated": "Your balance has been updated!",
+    "cancelled": "Payment was cancelled.",
+    "loadError": "Failed to load checkout. Please try again."
+  }
+}

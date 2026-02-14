@@ -1,0 +1,52 @@
+{% extends "admin/base.html" %}
+
+{% block title %}Integrations{% endblock %}
+
+{% block content %}
+<h1 style="margin-bottom: 20px; font-size: 24px;">OAuth Integrations</h1>
+
+<div class="card">
+    {% if integrations %}
+    <table>
+        <thead>
+            <tr>
+                <th>Provider</th>
+                <th>Account</th>
+                <th>Scopes</th>
+                <th>Expires</th>
+                <th>Connected</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for i in integrations %}
+            <tr>
+                <td>
+                    <span class="badge badge-blue">{{ i.provider }}</span>
+                </td>
+                <td>{{ i.provider_account_email or '-' }}</td>
+                <td>
+                    <div style="max-width: 400px;">
+                        {% for scope in i.scopes_list %}
+                        <code style="font-size: 11px; display: inline-block; margin: 2px;">{{ scope.split('/')[-1] }}</code>
+                        {% endfor %}
+                    </div>
+                </td>
+                <td>
+                    {% if i.expires_at %}
+                    {{ i.expires_at[:19] }}
+                    {% else %}
+                    -
+                    {% endif %}
+                </td>
+                <td>{{ i.created_at[:10] if i.created_at else '-' }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    {% else %}
+    <div class="empty">
+        No integrations connected yet.
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

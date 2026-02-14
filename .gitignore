@@ -1,0 +1,16 @@
+.DS_Store
+.claude/settings*
+.env
+__pycache__/
+data/*
+venv/
+workspace/*
+
+# Frontend
+frontend/node_modules/
+frontend/dist/
+
+# Build artifacts (PyInstaller)
+.build-venv/
+build/
+dist/

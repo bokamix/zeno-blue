@@ -1,0 +1,112 @@
+{% extends "admin/base.html" %}
+
+{% block title %}Job {{ job.id[:8] }}{% endblock %}
+
+{% block content %}
+<a href="/admin/conversations/{{ job.conversation_id }}" class="back-link">&larr; Back to conversation</a>
+
+<h1 style="margin-bottom: 10px; font-size: 24px;">Job Activities</h1>
+<p style="margin-bottom: 20px; color: #64748b;">
+    <code>{{ job.id }}</code>
+</p>
+
+<div class="card" style="margin-bottom: 20px;">
+    <h2>Job Info</h2>
+    <table style="width: auto;">
+        <tr>
+            <td style="font-weight: bold; padding-right: 20px;">Status</td>
+            <td>
+                {% if job.status == 'completed' %}
+                <span class="badge badge-green">{{ job.status }}</span>
+                {% elif job.status == 'failed' %}
+                <span class="badge badge-red">{{ job.status }}</span>
+                {% elif job.status == 'running' %}
+                <span class="badge badge-blue">{{ job.status }}</span>
+                {% else %}
+                <span class="badge badge-gray">{{ job.status }}</span>
+                {% endif %}
+            </td>
+        </tr>
+        <tr>
+            <td style="font-weight: bold;">Conversation</td>
+            <td><a href="/admin/conversations/{{ job.conversation_id }}">{{ job.conversation_id[:8] }}...</a></td>
+        </tr>
+        <tr>
+            <td style="font-weight: bold;">Worker</td>
+            <td>{{ job.worker_id or '-' }}</td>
+        </tr>
+        <tr>
+            <td style="font-weight: bold;">Created</td>
+            <td>{{ job.created_at[:19] if job.created_at else '-' }}</td>
+        </tr>
+        <tr>
+            <td style="font-weight: bold;">Started</td>
+            <td>{{ job.started_at[:19] if job.started_at else '-' }}</td>
+        </tr>
+        <tr>
+            <td style="font-weight: bold;">Completed</td>
+            <td>{{ job.completed_at[:19] if job.completed_at else '-' }}</td>
+        </tr>
+    </table>
+
+    {% if job.message %}
+    <h3 style="margin-top: 20px; font-size: 14px; color: #64748b;">User Message</h3>
+    <div style="background: #f8fafc; padding: 15px; border-radius: 6px; margin-top: 10px;">
+        {{ job.message }}
+    </div>
+    {% endif %}
+
+    {% if job.result %}
+    <h3 style="margin-top: 20px; font-size: 14px; color: #64748b;">Result</h3>
+    <div style="background: #dcfce7; padding: 15px; border-radius: 6px; margin-top: 10px;">
+        {{ job.result }}
+    </div>
+    {% endif %}
+
+    {% if job.error %}
+    <h3 style="margin-top: 20px; font-size: 14px; color: #64748b;">Error</h3>
+    <div style="background: #fee2e2; padding: 15px; border-radius: 6px; margin-top: 10px;">
+        {{ job.error }}
+    </div>
+    {% endif %}
+</div>
+
+<div class="card">
+    <h2>Activity Log ({{ activities|length }} events)</h2>
+
+    {% if activities %}
+    {% for a in activities %}
+    <div class="activity activity-{{ a.type }}{% if a.is_error %} activity-error{% endif %}">
+        <div class="activity-header">
+            <span class="badge {% if a.type == 'tool_call' %}badge-yellow{% elif a.type == 'tool_result' %}badge-green{% elif a.type == 'llm_call' %}badge-blue{% elif a.type == 'thinking' %}badge-purple{% elif a.type == 'routing' %}badge-gray{% elif a.type in ('delegate_start', 'delegate_end') %}badge-yellow{% elif a.is_error %}badge-red{% else %}badge-gray{% endif %}">
+                {{ a.type }}
+            </span>
+            {% if a.tool_name %}
+            <code>{{ a.tool_name }}</code>
+            {% endif %}
+            <span style="color: #94a3b8; margin-left: 10px;">
+                {{ "%.3f"|format(a.timestamp) if a.timestamp else '' }}
+            </span>
+        </div>
+
+        {% if a.message %}
+        <div class="activity-message">{{ a.message }}</div>
+        {% endif %}
+
+        {% if a.detail %}
+        <details>
+            <summary style="cursor: pointer; color: #64748b; font-size: 12px; margin-top: 5px;">
+                Show detail ({{ a.detail|length }} chars)
+            </summary>
+            <div class="activity-detail">{{ a.detail }}</div>
+        </details>
+        {% endif %}
+    </div>
+    {% endfor %}
+    {% else %}
+    <div class="empty">
+        No activities recorded for this job.
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

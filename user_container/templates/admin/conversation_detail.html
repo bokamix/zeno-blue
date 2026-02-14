@@ -1,0 +1,131 @@
+{% extends "admin/base.html" %}
+
+{% block title %}Conversation {{ conversation.id[:8] }}{% endblock %}
+
+{% block content %}
+<a href="/admin/conversations" class="back-link">&larr; Back to conversations</a>
+
+<div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 10px;">
+    <h1 style="font-size: 24px; margin: 0;">Conversation Detail</h1>
+    <div style="display: flex; gap: 8px;">
+        <button class="btn btn-primary" onclick="copyExport('md')">Copy MD</button>
+        <button class="btn btn-secondary" onclick="copyExport('json')">Copy JSON</button>
+        <script>
+        async function copyExport(format) {
+            const btn = event.target;
+            const originalText = btn.textContent;
+            btn.textContent = 'Copying...';
+            btn.disabled = true;
+            try {
+                const response = await fetch('/admin/conversations/{{ conversation.id }}/export.' + format);
+                const text = await response.text();
+                await navigator.clipboard.writeText(text);
+                btn.textContent = 'Copied!';
+                setTimeout(() => { btn.textContent = originalText; btn.disabled = false; }, 1500);
+            } catch (err) {
+                btn.textContent = 'Error!';
+                setTimeout(() => { btn.textContent = originalText; btn.disabled = false; }, 1500);
+                console.error('Copy failed:', err);
+            }
+        }
+        </script>
+    </div>
+</div>
+<p style="margin-bottom: 20px; color: #64748b;">
+    <code>{{ conversation.id }}</code>
+    &middot; Created: {{ conversation.created_at[:19] if conversation.created_at else '-' }}
+    &middot; {{ messages|length }} messages
+</p>
+
+{% if jobs %}
+<div class="card" style="margin-bottom: 20px;">
+    <h2>Related Jobs</h2>
+    <table>
+        <thead>
+            <tr>
+                <th>Job ID</th>
+                <th>Status</th>
+                <th>Created</th>
+                <th>Completed</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for job in jobs %}
+            <tr>
+                <td>
+                    <a href="/admin/jobs/{{ job.id }}">
+                        <code>{{ job.id[:8] }}...</code>
+                    </a>
+                </td>
+                <td>
+                    {% if job.status == 'completed' %}
+                    <span class="badge badge-green">{{ job.status }}</span>
+                    {% elif job.status == 'failed' %}
+                    <span class="badge badge-red">{{ job.status }}</span>
+                    {% elif job.status == 'running' %}
+                    <span class="badge badge-blue">{{ job.status }}</span>
+                    {% else %}
+                    <span class="badge badge-gray">{{ job.status }}</span>
+                    {% endif %}
+                </td>
+                <td>{{ job.created_at[:19] if job.created_at else '-' }}</td>
+                <td>{{ job.completed_at[:19] if job.completed_at else '-' }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endif %}
+
+<div class="card">
+    <h2>Full Message Log</h2>
+
+    {% if messages %}
+    {% for msg in messages %}
+    <div class="msg {% if msg.internal %}msg-internal{% elif msg.thinking %}msg-thinking{% elif msg.tool_calls_parsed %}msg-tool-call{% elif msg.role == 'tool' %}msg-tool-result{% elif msg.role == 'user' %}msg-user{% elif msg.role == 'assistant' %}msg-assistant{% else %}msg-gray{% endif %}">
+        <div class="msg-header">
+            <span>
+                <strong>{{ msg.role }}</strong>
+                {% if msg.internal %}<span class="badge badge-red">internal</span>{% endif %}
+                {% if msg.thinking %}<span class="badge badge-purple">thinking</span>{% endif %}
+                {% if msg.tool_calls_parsed %}<span class="badge badge-yellow">tool_call</span>{% endif %}
+                {% if msg.tool_call_id %}<span class="badge badge-gray">tool_call_id: {{ msg.tool_call_id[:20] }}...</span>{% endif %}
+            </span>
+            <span>{{ msg.created_at[:19] if msg.created_at else '' }}</span>
+        </div>
+
+        {% if msg.thinking %}
+        <details style="margin-bottom: 10px;">
+            <summary style="cursor: pointer; color: #7c3aed;">Thinking (click to expand)</summary>
+            <div class="msg-content" style="margin-top: 10px; background: rgba(0,0,0,0.03); padding: 10px; border-radius: 4px;">{{ msg.thinking }}</div>
+        </details>
+        {% endif %}
+
+        {% if msg.tool_calls_parsed %}
+        <div style="margin-bottom: 10px;">
+            <strong>Tool Calls:</strong>
+            {% for tc in msg.tool_calls_parsed %}
+            <div style="margin-top: 5px; padding: 10px; background: rgba(0,0,0,0.03); border-radius: 4px;">
+                <code>{{ tc.function.name if tc.function else tc.name }}</code>
+                {% if tc.function and tc.function.arguments %}
+                <pre style="margin-top: 5px; font-size: 11px;">{{ tc.function.arguments }}</pre>
+                {% elif tc.arguments %}
+                <pre style="margin-top: 5px; font-size: 11px;">{{ tc.arguments }}</pre>
+                {% endif %}
+            </div>
+            {% endfor %}
+        </div>
+        {% endif %}
+
+        {% if msg.content %}
+        <div class="msg-content">{{ msg.content }}</div>
+        {% endif %}
+    </div>
+    {% endfor %}
+    {% else %}
+    <div class="empty">
+        No messages in this conversation.
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

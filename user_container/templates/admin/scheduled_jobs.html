@@ -1,0 +1,63 @@
+{% extends "admin/base.html" %}
+
+{% block title %}Scheduled Jobs{% endblock %}
+
+{% block content %}
+<h1 style="margin-bottom: 20px; font-size: 24px;">Scheduled Jobs</h1>
+
+<div class="card">
+    {% if jobs %}
+    <table>
+        <thead>
+            <tr>
+                <th>Name</th>
+                <th>Schedule</th>
+                <th>Status</th>
+                <th>Last Run</th>
+                <th>Next Run</th>
+                <th>Runs</th>
+                <th>Prompt</th>
+                <th>Conversation</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for job in jobs %}
+            <tr>
+                <td><strong>{{ job.name }}</strong></td>
+                <td>
+                    <code>{{ job.cron_expression }}</code>
+                    {% if job.schedule_description %}
+                    <br><small style="color: #64748b;">{{ job.schedule_description }}</small>
+                    {% endif %}
+                </td>
+                <td>
+                    {% if job.is_enabled %}
+                    <span class="badge badge-green">Enabled</span>
+                    {% else %}
+                    <span class="badge badge-gray">Disabled</span>
+                    {% endif %}
+                </td>
+                <td>{{ job.last_run_at[:16] if job.last_run_at else '-' }}</td>
+                <td>{{ job.next_run_at[:16] if job.next_run_at else '-' }}</td>
+                <td>{{ job.run_count }}</td>
+                <td>
+                    <div class="truncate" title="{{ job.prompt }}">
+                        {{ job.prompt[:50] }}{% if job.prompt|length > 50 %}...{% endif %}
+                    </div>
+                </td>
+                <td>
+                    <a href="/admin/conversations/{{ job.conversation_id }}">
+                        {{ job.conversation_id[:8] }}...
+                    </a>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    {% else %}
+    <div class="empty">
+        No scheduled jobs created yet.
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

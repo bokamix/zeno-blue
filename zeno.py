@@ -1,0 +1,149 @@
+#!/usr/bin/env python3
+"""ZENO - Your personal AI agent. One command to run everything."""
+import os
+import sys
+import subprocess
+import shutil
+import webbrowser
+import threading
+from pathlib import Path
+
+# When bundled with PyInstaller, resources are in sys._MEIPASS
+# When running from source, they're in the script's directory
+BUNDLED = getattr(sys, 'frozen', False)
+if BUNDLED:
+    BUNDLE_DIR = Path(sys._MEIPASS)
+    ROOT = BUNDLE_DIR
+else:
+    ROOT = Path(__file__).parent.resolve()
+
+VENV_DIR = Path.home() / ".zeno" / "venv"
+
+
+def main():
+    # In bundled mode, skip venv/deps/frontend - everything is included
+    if not BUNDLED:
+        _ensure_venv()
+        _ensure_python_deps()
+        _ensure_frontend()
+
+    print("🚀 Starting ZENO...\n")
+
+    # Setup data directories
+    data_dir = Path.home() / ".zeno"
+    data_dir.mkdir(exist_ok=True)
+    (data_dir / "data").mkdir(exist_ok=True)
+    (data_dir / "workspace").mkdir(exist_ok=True)
+    (data_dir / "workspace" / "artifacts").mkdir(exist_ok=True)
+
+    # Set env defaults
+    os.environ.setdefault("DATA_DIR", str(data_dir / "data"))
+    os.environ.setdefault("WORKSPACE_DIR", str(data_dir / "workspace"))
+    os.environ.setdefault("ARTIFACTS_DIR", str(data_dir / "workspace" / "artifacts"))
+    os.environ.setdefault("DB_PATH", str(data_dir / "data" / "runtime.db"))
+    os.environ.setdefault("SKILLS_DIR", str(ROOT / "user_container" / "skills"))
+
+    # Load user config (only ~/.zeno/.env — setup screen saves API key here)
+    env_file = data_dir / ".env"
+    if env_file.exists():
+        _load_dotenv(env_file)
+
+    port = int(os.environ.get("ZENO_PORT", "18000"))
+    host = os.environ.get("ZENO_HOST", "127.0.0.1")
+
+    print(f"✅ ZENO running at http://{host}:{port}")
+    print("   Opening browser...\n")
+
+    threading.Timer(1.5, lambda: webbrowser.open(f"http://{host}:{port}")).start()
+
+    import uvicorn
+    uvicorn.run(
+        "user_container.app:app",
+        host=host,
+        port=port,
+        log_level="info",
+    )
+
+
+# --- Bootstrap (source mode only) ---
+
+def _ensure_venv():
+    """Create venv and re-exec inside it if not already in one."""
+    if sys.prefix != sys.base_prefix:
+        return
+
+    if sys.version_info < (3, 10):
+        print("❌ Python >= 3.10 required (you have {}.{}).".format(*sys.version_info[:2]))
+        print("   Run ./start.sh instead, or: brew install python@3.12")
+        sys.exit(1)
+
+    venv_python = VENV_DIR / "bin" / "python"
+
+    if not venv_python.exists():
+        print("📦 Creating virtual environment (~/.zeno/venv)...")
+        VENV_DIR.parent.mkdir(parents=True, exist_ok=True)
+        subprocess.check_call([sys.executable, "-m", "venv", str(VENV_DIR)])
+        subprocess.check_call([str(venv_python), "-m", "pip", "install", "--upgrade", "pip", "-q"])
+        print("   Done.\n")
+
+    os.execv(str(venv_python), [str(venv_python), str(ROOT / "zeno.py")] + sys.argv[1:])
+
+
+def _ensure_python_deps():
+    """Install Python deps if missing."""
+    try:
+        import uvicorn, fastapi, anthropic  # noqa: F401,E401
+    except ImportError:
+        print("📦 Installing Python dependencies...")
+        subprocess.check_call([sys.executable, "-m", "pip", "install", "-r", str(ROOT / "requirements.txt"), "-q"])
+        print("   Done.\n")
+
+
+def _ensure_frontend():
+    """Build frontend if dist/ doesn't exist."""
+    dist = ROOT / "frontend" / "dist"
+    if dist.exists() and any(dist.iterdir()):
+        return
+
+    frontend = ROOT / "frontend"
+    if not (frontend / "package.json").exists():
+        return
+
+    npm = shutil.which("npm")
+    if not npm:
+        print("⚠️  npm not found - skipping frontend build.")
+        print("   Install Node.js: brew install node\n")
+        return
+
+    if not (frontend / "node_modules").exists():
+        print("📦 Installing frontend dependencies...")
+        subprocess.check_call([npm, "install"], cwd=str(frontend))
+
+    print("🔨 Building frontend...")
+    subprocess.check_call([npm, "run", "build"], cwd=str(frontend))
+    print("   Done.\n")
+
+
+def _load_dotenv(path: Path):
+    """Simple .env loader."""
+    with open(path) as f:
+        for line in f:
+            line = line.strip()
+            if not line or line.startswith("#"):
+                continue
+            if "=" in line:
+                key, _, value = line.partition("=")
+                value = value.strip()
+                # Strip quotes first
+                if (value.startswith('"') and value.endswith('"')) or \
+                   (value.startswith("'") and value.endswith("'")):
+                    value = value[1:-1]
+                else:
+                    # Strip inline comments (only for unquoted values)
+                    if " #" in value:
+                        value = value[:value.index(" #")].rstrip()
+                os.environ.setdefault(key.strip(), value)
+
+
+if __name__ == "__main__":
+    main()

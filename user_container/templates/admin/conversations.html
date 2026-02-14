@@ -1,0 +1,66 @@
+{% extends "admin/base.html" %}
+
+{% block title %}Conversations{% endblock %}
+
+{% block content %}
+<h1 style="margin-bottom: 20px; font-size: 24px;">Conversations</h1>
+
+<div class="card">
+    {% if conversations %}
+    <table>
+        <thead>
+            <tr>
+                <th>ID</th>
+                <th>First Message</th>
+                <th>Msgs</th>
+                <th>Agent</th>
+                <th>Delegate</th>
+                <th>Explore</th>
+                <th>Total</th>
+                <th>Last Activity</th>
+                <th>Created</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for conv in conversations %}
+            <tr>
+                <td>
+                    <a href="/admin/conversations/{{ conv.id }}">
+                        <code>{{ conv.id[:8] }}...</code>
+                    </a>
+                </td>
+                <td>
+                    <div class="truncate" title="{{ conv.first_message or '' }}">
+                        {{ (conv.first_message or '-')[:60] }}{% if conv.first_message and conv.first_message|length > 60 %}...{% endif %}
+                    </div>
+                </td>
+                <td>{{ conv.message_count }}</td>
+                <td>${{ "%.2f"|format(conv.agent_cost) }} ({{ conv.agent_calls }})</td>
+                <td>
+                    {% if conv.delegate_calls > 0 %}
+                        ${{ "%.2f"|format(conv.delegate_cost) }} ({{ conv.delegate_calls }})
+                    {% else %}
+                        -
+                    {% endif %}
+                </td>
+                <td>
+                    {% if conv.explore_calls > 0 %}
+                        ${{ "%.2f"|format(conv.explore_cost) }} ({{ conv.explore_calls }})
+                    {% else %}
+                        -
+                    {% endif %}
+                </td>
+                <td>${{ "%.2f"|format(conv.total_cost) }}</td>
+                <td>{{ conv.last_message_at[:16] if conv.last_message_at else '-' }}</td>
+                <td>{{ conv.created_at[:10] if conv.created_at else '-' }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    {% else %}
+    <div class="empty">
+        No conversations yet.
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

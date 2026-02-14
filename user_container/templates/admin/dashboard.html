@@ -1,0 +1,56 @@
+{% extends "admin/base.html" %}
+
+{% block title %}Dashboard{% endblock %}
+
+{% block content %}
+<h1 style="margin-bottom: 20px; font-size: 24px;">Dashboard</h1>
+
+<div class="stats-grid">
+    <div class="stat-card">
+        <div class="label">Conversations</div>
+        <div class="value">{{ stats.conversations }}</div>
+    </div>
+    <div class="stat-card">
+        <div class="label">Total Messages</div>
+        <div class="value">{{ stats.messages }}</div>
+    </div>
+    <div class="stat-card">
+        <div class="label">Jobs Completed</div>
+        <div class="value">{{ stats.jobs_completed }} <span class="suffix">/ {{ stats.jobs_total }}</span></div>
+    </div>
+    <div class="stat-card">
+        <div class="label">Jobs Failed</div>
+        <div class="value">{{ stats.jobs_failed }}</div>
+    </div>
+    <div class="stat-card">
+        <div class="label">Success Rate</div>
+        <div class="value">{{ stats.success_rate }}<span class="suffix">%</span></div>
+    </div>
+    <div class="stat-card">
+        <div class="label">Avg. Job Duration</div>
+        <div class="value">{{ stats.avg_duration }}<span class="suffix">s</span></div>
+    </div>
+    <div class="stat-card">
+        <div class="label">Scheduled Jobs</div>
+        <div class="value">{{ stats.scheduled_jobs }}</div>
+    </div>
+</div>
+
+<div class="card">
+    <h2>Quick Links</h2>
+    <ul style="list-style: none; padding: 0;">
+        <li style="margin-bottom: 10px;">
+            <a href="/admin/balance">Manage balance & topups</a>
+        </li>
+        <li style="margin-bottom: 10px;">
+            <a href="/admin/conversations">View all conversations</a>
+        </li>
+        <li style="margin-bottom: 10px;">
+            <a href="/admin/scheduled-jobs">View scheduled jobs</a>
+        </li>
+        <li>
+            <a href="/" target="_blank">Open Chat UI</a>
+        </li>
+    </ul>
+</div>
+{% endblock %}

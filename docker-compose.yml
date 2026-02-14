@@ -1,0 +1,38 @@
+version: "3.8"
+
+services:
+  app:
+    build:
+      context: .
+      args:
+        BUILD_VERSION: ${BUILD_VERSION:-dev}
+        BUILD_TIME: ${BUILD_TIME:-unknown}
+        GIT_HASH: ${GIT_HASH:-unknown}
+    container_name: zeno
+    ports:
+      - "18000:8000"
+    volumes:
+      - ./workspace:/workspace
+      - ./data:/data
+      - ./data/uv-cache:/home/sandbox/.cache/uv
+      - ./user_container:/app/user_container
+      - ./tests:/app/tests
+    env_file:
+      - .env
+    command: python -m uvicorn user_container.app:app --host 0.0.0.0 --port 8000 --reload --reload-dir user_container
+    # Resource management
+    deploy:
+      resources:
+        limits:
+          cpus: '2'
+          memory: 4G
+          pids: 500
+        reservations:
+          cpus: '0.5'
+          memory: 512M
+    ulimits:
+      nproc: 300
+      nofile:
+        soft: 1024
+        hard: 2048
+    restart: unless-stopped

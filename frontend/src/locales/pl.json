@@ -1,0 +1,417 @@
+{
+  "setup": {
+    "subtitle": "Skonfiguruj agenta AI, aby rozpocząć",
+    "provider": "Dostawca LLM",
+    "apiKey": "Klucz API",
+    "start": "Rozpocznij",
+    "saving": "Zapisywanie..."
+  },
+  "common": {
+    "loading": "Wczytywanie...",
+    "cancel": "Anuluj",
+    "close": "Zamknij",
+    "save": "Zapisz",
+    "saving": "Zapisywanie...",
+    "saved": "Zapisano",
+    "delete": "Usuń",
+    "download": "Pobierz",
+    "send": "Wyślij",
+    "stop": "Zatrzymaj",
+    "stopping": "Zatrzymywanie...",
+    "start": "Uruchom",
+    "restart": "Uruchom ponownie",
+    "connect": "Połącz",
+    "disconnect": "Rozłącz",
+    "enable": "Włącz",
+    "disable": "Wyłącz",
+    "done": "Gotowe.",
+    "and": "i",
+    "create": "Utwórz"
+  },
+  "nav": {
+    "apps": "Aplikacje",
+    "integrations": "Integracje",
+    "scheduler": "Harmonogram",
+    "settings": "Ustawienia",
+    "newChat": "Nowy czat",
+    "hideSidebar": "Ukryj pasek boczny",
+    "showSidebar": "Pokaż pasek boczny"
+  },
+  "sidebar": {
+    "files": "Pliki",
+    "chats": "Czaty",
+    "noFilesYet": "Brak plików",
+    "noConversations": "Brak rozmów",
+    "showMore": "+{count} więcej",
+    "showLess": "Pokaż mniej",
+    "scrollToTop": "Wróć na górę",
+    "emptyConversation": "Pusta rozmowa",
+    "dropFilesHere": "Upuść pliki tutaj",
+    "deleteConversation": "Usuń",
+    "archiveConversation": "Archiwizuj",
+    "renameConversation": "Zmień nazwę",
+    "enterName": "Wprowadź nazwę konwersacji",
+    "archived": "Archiwum",
+    "restore": "Przywróć",
+    "deletePermanently": "Usuń na zawsze",
+    "confirmDelete": "Czy na pewno chcesz usunąć tę konwersację?",
+    "confirmDeletePermanent": "Czy na pewno chcesz trwale usunąć tę konwersację? Tej operacji nie można cofnąć.",
+    "deleteFile": "Usuń",
+    "renameFile": "Zmień nazwę",
+    "confirmDeleteFile": "Czy na pewno chcesz usunąć '{name}'?",
+    "downloadAsZip": "Pobierz jako ZIP",
+    "createFolder": "Utwórz folder",
+    "createFile": "Utwórz plik",
+    "folderNamePlaceholder": "Nazwa folderu",
+    "fileNamePlaceholder": "plik.txt",
+    "fileNameHint": "Podaj rozszerzenie pliku",
+    "openInTab": "Otwarty w karcie",
+    "viewScheduler": "Pokaż szczegóły harmonogramu",
+    "storage": "Miejsce",
+    "storageUsed": "{used} z {total}"
+  },
+  "dates": {
+    "today": "Dziś",
+    "yesterday": "Wczoraj",
+    "thisWeek": "Ten tydzień",
+    "older": "Starsze"
+  },
+  "time": {
+    "now": "teraz",
+    "minutes": "{n}m",
+    "hours": "{n}h",
+    "days": "{n}d",
+    "yesterday": "Wczoraj"
+  },
+  "days": {
+    "monday": "Poniedziałek",
+    "tuesday": "Wtorek",
+    "wednesday": "Środa",
+    "thursday": "Czwartek",
+    "friday": "Piątek",
+    "saturday": "Sobota",
+    "sunday": "Niedziela"
+  },
+  "chat": {
+    "messagePlaceholder": "Napisz do ZENO...",
+    "scrollToBottom": "Przewiń na dół",
+    "files": "Pliki",
+    "dropFilesHere": "Upuść pliki tutaj",
+    "dropFilesOrImages": "Upuść pliki lub obrazy tutaj",
+    "removeAttachment": "Usuń załącznik",
+    "attachFiles": "Dołącz pliki",
+    "attachedFiles": "Załączone pliki:",
+    "uploadingFiles": "Wysyłanie plików...",
+    "newMessages": "Nowe wiadomości",
+    "markUnread": "Oznacz jako nieprzeczytane od tego miejsca",
+    "inputHint": {
+      "shiftEnter": "Shift + Enter",
+      "forNewLine": "nowa linia",
+      "atSymbol": "{'@'}",
+      "toMentionFiles": "oznacz pliki",
+      "dragAndDrop": "Możesz przeciągnąć, upuścić lub wkleić pliki tutaj"
+    },
+    "costTooltip": "Całkowity koszt tej konwersacji",
+    "automationStarted": "Automatyzacja uruchomiona w tle",
+    "editMessage": "Edytuj wiadomość"
+  },
+  "modals": {
+    "scheduledJobs": {
+      "title": "Zaplanowane zadania",
+      "noJobs": "Brak zaplanowanych zadań.",
+      "askAssistant": "Poproś asystenta o utworzenie cyklicznych zadań.",
+      "next": "Następne",
+      "runs": "Uruchomień",
+      "recentRuns": "Ostatnie uruchomienia",
+      "noRunsYet": "Brak uruchomień.",
+      "noPreview": "Brak podglądu",
+      "viewDetails": "Szczegóły",
+      "runNow": "Uruchom teraz",
+      "scheduledTask": "Zaplanowane zadanie"
+    },
+    "schedulerDetail": {
+      "title": "Szczegóły harmonogramu",
+      "whatItDoes": "Co robi",
+      "schedule": "Harmonogram",
+      "cronExpression": "Wyrażenie Cron",
+      "runsAt": "Kiedy",
+      "nextRun": "Następne uruchomienie",
+      "editSchedule": "Edytuj harmonogram",
+      "editPrompt": "Edytuj polecenie",
+      "promptPlaceholder": "Wprowadź polecenie dla zadania...",
+      "cronHint": "Format: minuta godzina dzień miesiąc dzień_tygodnia (np. 0 9 * * * codziennie o 9:00)",
+      "context": "Kontekst",
+      "steps": "Kroki",
+      "variables": "Zmienne",
+      "files": "Pliki",
+      "allRuns": "Wszystkie uruchomienia",
+      "noPreview": "Brak podglądu",
+      "noRunsYet": "Brak uruchomień. Harmonogram utworzy konwersacje po uruchomieniu.",
+      "totalRuns": "Łącznie uruchomień",
+      "lastRun": "Ostatnie uruchomienie",
+      "created": "Utworzono",
+      "deleteScheduler": "Usuń harmonogram",
+      "runNow": "Uruchom teraz",
+      "frequency": "Częstotliwość",
+      "everyMinutes": "Co X minut",
+      "interval": "Interwał",
+      "daily": "Codziennie",
+      "weekly": "Co tydzień",
+      "monthly": "Co miesiąc",
+      "customDays": "Wybrane dni",
+      "dayOfWeek": "Dzień tygodnia",
+      "dayOfMonth": "Dzień miesiąca",
+      "selectDays": "Wybierz dni",
+      "time": "Godzina",
+      "everyDay": "Codziennie o {time}",
+      "everyWeekday": "Co {day} o {time}",
+      "everyWeekdays": "Co {days} o {time}",
+      "everyMonthDay": "{day}. dnia miesiąca o {time}",
+      "everyXMinutes": "Co {minutes} minut(y)"
+    },
+    "integrations": {
+      "title": "Integracje",
+      "connected": "Połączone",
+      "available": "Dostępne",
+      "noIntegrations": "Brak dostępnych integracji.",
+      "configureOAuth": "Skonfiguruj dostawców OAuth w środowisku."
+    },
+    "apps": {
+      "title": "Aplikacje",
+      "noApps": "Brak uruchomionych aplikacji.",
+      "rename": "Zmień nazwę aplikacji",
+      "enterName": "Wprowadź nazwę aplikacji",
+      "confirmDelete": "Czy na pewno chcesz usunąć '{name}'? Tej operacji nie można cofnąć."
+    },
+    "settings": {
+      "title": "Ustawienia",
+      "manageAccount": "Zarządzaj kontem",
+      "manageAccountDesc": "Saldo, płatności i ustawienia konta",
+      "theme": "Motyw",
+      "themeDark": "Ciemny",
+      "themeLight": "Jasny",
+      "sidebar": "Pasek boczny",
+      "sidebarLeft": "Lewo",
+      "sidebarRight": "Prawo",
+      "language": "Język",
+      "prepaidBalance": "Saldo prepaid",
+      "contactAdmin": "Skontaktuj się z administratorem, aby doładować konto.",
+      "soundNotifications": "Powiadomienia dźwiękowe",
+      "soundOn": "Wł.",
+      "soundOff": "Wył.",
+      "modelProvider": "Model AI",
+      "preferences": "Preferencje",
+      "system": "System",
+      "restartContainer": "Restart kontenera",
+      "restartContainerDesc": "Uruchom ponownie kontener agenta",
+      "restarting": "Restartowanie...",
+      "restart": "Restart",
+      "signOut": "Wyloguj",
+      "signOutDesc": "Wyloguj się z konta",
+      "help": "Pomoc i wsparcie",
+      "helpDesc": "Napisz do nas, jeśli potrzebujesz pomocy",
+      "transactionHistory": "Historia transakcji",
+      "noTransactions": "Brak transakcji",
+      "transactionsError": "Nie udało się załadować transakcji",
+      "completed": "Zakończona"
+    },
+    "cancelConfirm": {
+      "title": "Zatrzymać wykonanie?",
+      "message": "Bieżące zadanie zostanie przerwane.",
+      "confirmButton": "Zatrzymaj"
+    }
+  },
+  "loading": {
+    "hideActivityLog": "Ukryj dziennik aktywności",
+    "showActivityLog": "Pokaż dziennik aktywności",
+    "stopExecution": "Zatrzymaj wykonanie",
+    "statusRunningCommand": "Uruchamiam komendę...",
+    "statusCreatingFile": "Tworzę plik...",
+    "statusSearchingWeb": "Przeszukuję internet...",
+    "statusThinking": "Myślę...",
+    "statusWorking": "Pracuję...",
+    "longThinkingHint": "Myślę trochę dłużej, ale to normalne. Możesz mieć wiele chatów działających jednocześnie.",
+    "createNewChat": "Stwórz nowy chat"
+  },
+  "activity": {
+    "runningCommand": "Uruchamiam: {cmd}",
+    "executingCommand": "Wykonuję polecenie...",
+    "creatingFile": "Tworzę: {file}",
+    "writingFile": "Zapisuję plik...",
+    "editingFile": "Edytuję: {file}",
+    "readingFile": "Czytam: {file}",
+    "listingDirectory": "Przeglądam pliki...",
+    "searchingFiles": "Przeszukuję pliki...",
+    "fetchingWeb": "Pobieram stronę...",
+    "searchingWeb": "Przeszukuję internet...",
+    "searchingKnowledge": "Przeszukuję bazę wiedzy...",
+    "askingUser": "Czekam na odpowiedź...",
+    "delegatingTask": "Deleguję podzadanie...",
+    "exploringCode": "Eksploruję kod...",
+    "thinking": "Myślę...",
+    "planning": "Planuję podejście...",
+    "analyzing": "Analizuję zapytanie...",
+    "working": "Pracuję..."
+  },
+  "prompts": {
+    "question": {
+      "needsInput": "Zeno potrzebuje Twojej odpowiedzi",
+      "customAnswer": "Lub wpisz własną odpowiedź...",
+      "typeAnswer": "Wpisz odpowiedź..."
+    },
+    "oauth": {
+      "title": "Wymagana autoryzacja",
+      "defaultReason": "Ta akcja wymaga autoryzacji dostępu.",
+      "loginWith": "Zaloguj przez {provider}",
+      "popupNote": "Otworzy się okno autoryzacji. Po zakończeniu asystent automatycznie kontynuuje."
+    }
+  },
+  "pwa": {
+    "install": {
+      "title": "Zainstaluj ZENO",
+      "clickIcon": "Kliknij ikonę",
+      "shareIcon": "Share",
+      "icon": "",
+      "scrollAndSelect": "Przewiń i wybierz",
+      "addToHomeScreen": "Dodaj do ekranu początkowego",
+      "understood": "Rozumiem",
+      "androidDescription": "Dodaj aplikację do ekranu głównego dla szybkiego dostępu",
+      "notNow": "Nie teraz",
+      "installButton": "Zainstaluj"
+    }
+  },
+  "emptyState": {
+    "loading": "Wczytywanie...",
+    "heroAutomate": "Automatyzuj",
+    "heroAnything": "wszystko.",
+    "heroWords": ["maile", "raporty", "spotkania", "zadania", "wszystko"],
+    "tryExample": "Wypróbuj przykład"
+  },
+  "suggestions": {
+    "whileYouWait": "W międzyczasie możesz:",
+    "continueWith": "Kontynuuj:",
+    "thinking": "Myślę",
+    "searching": "Szukam",
+    "delegating": "Deleguję",
+    "startedInBackground": "Uruchomiono w tle - sprawdź pasek boczny",
+    "buttonCollapsed": "Co mogę zrobić?",
+    "buttonExpanded": "Oszczędzę ci czas codziennie",
+    "business": {
+      "label": "Zbuduj biznes online",
+      "prompt": "Chcę zbudować biznes online. Przeprowadź mnie przez cały proces krok po kroku:\n1. Zapytaj o moje umiejętności, doświadczenie i ile czasu mogę poświęcić\n2. Na tej podstawie zaproponuj 3 konkretne pomysły na biznes\n3. Pomóż mi wybrać jeden - zadaj pytania które pomogą mi zdecydować\n4. Zwaliduj pomysł - znajdź konkurencję, oceń potencjał\n5. Na koniec stwórz landing page dla tego biznesu\n\nZaczynaj od pierwszego kroku."
+    },
+    "social": {
+      "label": "Co mówią o mojej firmie?",
+      "prompt": "Chcę wiedzieć co ludzie mówią o mojej firmie w internecie. Zapytaj mnie o nazwę firmy i produkty, a potem przeszukaj Twitter, Reddit, fora i inne źródła. Zrób podsumowanie: co ludzie chwalą, na co narzekają, jakie mają pytania."
+    },
+    "landing": {
+      "label": "Przeanalizuj mój landing page",
+      "prompt": "Potrzebuję wariantów headline'a do testów A/B na moim landing page. Zapytaj mnie o adres strony, przeanalizuj ją, a potem zaproponuj 10 różnych wariantów nagłówka - od bezpiecznych po odważne."
+    },
+    "plan": {
+      "label": "Zaplanuj mi dzień",
+      "prompt": "Zaplanuj mi dzisiejszy dzień. Sprawdź moje maile i kalendarz, zobacz co mam do zrobienia i powiedz mi:\n- Co jest dziś najpilniejsze\n- Co mogę przełożyć\n- Zaproponuj kolejność działań"
+    },
+    "marketing": {
+      "label": "Strategia marketingowa",
+      "prompt": "Pomóż mi zaplanować strategię marketingową dla mojej firmy. Zacznij od pytań:\n- Czym się zajmuję i co sprzedaję\n- Kto jest moim klientem\n- Jaki mam budżet i czas\n- Co już próbowałem\n\nNa tej podstawie zaproponuj konkretny plan działań na najbliższy miesiąc z priorytetami."
+    },
+    "presentation": {
+      "label": "Zrób prezentację",
+      "prompt": "Pomóż mi stworzyć prezentację. Wypytaj mnie najpierw:\n- Jaki jest cel prezentacji i dla kogo\n- Co chcę przekazać (główne punkty)\n- Ile slajdów potrzebuję\n- Jaki styl (formalny, kreatywny, minimalistyczny)\n\nPotem stwórz prezentację według moich wytycznych."
+    }
+  },
+  "capabilities": {
+    "business": {
+      "label": "Zbuduj biznes",
+      "description": "Pomysły, walidacja, landing page",
+      "prompt": "Chcę zbudować biznes online. Przeprowadź mnie przez cały proces krok po kroku:\n1. Zapytaj o moje umiejętności, doświadczenie i ile czasu mogę poświęcić\n2. Na tej podstawie zaproponuj 3 konkretne pomysły na biznes\n3. Pomóż mi wybrać jeden - zadaj pytania które pomogą mi zdecydować\n4. Zwaliduj pomysł - znajdź konkurencję, oceń potencjał\n5. Na koniec stwórz landing page dla tego biznesu\n\nZaczynaj od pierwszego kroku."
+    },
+    "social": {
+      "label": "Monitoring marki",
+      "description": "Co ludzie mówią o Twojej firmie",
+      "prompt": "Chcę wiedzieć co ludzie mówią o mojej firmie w internecie. Zapytaj mnie o nazwę firmy i produkty, a potem przeszukaj Twitter, Reddit, fora i inne źródła. Zrób podsumowanie: co ludzie chwalą, na co narzekają, jakie mają pytania."
+    },
+    "landing": {
+      "label": "Analizuj stronę",
+      "description": "Warianty nagłówków do testów A/B",
+      "prompt": "Potrzebuję wariantów headline'a do testów A/B na moim landing page. Zapytaj mnie o adres strony, przeanalizuj ją, a potem zaproponuj 10 różnych wariantów nagłówka - od bezpiecznych po odważne."
+    },
+    "plan": {
+      "label": "Zaplanuj dzień",
+      "description": "Sprawdź kalendarz, ustal priorytety",
+      "prompt": "Zaplanuj mi dzisiejszy dzień. Sprawdź moje maile i kalendarz, zobacz co mam do zrobienia i powiedz mi:\n- Co jest dziś najpilniejsze\n- Co mogę przełożyć\n- Zaproponuj kolejność działań"
+    },
+    "marketing": {
+      "label": "Plan marketingowy",
+      "description": "Strategia i działania na miesiąc",
+      "prompt": "Pomóż mi zaplanować strategię marketingową dla mojej firmy. Zacznij od pytań:\n- Czym się zajmuję i co sprzedaję\n- Kto jest moim klientem\n- Jaki mam budżet i czas\n- Co już próbowałem\n\nNa tej podstawie zaproponuj konkretny plan działań na najbliższy miesiąc z priorytetami."
+    },
+    "presentation": {
+      "label": "Zrób slajdy",
+      "description": "Stwórz prezentację od zera",
+      "prompt": "Pomóż mi stworzyć prezentację. Wypytaj mnie najpierw:\n- Jaki jest cel prezentacji i dla kogo\n- Co chcę przekazać (główne punkty)\n- Ile slajdów potrzebuję\n- Jaki styl (formalny, kreatywny, minimalistyczny)\n\nPotem stwórz prezentację według moich wytycznych."
+    }
+  },
+  "errors": {
+    "insufficientBalance": {
+      "title": "Brak środków",
+      "message": "Twój prepaid balance został wyczerpany. Skontaktuj się z administratorem, aby doładować konto."
+    },
+    "executionStopped": "Wykonanie zatrzymane przez użytkownika",
+    "error": "Błąd",
+    "uploadError": "Błąd przesyłania",
+    "deleteError": "Błąd usuwania",
+    "archiveError": "Nie udało się zarchiwizować konwersacji",
+    "restoreError": "Nie udało się przywrócić konwersacji",
+    "serverUnavailable": {
+      "title": "Serwer niedostępny",
+      "message": "Nie można połączyć z serwerem. Sprawdź połączenie.",
+      "retry": "Spróbuj ponownie"
+    }
+  },
+  "confirmations": {
+    "deleteJob": "Czy na pewno chcesz usunąć to zaplanowane zadanie?",
+    "disconnectProvider": "Rozłączyć {provider}?"
+  },
+  "language": {
+    "en": "English",
+    "pl": "Polski"
+  },
+  "toast": {
+    "fileDeleted": "Plik usunięty",
+    "fileUploaded": "Plik przesłany",
+    "folderCreated": "Folder utworzony",
+    "fileCreated": "Plik utworzony",
+    "fileMoved": "Plik przeniesiony",
+    "fileRenamed": "Nazwa zmieniona",
+    "conversationDeleted": "Konwersacja usunięta",
+    "conversationArchived": "Konwersacja zarchiwizowana",
+    "conversationRestored": "Konwersacja przywrócona"
+  },
+  "update": {
+    "pending_with_jobs": "Aktualizacja oczekuje. Zostanie zastosowana po zakończeniu bieżącego zadania ({jobs} aktywne)...",
+    "in_progress": "Aktualizowanie... Proszę czekać."
+  },
+  "viewer": {
+    "showCode": "Pokaż kod",
+    "hideCode": "Schowaj kod"
+  },
+  "delegates": {
+    "hired": "Zatrudniono {count} agenta | Zatrudniono {count} agentów",
+    "working": "{count} pracuje"
+  },
+  "topUp": {
+    "title": "Doładuj saldo",
+    "addFunds": "Doładuj",
+    "processing": "Przetwarzanie...",
+    "securedByPolar": "Zabezpieczone przez Polar",
+    "polarDescription": "Zostaniesz przekierowany do naszego dostawcy płatności.",
+    "goToCheckout": "Przejdź do płatności",
+    "success": "Płatność zakończona! Twoje saldo zostało zaktualizowane.",
+    "successPending": "Płatność przyjęta! Saldo zaktualizuje się za chwilę...",
+    "balanceUpdated": "Twoje saldo zostało zaktualizowane!",
+    "cancelled": "Płatność anulowana.",
+    "loadError": "Nie udało się załadować płatności. Spróbuj ponownie."
+  }
+}
