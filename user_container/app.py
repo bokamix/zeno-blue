@@ -1916,6 +1916,77 @@ async def update_settings(payload: dict):
     }
 
 
+ALLOWED_API_KEYS = {
+    "anthropic_api_key": "ANTHROPIC_API_KEY",
+    "openai_api_key": "OPENAI_API_KEY",
+    "serper_api_key": "SERPER_API_KEY",
+}
+
+
+def _mask_key(key: str) -> str:
+    """Mask an API key showing first 6 and last 4 chars."""
+    if not key or len(key) < 12:
+        return "***"
+    return key[:6] + "..." + key[-4:]
+
+
+@app.get("/settings/api-keys")
+async def get_api_keys():
+    """Get API key status (configured or not) with masked preview."""
+    keys = {}
+    for key_name, env_name in ALLOWED_API_KEYS.items():
+        value = getattr(settings, key_name, None)
+        keys[key_name] = {
+            "configured": bool(value),
+            "masked": _mask_key(value) if value else None,
+        }
+    return {"keys": keys}
+
+
+@app.put("/settings/api-keys")
+async def update_api_keys(payload: dict):
+    """Save API keys to ~/.zeno/.env and update in-memory settings."""
+    # Validate: only accept known key names
+    for key_name in payload:
+        if key_name not in ALLOWED_API_KEYS:
+            raise HTTPException(status_code=400, detail=f"Unknown key: {key_name}")
+
+    # Read existing .env
+    config_dir = Path(os.environ.get("ZENO_CONFIG_DIR", Path.home() / ".zeno"))
+    config_dir.mkdir(parents=True, exist_ok=True)
+    env_path = config_dir / ".env"
+
+    env_var_names_to_update = {ALLOWED_API_KEYS[k] for k in payload}
+
+    env_lines = []
+    if env_path.exists():
+        with open(env_path) as f:
+            for line in f:
+                stripped = line.strip()
+                # Skip lines for keys we're updating
+                if any(stripped.startswith(f"{env_name}=") for env_name in env_var_names_to_update):
+                    continue
+                env_lines.append(line.rstrip("\n"))
+
+    # Add new key values
+    for key_name, value in payload.items():
+        value = value.strip() if isinstance(value, str) else ""
+        env_name = ALLOWED_API_KEYS[key_name]
+        if value:
+            env_lines.append(f"{env_name}={value}")
+            # Update in-memory settings
+            setattr(settings, key_name, value)
+        else:
+            # Empty value = remove key
+            setattr(settings, key_name, None)
+
+    with open(env_path, "w") as f:
+        f.write("\n".join(env_lines) + "\n")
+
+    log(f"[Settings] Updated API keys: {list(payload.keys())}")
+    return {"status": "ok"}
+
+
 @app.get("/settings/validate-provider")
 async def validate_provider(provider: str):
     """

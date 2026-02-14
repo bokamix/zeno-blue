@@ -213,7 +213,17 @@
       "transactionHistory": "Historia transakcji",
       "noTransactions": "Brak transakcji",
       "transactionsError": "Nie udało się załadować transakcji",
-      "completed": "Zakończona"
+      "completed": "Zakończona",
+      "apiKeys": "Klucze API",
+      "apiKeyConfigured": "Skonfigurowany",
+      "apiKeyNotSet": "Nie ustawiony",
+      "apiKeyChange": "Zmień",
+      "apiKeySave": "Zapisz",
+      "apiKeySaved": "Klucz zapisany",
+      "apiKeyError": "Nie udało się zapisać klucza",
+      "anthropicApiKey": "Anthropic API Key",
+      "openaiApiKey": "OpenAI API Key",
+      "serperApiKey": "Klucz Serper API (Wyszukiwarka)"
     },
     "cancelConfirm": {
       "title": "Zatrzymać wykonanie?",

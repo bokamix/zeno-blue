@@ -80,6 +80,7 @@ def _ensure_venv():
         subprocess.check_call(["uv", "venv", "--python", "3.12", str(VENV_DIR)])
         print("   Done.\n")
 
+    os.environ["VIRTUAL_ENV"] = str(VENV_DIR)
     os.execv(str(venv_python), [str(venv_python), str(ROOT / "zeno.py")] + sys.argv[1:])
 
 

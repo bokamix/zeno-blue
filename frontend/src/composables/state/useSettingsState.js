@@ -11,6 +11,8 @@ const modelProvider = ref('anthropic')  // "anthropic" or "openai"
 const modelProviderLoading = ref(false)
 const modelProviderError = ref(null)
 const checkoutAvailable = ref(false)
+const apiKeys = ref({})
+const apiKeysLoading = ref(false)
 
 export function useSettingsState() {
     // Apply theme to document
@@ -151,6 +153,41 @@ export function useSettingsState() {
         }
     }
 
+    // Load API key statuses from backend
+    const loadApiKeys = async () => {
+        apiKeysLoading.value = true
+        try {
+            const res = await fetch('/settings/api-keys')
+            if (res.ok) {
+                const data = await res.json()
+                apiKeys.value = data.keys || {}
+            }
+        } catch (e) {
+            console.error('Failed to load API keys', e)
+        } finally {
+            apiKeysLoading.value = false
+        }
+    }
+
+    // Save a single API key
+    const saveApiKey = async (keyName, value) => {
+        try {
+            const res = await fetch('/settings/api-keys', {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ [keyName]: value })
+            })
+            if (res.ok) {
+                await loadApiKeys()
+                return true
+            }
+            return false
+        } catch (e) {
+            console.error('Failed to save API key', e)
+            return false
+        }
+    }
+
     // Load all settings from localStorage
     const loadSettings = () => {
         loadTheme()
@@ -171,6 +208,8 @@ export function useSettingsState() {
         modelProviderLoading,
         modelProviderError,
         checkoutAvailable,
+        apiKeys,
+        apiKeysLoading,
 
         // Actions
         applyTheme,
@@ -185,6 +224,8 @@ export function useSettingsState() {
         loadModelProvider,
         setModelProvider,
         validateApiKey,
+        loadApiKeys,
+        saveApiKey,
         loadSettings
     }
 }

@@ -159,6 +159,88 @@
                     </div>
                 </div>
 
+                <!-- API Keys Section (Collapsible) -->
+                <div class="border-b border-[var(--border-subtle)]">
+                    <button
+                        @click="apiKeysExpanded = !apiKeysExpanded; if (apiKeysExpanded) loadApiKeys()"
+                        class="w-full flex items-center justify-between py-3 text-left"
+                    >
+                        <div class="flex items-center gap-3">
+                            <div class="p-2 rounded-lg bg-violet-500/20">
+                                <KeyRound class="w-4 h-4 text-violet-400" />
+                            </div>
+                            <span class="text-sm text-[var(--text-primary)]">{{ $t('modals.settings.apiKeys') }}</span>
+                        </div>
+                        <ChevronDown
+                            class="w-4 h-4 text-zinc-400 transition-transform"
+                            :class="{ 'rotate-180': apiKeysExpanded }"
+                        />
+                    </button>
+
+                    <div v-show="apiKeysExpanded" class="pl-4 pb-3 space-y-2">
+                        <!-- Status message -->
+                        <p v-if="apiKeySaveStatus === 'success'" class="text-xs text-green-400 mb-1">{{ $t('modals.settings.apiKeySaved') }}</p>
+                        <p v-if="apiKeySaveStatus === 'error'" class="text-xs text-red-400 mb-1">{{ $t('modals.settings.apiKeyError') }}</p>
+
+                        <div v-for="keyDef in API_KEY_DEFS" :key="keyDef.name" class="py-2">
+                            <div class="flex items-center justify-between">
+                                <div class="flex items-center gap-3 min-w-0">
+                                    <div class="p-1.5 rounded-lg" :class="keyDef.iconBg">
+                                        <KeyRound class="w-3.5 h-3.5" :class="keyDef.iconText" />
+                                    </div>
+                                    <div class="min-w-0">
+                                        <span class="text-sm text-[var(--text-secondary)] block">{{ $t('modals.settings.' + keyDef.label) }}</span>
+                                        <span v-if="apiKeys[keyDef.name]?.configured && editingKey !== keyDef.name" class="text-xs text-zinc-500 font-mono">{{ apiKeys[keyDef.name]?.masked }}</span>
+                                    </div>
+                                </div>
+                                <div class="flex items-center gap-2 flex-shrink-0">
+                                    <span v-if="apiKeys[keyDef.name]?.configured && editingKey !== keyDef.name"
+                                        class="px-2 py-0.5 text-[10px] rounded-full bg-green-500/20 text-green-400 font-medium">
+                                        {{ $t('modals.settings.apiKeyConfigured') }}
+                                    </span>
+                                    <span v-else-if="!apiKeys[keyDef.name]?.configured && editingKey !== keyDef.name"
+                                        class="px-2 py-0.5 text-[10px] rounded-full bg-zinc-500/20 text-zinc-400 font-medium">
+                                        {{ $t('modals.settings.apiKeyNotSet') }}
+                                    </span>
+                                    <button v-if="editingKey !== keyDef.name"
+                                        @click="startEditKey(keyDef.name)"
+                                        class="px-2.5 py-1 text-xs rounded-lg font-medium transition-all bg-white/10 text-zinc-300 hover:bg-white/20">
+                                        {{ apiKeys[keyDef.name]?.configured ? $t('modals.settings.apiKeyChange') : $t('modals.settings.apiKeySave') }}
+                                    </button>
+                                </div>
+                            </div>
+                            <!-- Edit mode -->
+                            <div v-if="editingKey === keyDef.name" class="mt-2 flex gap-2">
+                                <div class="relative flex-1">
+                                    <input
+                                        v-model="editKeyValue"
+                                        :type="showKeyValue ? 'text' : 'password'"
+                                        placeholder="sk-..."
+                                        class="w-full px-3 py-1.5 text-xs rounded-lg bg-[var(--bg-elevated)] text-[var(--text-primary)] border border-[var(--border-subtle)] outline-none focus:border-violet-500/50 font-mono pr-8"
+                                        @keydown.enter="handleSaveKey(keyDef.name)"
+                                        @keydown.escape="cancelEditKey"
+                                    />
+                                    <button @click="showKeyValue = !showKeyValue" class="absolute right-2 top-1/2 -translate-y-1/2 text-zinc-500 hover:text-zinc-300">
+                                        <Eye v-if="!showKeyValue" class="w-3.5 h-3.5" />
+                                        <EyeOff v-else class="w-3.5 h-3.5" />
+                                    </button>
+                                </div>
+                                <button
+                                    @click="handleSaveKey(keyDef.name)"
+                                    :disabled="savingKey || !editKeyValue.trim()"
+                                    class="px-3 py-1.5 text-xs rounded-lg font-medium transition-all bg-violet-500/20 text-violet-400 hover:bg-violet-500/30 disabled:opacity-50 disabled:cursor-not-allowed">
+                                    {{ $t('modals.settings.apiKeySave') }}
+                                </button>
+                                <button
+                                    @click="cancelEditKey"
+                                    class="px-3 py-1.5 text-xs rounded-lg font-medium transition-all bg-white/10 text-zinc-300 hover:bg-white/20">
+                                    {{ $t('common.cancel') }}
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
                 <!-- Help Button -->
                 <button
                     @click="openCrispChat"
@@ -238,7 +320,7 @@
 
 <script setup>
 import { ref, computed, onMounted, watch, inject } from 'vue'
-import { Settings, X, Sun, Moon, PanelLeft, PanelRight, Globe, RefreshCw, User, ExternalLink, Volume2, VolumeX, ChevronDown, Cpu, HelpCircle, MessageCircle, Plus, CreditCard, HardDrive } from 'lucide-vue-next'
+import { Settings, X, Sun, Moon, PanelLeft, PanelRight, Globe, RefreshCw, User, ExternalLink, Volume2, VolumeX, ChevronDown, Cpu, HelpCircle, MessageCircle, Plus, CreditCard, HardDrive, KeyRound, Check, Eye, EyeOff } from 'lucide-vue-next'
 import { useApi } from '../../composables/useApi'
 import { useSettingsState } from '../../composables/state'
 
@@ -286,12 +368,16 @@ const {
     modelProviderLoading,
     modelProviderError,
     checkoutAvailable,
+    apiKeys,
+    apiKeysLoading,
     toggleTheme,
     toggleSidebarPosition,
     toggleLanguage,
     toggleSound,
     setModelProvider,
-    validateApiKey
+    validateApiKey,
+    loadApiKeys,
+    saveApiKey
 } = useSettingsState()
 
 // Handle model provider change with validation
@@ -303,7 +389,51 @@ const handleModelProviderChange = async (provider) => {
 }
 
 const settingsExpanded = ref(true)
+const apiKeysExpanded = ref(false)
 const transactionsExpanded = ref(false)
+
+// API Keys editing state
+const editingKey = ref(null)
+const editKeyValue = ref('')
+const savingKey = ref(false)
+const apiKeySaveStatus = ref(null) // 'success' | 'error' | null
+const showKeyValue = ref(false)
+
+const API_KEY_DEFS = [
+    { name: 'anthropic_api_key', label: 'anthropicApiKey', iconBg: 'bg-orange-500/20', iconText: 'text-orange-400' },
+    { name: 'openai_api_key', label: 'openaiApiKey', iconBg: 'bg-emerald-500/20', iconText: 'text-emerald-400' },
+    { name: 'serper_api_key', label: 'serperApiKey', iconBg: 'bg-cyan-500/20', iconText: 'text-cyan-400' },
+]
+
+const startEditKey = (keyName) => {
+    editingKey.value = keyName
+    editKeyValue.value = ''
+    apiKeySaveStatus.value = null
+    showKeyValue.value = false
+}
+
+const cancelEditKey = () => {
+    editingKey.value = null
+    editKeyValue.value = ''
+    apiKeySaveStatus.value = null
+    showKeyValue.value = false
+}
+
+const handleSaveKey = async (keyName) => {
+    if (!editKeyValue.value.trim()) return
+    savingKey.value = true
+    apiKeySaveStatus.value = null
+    const ok = await saveApiKey(keyName, editKeyValue.value.trim())
+    savingKey.value = false
+    if (ok) {
+        apiKeySaveStatus.value = 'success'
+        editingKey.value = null
+        editKeyValue.value = ''
+        setTimeout(() => { apiKeySaveStatus.value = null }, 2000)
+    } else {
+        apiKeySaveStatus.value = 'error'
+    }
+}
 const transactions = ref([])
 const transactionsLoading = ref(false)
 const transactionsError = ref(false)

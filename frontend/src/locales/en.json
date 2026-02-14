@@ -213,7 +213,17 @@
       "transactionHistory": "Transaction History",
       "noTransactions": "No transactions yet",
       "transactionsError": "Failed to load transactions",
-      "completed": "Completed"
+      "completed": "Completed",
+      "apiKeys": "API Keys",
+      "apiKeyConfigured": "Configured",
+      "apiKeyNotSet": "Not set",
+      "apiKeyChange": "Change",
+      "apiKeySave": "Save",
+      "apiKeySaved": "Key saved",
+      "apiKeyError": "Failed to save key",
+      "anthropicApiKey": "Anthropic API Key",
+      "openaiApiKey": "OpenAI API Key",
+      "serperApiKey": "Serper API Key (Web Search)"
     },
     "cancelConfirm": {
       "title": "Stop execution?",
