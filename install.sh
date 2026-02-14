@@ -129,6 +129,23 @@ cat > "$ZENO_BIN/zeno" << 'LAUNCHER'
 #!/bin/bash
 ZENO_APP="$HOME/.zeno/app"
 
+find_python() {
+    for cmd in python3.13 python3.12 python3.11 python3.10 python3 python; do
+        if command -v "$cmd" &>/dev/null; then
+            version=$("$cmd" -c "import sys; print(f'{sys.version_info.major}.{sys.version_info.minor}')" 2>/dev/null)
+            if [ -n "$version" ]; then
+                major=$(echo "$version" | cut -d. -f1)
+                minor=$(echo "$version" | cut -d. -f2)
+                if [ "$major" -ge 3 ] && [ "$minor" -ge 10 ]; then
+                    echo "$cmd"
+                    return 0
+                fi
+            fi
+        fi
+    done
+    return 1
+}
+
 case "${1:-}" in
     update)
         echo ""
@@ -143,7 +160,13 @@ case "${1:-}" in
         echo ""
         ;;
     *)
-        exec python3 "$ZENO_APP/zeno.py" "$@"
+        PYTHON=$(find_python)
+        if [ -z "$PYTHON" ]; then
+            echo "  ❌ Python >= 3.10 not found."
+            echo "  Install: brew install python@3.12"
+            exit 1
+        fi
+        exec "$PYTHON" "$ZENO_APP/zeno.py" "$@"
         ;;
 esac
 LAUNCHER
