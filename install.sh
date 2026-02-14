@@ -6,7 +6,6 @@ ZENO_HOME="$HOME/.zeno"
 ZENO_APP="$ZENO_HOME/app"
 ZENO_BIN="$ZENO_HOME/bin"
 TARBALL_URL="https://github.com/bokamix/zeno-blue/archive/refs/heads/main.tar.gz"
-MIN_PYTHON="3.10"
 
 # --- Colors ---
 RED='\033[0;31m'
@@ -45,51 +44,21 @@ case "$OS" in
         ;;
 esac
 
-# --- Check Python >= 3.10 ---
-find_python() {
-    for cmd in python3.13 python3.12 python3.11 python3.10 python3 python; do
-        if command -v "$cmd" &>/dev/null; then
-            version=$("$cmd" -c "import sys; print(f'{sys.version_info.major}.{sys.version_info.minor}')" 2>/dev/null)
-            if [ -n "$version" ]; then
-                major=$(echo "$version" | cut -d. -f1)
-                minor=$(echo "$version" | cut -d. -f2)
-                if [ "$major" -ge 3 ] && [ "$minor" -ge 10 ]; then
-                    echo "$cmd"
-                    return 0
-                fi
-            fi
-        fi
-    done
-    return 1
-}
-
-PYTHON=$(find_python)
-
-if [ -z "$PYTHON" ]; then
-    echo -e "  ${RED}Python >= $MIN_PYTHON not found.${NC}"
-    echo ""
-    if [ "$OS_NAME" = "macOS" ]; then
-        if command -v brew &>/dev/null; then
-            echo "  Install with Homebrew:"
-            echo -e "  ${GREEN}brew install python@3.12${NC}"
-        else
-            echo "  Install Homebrew first:"
-            echo -e "  ${GREEN}/bin/bash -c \"\$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)\"${NC}"
-            echo ""
-            echo "  Then install Python:"
-            echo -e "  ${GREEN}brew install python@3.12${NC}"
-        fi
-    else
-        echo "  Install Python:"
-        echo -e "  ${GREEN}sudo apt update && sudo apt install python3.12 python3.12-venv${NC}"
+# --- Install uv (Python manager) ---
+if command -v uv &>/dev/null; then
+    UV_VERSION=$(uv --version 2>/dev/null)
+    echo -e "  uv:      ${GREEN}$UV_VERSION${NC}"
+else
+    echo -e "  Installing ${BOLD}uv${NC} (Python manager)..."
+    curl -LsSf https://astral.sh/uv/install.sh | sh 2>/dev/null
+    export PATH="$HOME/.local/bin:$HOME/.cargo/bin:$PATH"
+    if ! command -v uv &>/dev/null; then
+        echo -e "  ${RED}Failed to install uv.${NC}"
+        echo "  Install manually: https://docs.astral.sh/uv/getting-started/installation/"
+        exit 1
     fi
-    echo ""
-    echo "  Then run this installer again."
-    exit 1
+    echo -e "  uv:      ${GREEN}$(uv --version)${NC}"
 fi
-
-PYTHON_VERSION=$("$PYTHON" -c "import sys; print(f'{sys.version_info.major}.{sys.version_info.minor}.{sys.version_info.micro}')")
-echo -e "  Python:  ${GREEN}$PYTHON_VERSION${NC} ($(command -v "$PYTHON"))"
 
 # --- Check Node.js/npm ---
 if command -v npm &>/dev/null; then
@@ -129,23 +98,6 @@ cat > "$ZENO_BIN/zeno" << 'LAUNCHER'
 #!/bin/bash
 ZENO_APP="$HOME/.zeno/app"
 
-find_python() {
-    for cmd in python3.13 python3.12 python3.11 python3.10 python3 python; do
-        if command -v "$cmd" &>/dev/null; then
-            version=$("$cmd" -c "import sys; print(f'{sys.version_info.major}.{sys.version_info.minor}')" 2>/dev/null)
-            if [ -n "$version" ]; then
-                major=$(echo "$version" | cut -d. -f1)
-                minor=$(echo "$version" | cut -d. -f2)
-                if [ "$major" -ge 3 ] && [ "$minor" -ge 10 ]; then
-                    echo "$cmd"
-                    return 0
-                fi
-            fi
-        fi
-    done
-    return 1
-}
-
 case "${1:-}" in
     update)
         echo ""
@@ -160,13 +112,7 @@ case "${1:-}" in
         echo ""
         ;;
     *)
-        PYTHON=$(find_python)
-        if [ -z "$PYTHON" ]; then
-            echo "  ❌ Python >= 3.10 not found."
-            echo "  Install: brew install python@3.12"
-            exit 1
-        fi
-        exec "$PYTHON" "$ZENO_APP/zeno.py" "$@"
+        exec uv run --python 3.12 "$ZENO_APP/zeno.py" "$@"
         ;;
 esac
 LAUNCHER

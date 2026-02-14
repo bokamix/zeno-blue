@@ -68,22 +68,16 @@ def main():
 # --- Bootstrap (source mode only) ---
 
 def _ensure_venv():
-    """Create venv and re-exec inside it if not already in one."""
+    """Create venv with uv and re-exec inside it if not already in one."""
     if sys.prefix != sys.base_prefix:
         return
-
-    if sys.version_info < (3, 10):
-        print("❌ Python >= 3.10 required (you have {}.{}).".format(*sys.version_info[:2]))
-        print("   Run ./start.sh instead, or: brew install python@3.12")
-        sys.exit(1)
 
     venv_python = VENV_DIR / "bin" / "python"
 
     if not venv_python.exists():
         print("📦 Creating virtual environment (~/.zeno/venv)...")
         VENV_DIR.parent.mkdir(parents=True, exist_ok=True)
-        subprocess.check_call([sys.executable, "-m", "venv", str(VENV_DIR)])
-        subprocess.check_call([str(venv_python), "-m", "pip", "install", "--upgrade", "pip", "-q"])
+        subprocess.check_call(["uv", "venv", "--python", "3.12", str(VENV_DIR)])
         print("   Done.\n")
 
     os.execv(str(venv_python), [str(venv_python), str(ROOT / "zeno.py")] + sys.argv[1:])
@@ -95,7 +89,7 @@ def _ensure_python_deps():
         import uvicorn, fastapi, anthropic  # noqa: F401,E401
     except ImportError:
         print("📦 Installing Python dependencies...")
-        subprocess.check_call([sys.executable, "-m", "pip", "install", "-r", str(ROOT / "requirements.txt"), "-q"])
+        subprocess.check_call(["uv", "pip", "install", "-r", str(ROOT / "requirements.txt"), "-q"])
         print("   Done.\n")
 
 
