@@ -2,6 +2,8 @@
 """ZENO - Your personal AI agent. One command to run everything."""
 import os
 import sys
+import signal
+import socket
 import subprocess
 import shutil
 import webbrowser
@@ -54,6 +56,8 @@ def main():
     port = int(os.environ.get("ZENO_PORT", "18000"))
     host = os.environ.get("ZENO_HOST", "127.0.0.1")
 
+    _kill_existing(host, port)
+
     print(f"✅ ZENO running at http://{host}:{port}")
     print("   Opening browser...\n")
 
@@ -66,6 +70,32 @@ def main():
         port=port,
         log_level="info",
     )
+
+
+def _kill_existing(host: str, port: int):
+    """Kill any existing process on our port so restart always works."""
+    sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    try:
+        sock.settimeout(1)
+        sock.connect((host, port))
+        sock.close()
+    except OSError:
+        return  # Port is free
+
+    # Port is in use - find and kill the process
+    try:
+        out = subprocess.check_output(
+            ["lsof", "-ti", f"tcp:{port}"], text=True
+        ).strip()
+        for pid_str in out.splitlines():
+            pid = int(pid_str)
+            if pid != os.getpid():
+                os.kill(pid, signal.SIGTERM)
+        import time
+        time.sleep(0.5)
+        print(f"   Stopped previous ZENO instance (port {port})")
+    except (subprocess.CalledProcessError, ProcessLookupError, ValueError):
+        pass
 
 
 # --- Bootstrap (source mode only) ---
