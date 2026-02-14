@@ -2,7 +2,18 @@
 
 Your personal AI agent. Runs locally as a native desktop app - no cloud, no Docker, no Redis.
 
-## Quick Start
+## Install
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/bokamix/zeno-blue/main/install.sh | bash
+```
+
+Then run:
+```bash
+zeno
+```
+
+## Quick Start (manual)
 
 1. **Install dependencies**
    ```bash
