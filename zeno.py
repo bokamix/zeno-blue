@@ -111,10 +111,12 @@ def _ensure_frontend():
 
     if not (frontend / "node_modules").exists():
         print("📦 Installing frontend dependencies...")
-        subprocess.check_call([npm, "install"], cwd=str(frontend))
+        subprocess.check_call([npm, "install", "--silent"], cwd=str(frontend),
+                              stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
 
     print("🔨 Building frontend...")
-    subprocess.check_call([npm, "run", "build"], cwd=str(frontend))
+    subprocess.check_call([npm, "run", "build", "--silent"], cwd=str(frontend),
+                          stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
     print("   Done.\n")
 
 
