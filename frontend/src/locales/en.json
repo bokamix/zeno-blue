@@ -185,8 +185,6 @@
     },
     "settings": {
       "title": "Settings",
-      "manageAccount": "Manage Account",
-      "manageAccountDesc": "View balance, billing, and account settings",
       "theme": "Theme",
       "themeDark": "Dark",
       "themeLight": "Light",
@@ -194,8 +192,6 @@
       "sidebarLeft": "Left",
       "sidebarRight": "Right",
       "language": "Language",
-      "prepaidBalance": "Prepaid Balance",
-      "contactAdmin": "Contact administrator to add funds.",
       "soundNotifications": "Sound Notifications",
       "soundOn": "On",
       "soundOff": "Off",
@@ -364,10 +360,6 @@
     }
   },
   "errors": {
-    "insufficientBalance": {
-      "title": "Insufficient Balance",
-      "message": "Your prepaid balance has been depleted. Contact the administrator to top up your account."
-    },
     "executionStopped": "Execution stopped by user",
     "error": "Error",
     "uploadError": "Upload error",
@@ -410,18 +402,5 @@
   "delegates": {
     "hired": "Hired {count} agent | Hired {count} agents",
     "working": "{count} working"
-  },
-  "topUp": {
-    "title": "Top Up Balance",
-    "addFunds": "Add Funds",
-    "processing": "Processing...",
-    "securedByPolar": "Secured by Polar",
-    "polarDescription": "You will be redirected to our payment provider to complete your purchase.",
-    "goToCheckout": "Go to Checkout",
-    "success": "Payment successful! Your balance has been updated.",
-    "successPending": "Payment received! Your balance will update in a moment...",
-    "balanceUpdated": "Your balance has been updated!",
-    "cancelled": "Payment was cancelled.",
-    "loadError": "Failed to load checkout. Please try again."
   }
 }

@@ -122,13 +122,6 @@
             :restart-error="restartError"
             @close="showSettingsModal = false"
             @request-restart="requestRestart"
-            @open-topup="showSettingsModal = false; showTopUpModal = true"
-        />
-
-        <!-- Top Up Modal -->
-        <TopUpModal
-            v-if="showTopUpModal"
-            @close="showTopUpModal = false"
         />
 
         <!-- Cancel Confirmation Dialog -->
@@ -241,7 +234,6 @@ const SchedulerDetailModal = lazyModal(() => import('./components/modals/Schedul
 const IntegrationsModal = lazyModal(() => import('./components/modals/IntegrationsModal.vue'))
 const AppsModal = lazyModal(() => import('./components/modals/AppsModal.vue'))
 const SettingsModal = lazyModal(() => import('./components/modals/SettingsModal.vue'))
-const TopUpModal = lazyModal(() => import('./components/modals/TopUpModal.vue'))
 const CancelConfirmModal = lazyModal(() => import('./components/modals/CancelConfirmModal.vue'))
 const RestartConfirmModal = lazyModal(() => import('./components/modals/RestartConfirmModal.vue'))
 const MobileNavSheet = lazyModal(() => import('./components/modals/MobileNavSheet.vue'))
@@ -282,7 +274,6 @@ const {
     showAppsModal,
     showIntegrationsModal,
     showScheduledJobsModal,
-    showTopUpModal,
     showRestartConfirm,
     showCancelConfirm,
     toggleSidebar,
@@ -307,7 +298,6 @@ const {
 
 const {
     sidebarPosition,
-    balance,
     loadSettings
 } = useSettingsState()
 
@@ -635,13 +625,6 @@ const loadConversation = async (convId) => {
                     }
                     isLoading.value = true
                     return // Active job manages its own loading state
-                } else if (activeJob.status === 'insufficient_balance') {
-                    clearStoredJobId(convId)
-                    messages.value.push({
-                        id: genMsgId(),
-                        role: 'system',
-                        text: `**${t('errors.insufficientBalance.title')}**\n\n${t('errors.insufficientBalance.message')}`
-                    })
                 } else if (activeJob.status === 'pending' || activeJob.status === 'running') {
                     isLoading.value = true
                     resumePolling(activeJob.job_id, convId)
@@ -914,16 +897,6 @@ const refreshArchivedConversations = async () => {
     }
 }
 
-// Fetch user balance
-const fetchBalance = async () => {
-    try {
-        const data = await api.getBalance()
-        balance.value = data.balance ?? 0
-    } catch (e) {
-        console.error('Failed to fetch balance', e)
-    }
-}
-
 // File operations
 const uploadFile = async (file) => {
     try {
@@ -1111,8 +1084,6 @@ const handleGlobalKeydown = (e) => {
             showRestartConfirm.value = false
         } else if (showMobileNav.value) {
             showMobileNav.value = false
-        } else if (showTopUpModal.value) {
-            showTopUpModal.value = false
         } else if (showSchedulerDetailModal.value) {
             showSchedulerDetailModal.value = false
         } else if (showScheduledJobsModal.value) {
@@ -1126,64 +1097,6 @@ const handleGlobalKeydown = (e) => {
         } else if (fileToView.value) {
             fileToView.value = null
         }
-    }
-}
-
-// Balance polling constants and state
-const BALANCE_POLL_INTERVAL_MS = 2000
-const BALANCE_POLL_MAX_ATTEMPTS = 15
-let balancePollInterval = null
-
-const cleanupBalancePolling = () => {
-    if (balancePollInterval) {
-        clearInterval(balancePollInterval)
-        balancePollInterval = null
-    }
-}
-
-// Handle top-up query params from Polar redirect
-const handleTopUpQueryParams = async () => {
-    const params = new URLSearchParams(window.location.search)
-    const topupStatus = params.get('topup')
-
-    if (topupStatus === 'success') {
-        toast.success(t('topUp.successPending'))
-        // Clean URL
-        const url = new URL(window.location.href)
-        url.searchParams.delete('topup')
-        window.history.replaceState({}, '', url.pathname + url.search)
-
-        // Poll for balance update (webhook may take a few seconds)
-        const initialBalance = userBalance.value
-        let attempts = 0
-
-        // Cleanup any existing polling
-        cleanupBalancePolling()
-
-        balancePollInterval = setInterval(async () => {
-            attempts++
-            try {
-                await fetchBalance()
-
-                if (userBalance.value !== initialBalance) {
-                    cleanupBalancePolling()
-                    toast.success(t('topUp.balanceUpdated'))
-                    return
-                }
-            } catch (e) {
-                console.error('Balance polling error:', e)
-            }
-
-            if (attempts >= BALANCE_POLL_MAX_ATTEMPTS) {
-                cleanupBalancePolling()
-            }
-        }, BALANCE_POLL_INTERVAL_MS)
-    } else if (topupStatus === 'cancelled') {
-        toast.error(t('topUp.cancelled'))
-        // Clean URL
-        const url = new URL(window.location.href)
-        url.searchParams.delete('topup')
-        window.history.replaceState({}, '', url.pathname + url.search)
     }
 }
 
@@ -1273,9 +1186,6 @@ onMounted(async () => {
     // Initialize LogRocket (fire and forget)
     initLogRocket()
 
-    // Handle top-up query params (from Polar redirect)
-    await handleTopUpQueryParams()
-
     // Check server health first (with short timeout for faster offline detection)
     const isAvailable = await checkServerHealth()
 
@@ -1284,7 +1194,6 @@ onMounted(async () => {
         refreshArtifacts()
         refreshConversations()
         refreshArchivedConversations()
-        fetchBalance()
 
         if (conversationId.value) {
             // Don't block on loadConversation - let it run async

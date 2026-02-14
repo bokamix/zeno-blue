@@ -366,15 +366,6 @@ export function useApi() {
         }
     }
 
-    // Get current balance
-    const getBalance = async () => {
-        const res = await fetchWithTimeout(`${API_BASE}/balance`)
-        if (!res.ok) {
-            return { balance: 0 }
-        }
-        return res.json()
-    }
-
     // Get disk usage
     const getDiskUsage = async () => {
         try {
@@ -417,7 +408,6 @@ export function useApi() {
         createDirectory,
         createFile,
         checkHealth,
-        getBalance,
         getDiskUsage
     }
 }

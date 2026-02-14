@@ -397,7 +397,7 @@ const {
     activeTabId
 } = useWorkspaceState()
 
-const { playNotificationSound, balance } = useSettingsState()
+const { playNotificationSound } = useSettingsState()
 
 // Template refs
 const virtualMessageList = ref(null)
@@ -623,15 +623,6 @@ const pollJobUntilDone = async (jobId, targetConversationId = null) => {
                 _isCurrentConversation: isCurrentConversation
             }
         }
-        if (job.status === 'insufficient_balance') {
-            emit('refresh-conversations')
-            return {
-                status: 'insufficient_balance',
-                error: job.error || 'Insufficient balance',
-                _isCurrentConversation: isCurrentConversation
-            }
-        }
-
         await new Promise(r => setTimeout(r, POLL_INTERVAL))
     }
 }
@@ -667,9 +658,6 @@ const sendMessage = async () => {
         })
         editingMessageId.value = null
     }
-
-    // Note: Balance check moved to backend (security: backend is source of truth)
-    // Frontend still fetches balance for display purposes only
 
     clearActivities()
     await nextTick()
@@ -784,22 +772,6 @@ const sendMessage = async () => {
             return
         }
 
-        if (job.status === 'insufficient_balance') {
-            clearStoredJobId(convId)
-            if (job._isCurrentConversation) {
-                clearActivities()
-                await reloadMessages({ targetConversationId: convId })
-                messages.value.push({
-                    id: genMsgId(),
-                    role: 'system',
-                    text: `**${t('errors.insufficientBalance.title')}**\n\n${t('errors.insufficientBalance.message')}`
-                })
-            }
-            emit('refresh-artifacts')
-            emit('refresh-conversations')
-            return
-        }
-
         clearStoredJobId(convId)
 
         if (job._isCurrentConversation) {
@@ -835,19 +807,7 @@ const sendMessage = async () => {
         // Note: convId may not be set if the error occurred before API response
         const currentConvId = conversationId.value
 
-        // Handle insufficient balance error (402 from backend)
-        if (e.message === 'INSUFFICIENT_BALANCE') {
-            // Remove optimistic user message
-            if (messages.value.length > 0 && messages.value[messages.value.length - 1].role === 'user') {
-                messages.value.pop()
-            }
-            // Show error as system message
-            messages.value.push({
-                id: genMsgId(),
-                role: 'system',
-                text: `**${t('errors.insufficientBalance.title')}**\n\n${t('errors.insufficientBalance.message')}`
-            })
-        } else if (currentConvId) {
+        if (currentConvId) {
             clearActivities()
             await reloadMessages({ targetConversationId: currentConvId })
             // Only show error message if still on the same conversation after async reload
@@ -1020,21 +980,6 @@ const handleOAuthComplete = async (event) => {
                     id: genMsgId(),
                     role: 'system',
                     text: job.result
-                })
-                isLoading.value = false
-                scrollToBottom()
-                nextTick(() => inputBox.value?.focus())
-            }
-            emit('refresh-artifacts')
-            emit('refresh-conversations')
-        } else if (job.status === 'insufficient_balance') {
-            clearStoredJobId(targetConvId)
-            if (job._isCurrentConversation) {
-                clearActivities()
-                messages.value.push({
-                    id: genMsgId(),
-                    role: 'system',
-                    text: `**${t('errors.insufficientBalance.title')}**\n\n${t('errors.insufficientBalance.message')}`
                 })
                 isLoading.value = false
                 scrollToBottom()

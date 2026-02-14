@@ -185,8 +185,6 @@
     },
     "settings": {
       "title": "Ustawienia",
-      "manageAccount": "Zarządzaj kontem",
-      "manageAccountDesc": "Saldo, płatności i ustawienia konta",
       "theme": "Motyw",
       "themeDark": "Ciemny",
       "themeLight": "Jasny",
@@ -194,8 +192,6 @@
       "sidebarLeft": "Lewo",
       "sidebarRight": "Prawo",
       "language": "Język",
-      "prepaidBalance": "Saldo prepaid",
-      "contactAdmin": "Skontaktuj się z administratorem, aby doładować konto.",
       "soundNotifications": "Powiadomienia dźwiękowe",
       "soundOn": "Wł.",
       "soundOff": "Wył.",
@@ -364,10 +360,6 @@
     }
   },
   "errors": {
-    "insufficientBalance": {
-      "title": "Brak środków",
-      "message": "Twój prepaid balance został wyczerpany. Skontaktuj się z administratorem, aby doładować konto."
-    },
     "executionStopped": "Wykonanie zatrzymane przez użytkownika",
     "error": "Błąd",
     "uploadError": "Błąd przesyłania",
@@ -410,18 +402,5 @@
   "delegates": {
     "hired": "Zatrudniono {count} agenta | Zatrudniono {count} agentów",
     "working": "{count} pracuje"
-  },
-  "topUp": {
-    "title": "Doładuj saldo",
-    "addFunds": "Doładuj",
-    "processing": "Przetwarzanie...",
-    "securedByPolar": "Zabezpieczone przez Polar",
-    "polarDescription": "Zostaniesz przekierowany do naszego dostawcy płatności.",
-    "goToCheckout": "Przejdź do płatności",
-    "success": "Płatność zakończona! Twoje saldo zostało zaktualizowane.",
-    "successPending": "Płatność przyjęta! Saldo zaktualizuje się za chwilę...",
-    "balanceUpdated": "Twoje saldo zostało zaktualizowane!",
-    "cancelled": "Płatność anulowana.",
-    "loadError": "Nie udało się załadować płatności. Spróbuj ponownie."
   }
 }

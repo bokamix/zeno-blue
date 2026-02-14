@@ -319,12 +319,12 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted, watch, inject } from 'vue'
-import { Settings, X, Sun, Moon, PanelLeft, PanelRight, Globe, RefreshCw, User, ExternalLink, Volume2, VolumeX, ChevronDown, Cpu, HelpCircle, MessageCircle, Plus, CreditCard, HardDrive, KeyRound, Check, Eye, EyeOff } from 'lucide-vue-next'
+import { ref, computed, onMounted, inject } from 'vue'
+import { Settings, X, Sun, Moon, PanelLeft, PanelRight, Globe, RefreshCw, Volume2, VolumeX, ChevronDown, Cpu, HelpCircle, MessageCircle, HardDrive, KeyRound, Eye, EyeOff } from 'lucide-vue-next'
 import { useApi } from '../../composables/useApi'
 import { useSettingsState } from '../../composables/state'
 
-const emit = defineEmits(['close', 'request-restart', 'open-topup'])
+const emit = defineEmits(['close', 'request-restart'])
 
 // Swipe gesture state from parent
 const swipeState = inject('swipeState', {
@@ -362,12 +362,10 @@ const {
     isDarkTheme,
     sidebarPosition,
     currentLanguage,
-    balance,
     soundEnabled,
     modelProvider,
     modelProviderLoading,
     modelProviderError,
-    checkoutAvailable,
     apiKeys,
     apiKeysLoading,
     toggleTheme,
@@ -390,8 +388,6 @@ const handleModelProviderChange = async (provider) => {
 
 const settingsExpanded = ref(true)
 const apiKeysExpanded = ref(false)
-const transactionsExpanded = ref(false)
-
 // API Keys editing state
 const editingKey = ref(null)
 const editKeyValue = ref('')
@@ -434,35 +430,6 @@ const handleSaveKey = async (keyName) => {
         apiKeySaveStatus.value = 'error'
     }
 }
-const transactions = ref([])
-const transactionsLoading = ref(false)
-const transactionsError = ref(false)
-
-const formatDate = (isoString) => {
-    if (!isoString) return ''
-    const date = new Date(isoString)
-    return date.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })
-}
-
-const fetchTransactions = async () => {
-    transactionsLoading.value = true
-    transactionsError.value = false
-    try {
-        const res = await fetch('/billing/transactions')
-        if (res.ok) {
-            const data = await res.json()
-            transactions.value = data.transactions || []
-        } else {
-            transactionsError.value = true
-        }
-    } catch (e) {
-        console.error('Failed to fetch transactions', e)
-        transactionsError.value = true
-    } finally {
-        transactionsLoading.value = false
-    }
-}
-
 const openCrispChat = () => {
     emit('close')
     if (window.$crisp) {
@@ -488,26 +455,8 @@ const props = defineProps({
     restartError: { type: String, default: null }
 })
 
-const fetchBalance = async () => {
-    try {
-        const res = await fetch('/balance')
-        if (res.ok) {
-            balance.value = await res.json()
-        }
-    } catch (e) {
-        console.error('Failed to fetch balance', e)
-    }
-}
-
 onMounted(async () => {
-    fetchBalance()
     diskUsage.value = await getDiskUsage()
 })
 
-// Fetch transactions when section is expanded
-watch(transactionsExpanded, (expanded) => {
-    if (expanded && transactions.value.length === 0) {
-        fetchTransactions()
-    }
-})
 </script>

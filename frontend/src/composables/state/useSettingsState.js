@@ -5,12 +5,10 @@ import { setLanguage, getCurrentLanguage } from '../../locales'
 const isDarkTheme = ref(true)
 const sidebarPosition = ref('left')
 const currentLanguage = ref(getCurrentLanguage())
-const balance = ref(null)
 const soundEnabled = ref(false)
 const modelProvider = ref('anthropic')  // "anthropic" or "openai"
 const modelProviderLoading = ref(false)
 const modelProviderError = ref(null)
-const checkoutAvailable = ref(false)
 const apiKeys = ref({})
 const apiKeysLoading = ref(false)
 
@@ -91,19 +89,6 @@ export function useSettingsState() {
             }
         } catch (e) {
             console.error('Failed to load model provider setting', e)
-        }
-    }
-
-    // Load checkout availability from user-info
-    const loadCheckoutAvailable = async () => {
-        try {
-            const res = await fetch('/user-info')
-            if (res.ok) {
-                const data = await res.json()
-                checkoutAvailable.value = data.checkout_available || false
-            }
-        } catch (e) {
-            console.error('Failed to load checkout availability', e)
         }
     }
 
@@ -194,7 +179,6 @@ export function useSettingsState() {
         loadSidebarPosition()
         loadSoundSetting()
         loadModelProvider()
-        loadCheckoutAvailable()
     }
 
     return {
@@ -202,12 +186,10 @@ export function useSettingsState() {
         isDarkTheme,
         sidebarPosition,
         currentLanguage,
-        balance,
         soundEnabled,
         modelProvider,
         modelProviderLoading,
         modelProviderError,
-        checkoutAvailable,
         apiKeys,
         apiKeysLoading,
 

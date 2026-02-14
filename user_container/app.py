@@ -421,7 +421,6 @@ def get_user_info():
     """Get basic user info (desktop mode)."""
     return {
         "domain": "localhost",
-        "checkout_available": False,
     }
 
 
@@ -1460,42 +1459,46 @@ async def chat(payload: dict):
     if not message:
         raise HTTPException(status_code=400, detail="message is required")
 
-    conversation_id = payload.get("conversation_id")
-    if not conversation_id:
-        # Create a new conversation
-        conversation_id = str(uuid.uuid4())
-        now = DB.now()
-        db.execute(
-            "INSERT INTO conversations(id, created_at, read_at) VALUES (?, ?, ?)",
-            (conversation_id, now, now),
+    try:
+        conversation_id = payload.get("conversation_id")
+        if not conversation_id:
+            # Create a new conversation
+            conversation_id = str(uuid.uuid4())
+            now = DB.now()
+            db.execute(
+                "INSERT INTO conversations(id, created_at, read_at) VALUES (?, ?, ?)",
+                (conversation_id, now, now),
+            )
+
+        # Store user message and get its ID
+        db.save_message_from_dict(conversation_id, {"role": "user", "content": message})
+
+        # Get the message ID (last inserted message in this conversation)
+        msg_row = db.fetchone(
+            "SELECT id FROM messages WHERE conversation_id = ? ORDER BY id DESC LIMIT 1",
+            (conversation_id,)
         )
+        message_id = msg_row["id"] if msg_row else None
 
-    # Store user message and get its ID
-    db.save_message_from_dict(conversation_id, {"role": "user", "content": message})
+        # Log user message to console
+        log_user_message(message)
 
-    # Get the message ID (last inserted message in this conversation)
-    msg_row = db.fetchone(
-        "SELECT id FROM messages WHERE conversation_id = ? ORDER BY id DESC LIMIT 1",
-        (conversation_id,)
-    )
-    message_id = msg_row["id"] if msg_row else None
+        # Create and enqueue job via in-process queue
+        job_id = str(uuid.uuid4())
+        job_queue = get_job_queue()
+        job_queue.create_job(job_id, conversation_id, message)
+        job_queue.enqueue(job_id)
 
-    # Log user message to console
-    log_user_message(message)
+        log(f"[API] Created job {job_id} for conversation {conversation_id}")
 
-    # Create and enqueue job via in-process queue
-    job_id = str(uuid.uuid4())
-    job_queue = get_job_queue()
-    job_queue.create_job(job_id, conversation_id, message)
-    job_queue.enqueue(job_id)
-
-    log(f"[API] Created job {job_id} for conversation {conversation_id}")
-
-    return {
-        "job_id": job_id,
-        "conversation_id": conversation_id,
-        "message_id": message_id
-    }
+        return {
+            "job_id": job_id,
+            "conversation_id": conversation_id,
+            "message_id": message_id
+        }
+    except Exception as e:
+        log(f"[API] Error in /chat: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
 
 
 @app.get("/jobs/{job_id}")
@@ -1859,14 +1862,6 @@ async def update_scheduled_job_schedule(job_id: str, payload: dict):
     log(f"[API] Updated schedule for job {job_id}: {cron_expression}")
 
     return {"status": "ok", "job_id": job_id, "next_run_at": next_run_str}
-
-
-# --- Balance Endpoint (A.8) ---
-
-@app.get("/balance")
-async def get_balance(request: Request):
-    """Get balance info - always unlimited in desktop mode."""
-    return {"balance_usd": 999999.0, "total_spent_usd": 0, "total_topups_usd": 0}
 
 
 # --- User Settings Endpoints ---
