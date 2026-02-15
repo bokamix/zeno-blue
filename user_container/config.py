@@ -23,8 +23,8 @@ class Settings(BaseModel):
 
     # LLM Configuration (via OpenRouter)
     openrouter_api_key: Optional[str] = os.getenv("OPENROUTER_API_KEY")
-    openrouter_model: str = os.getenv("OPENROUTER_MODEL", "anthropic/claude-sonnet-4-5-20250929")
-    openrouter_cheap_model: str = os.getenv("OPENROUTER_CHEAP_MODEL", "anthropic/claude-haiku-4-5-20251001")
+    openrouter_model: str = os.getenv("OPENROUTER_MODEL", "openai/gpt-5-mini")
+    openrouter_cheap_model: str = os.getenv("OPENROUTER_CHEAP_MODEL", "google/gemini-3-flash-preview")
 
     # Groq Configuration (fast routing)
     groq_api_key: Optional[str] = os.getenv("GROQ_API_KEY")

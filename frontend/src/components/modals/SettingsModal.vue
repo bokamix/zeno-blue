@@ -199,7 +199,7 @@
                                     class="w-full px-3 py-1.5 text-xs rounded-lg bg-[var(--bg-elevated)] text-[var(--text-primary)] border border-[var(--border-subtle)] outline-none cursor-pointer disabled:opacity-50"
                                 >
                                     <option v-if="modelsLoading" value="">{{ $t('modals.settings.loadingModels') }}</option>
-                                    <option v-for="m in availableModels" :key="m.id" :value="m.id">{{ m.name }}</option>
+                                    <option v-for="m in mainModelOptions" :key="m.id" :value="m.id">{{ m.name }}</option>
                                 </select>
                             </div>
 
@@ -213,7 +213,7 @@
                                     class="w-full px-3 py-1.5 text-xs rounded-lg bg-[var(--bg-elevated)] text-[var(--text-primary)] border border-[var(--border-subtle)] outline-none cursor-pointer disabled:opacity-50"
                                 >
                                     <option v-if="modelsLoading" value="">{{ $t('modals.settings.loadingModels') }}</option>
-                                    <option v-for="m in availableModels" :key="m.id" :value="m.id">{{ m.name }}</option>
+                                    <option v-for="m in fastModelOptions" :key="m.id" :value="m.id">{{ m.name }}</option>
                                 </select>
                             </div>
                         </div>
@@ -526,6 +526,23 @@ const loadOpenRouterModels = async () => {
         modelsLoading.value = false
     }
 }
+
+// Ensure selected model always appears in options (even if not in fetched list)
+const mainModelOptions = computed(() => {
+    const models = [...availableModels.value]
+    if (selectedMainModel.value && !models.some(m => m.id === selectedMainModel.value)) {
+        models.unshift({ id: selectedMainModel.value, name: selectedMainModel.value })
+    }
+    return models
+})
+
+const fastModelOptions = computed(() => {
+    const models = [...availableModels.value]
+    if (selectedFastModel.value && !models.some(m => m.id === selectedFastModel.value)) {
+        models.unshift({ id: selectedFastModel.value, name: selectedFastModel.value })
+    }
+    return models
+})
 
 const handleSaveModels = async () => {
     await saveOpenRouterModels(selectedMainModel.value, selectedFastModel.value)
