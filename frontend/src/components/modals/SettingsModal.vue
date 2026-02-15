@@ -139,8 +139,8 @@
                         <!-- Model Provider Select -->
                         <div class="flex items-center justify-between py-2">
                             <div class="flex items-center gap-3">
-                                <div class="p-1.5 rounded-lg" :class="modelProvider === 'anthropic' ? 'bg-orange-500/20' : 'bg-emerald-500/20'">
-                                    <Cpu class="w-3.5 h-3.5" :class="modelProvider === 'anthropic' ? 'text-orange-400' : 'text-emerald-400'" />
+                                <div class="p-1.5 rounded-lg" :class="modelProvider === 'anthropic' ? 'bg-orange-500/20' : modelProvider === 'custom' ? 'bg-violet-500/20' : 'bg-emerald-500/20'">
+                                    <Cpu class="w-3.5 h-3.5" :class="modelProvider === 'anthropic' ? 'text-orange-400' : modelProvider === 'custom' ? 'text-violet-400' : 'text-emerald-400'" />
                                 </div>
                                 <span class="text-sm text-[var(--text-secondary)]">{{ $t('modals.settings.modelProvider') }}</span>
                             </div>
@@ -152,10 +152,58 @@
                             >
                                 <option value="anthropic" class="bg-[var(--bg-elevated)] text-[var(--text-primary)]">Anthropic (Claude)</option>
                                 <option value="openai" class="bg-[var(--bg-elevated)] text-[var(--text-primary)]">OpenAI (GPT)</option>
+                                <option value="custom" class="bg-[var(--bg-elevated)] text-[var(--text-primary)]">{{ $t('modals.settings.customProvider') }}</option>
                             </select>
                         </div>
                         <!-- Model Provider Error -->
                         <p v-if="modelProviderError" class="text-xs text-red-400 mt-1 ml-9">{{ modelProviderError }}</p>
+
+                        <!-- Custom Provider Settings (shown when "custom" is selected) -->
+                        <div v-if="modelProvider === 'custom'" class="ml-9 mt-2 space-y-2 p-3 rounded-xl bg-[var(--bg-surface)]">
+                            <p class="text-[10px] text-zinc-500 mb-2">{{ $t('modals.settings.customProviderHelp') }}</p>
+
+                            <!-- Model ID -->
+                            <div>
+                                <label class="text-[10px] text-zinc-500 mb-1 block">{{ $t('modals.settings.customProviderModel') }} *</label>
+                                <input
+                                    v-model="customModel"
+                                    type="text"
+                                    :placeholder="$t('modals.settings.customProviderModelPlaceholder')"
+                                    class="w-full px-3 py-1.5 text-xs rounded-lg bg-[var(--bg-elevated)] text-[var(--text-primary)] border border-[var(--border-subtle)] outline-none focus:border-violet-500/50 font-mono"
+                                />
+                            </div>
+
+                            <!-- Base URL -->
+                            <div>
+                                <label class="text-[10px] text-zinc-500 mb-1 block">{{ $t('modals.settings.customProviderBaseUrl') }}</label>
+                                <input
+                                    v-model="customBaseUrl"
+                                    type="text"
+                                    :placeholder="$t('modals.settings.customProviderBaseUrlPlaceholder')"
+                                    class="w-full px-3 py-1.5 text-xs rounded-lg bg-[var(--bg-elevated)] text-[var(--text-primary)] border border-[var(--border-subtle)] outline-none focus:border-violet-500/50 font-mono"
+                                />
+                            </div>
+
+                            <!-- Cheap Model -->
+                            <div>
+                                <label class="text-[10px] text-zinc-500 mb-1 block">{{ $t('modals.settings.customProviderCheapModel') }}</label>
+                                <input
+                                    v-model="customCheapModel"
+                                    type="text"
+                                    :placeholder="$t('modals.settings.customProviderCheapModelPlaceholder')"
+                                    class="w-full px-3 py-1.5 text-xs rounded-lg bg-[var(--bg-elevated)] text-[var(--text-primary)] border border-[var(--border-subtle)] outline-none focus:border-violet-500/50 font-mono"
+                                />
+                            </div>
+
+                            <!-- Save Button -->
+                            <button
+                                @click="handleSaveCustomProvider"
+                                :disabled="!customModel.trim() || savingCustomProvider"
+                                class="w-full px-3 py-1.5 text-xs rounded-lg font-medium transition-all bg-violet-500/20 text-violet-400 hover:bg-violet-500/30 disabled:opacity-50 disabled:cursor-not-allowed"
+                            >
+                                {{ savingCustomProvider ? $t('common.saving') : $t('common.save') }}
+                            </button>
+                        </div>
                     </div>
                 </div>
 
@@ -319,7 +367,7 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted, inject } from 'vue'
+import { ref, computed, onMounted, inject, watch } from 'vue'
 import { Settings, X, Sun, Moon, PanelLeft, PanelRight, Globe, RefreshCw, Volume2, VolumeX, ChevronDown, Cpu, HelpCircle, MessageCircle, HardDrive, KeyRound, Eye, EyeOff } from 'lucide-vue-next'
 import { useApi } from '../../composables/useApi'
 import { useSettingsState } from '../../composables/state'
@@ -368,11 +416,13 @@ const {
     modelProviderError,
     apiKeys,
     apiKeysLoading,
+    customProviderSettings,
     toggleTheme,
     toggleSidebarPosition,
     toggleLanguage,
     toggleSound,
     setModelProvider,
+    saveCustomProvider,
     validateApiKey,
     loadApiKeys,
     saveApiKey
@@ -380,10 +430,32 @@ const {
 
 // Handle model provider change with validation
 const handleModelProviderChange = async (provider) => {
+    if (provider === 'custom') {
+        // For custom, just set the provider - user will configure model separately
+        setModelProvider(provider)
+        return
+    }
     const isValid = await validateApiKey(provider)
     if (isValid) {
         setModelProvider(provider)
     }
+}
+
+// Custom provider state
+const customModel = ref(customProviderSettings.value.model || '')
+const customBaseUrl = ref(customProviderSettings.value.baseUrl || '')
+const customCheapModel = ref(customProviderSettings.value.cheapModel || '')
+const savingCustomProvider = ref(false)
+
+const handleSaveCustomProvider = async () => {
+    if (!customModel.value.trim()) return
+    savingCustomProvider.value = true
+    await saveCustomProvider({
+        model: customModel.value.trim(),
+        baseUrl: customBaseUrl.value.trim(),
+        cheapModel: customCheapModel.value.trim(),
+    })
+    savingCustomProvider.value = false
 }
 
 const settingsExpanded = ref(true)
@@ -398,6 +470,7 @@ const showKeyValue = ref(false)
 const API_KEY_DEFS = [
     { name: 'anthropic_api_key', label: 'anthropicApiKey', iconBg: 'bg-orange-500/20', iconText: 'text-orange-400' },
     { name: 'openai_api_key', label: 'openaiApiKey', iconBg: 'bg-emerald-500/20', iconText: 'text-emerald-400' },
+    { name: 'custom_provider_api_key', label: 'customProviderApiKey', iconBg: 'bg-violet-500/20', iconText: 'text-violet-400' },
     { name: 'serper_api_key', label: 'serperApiKey', iconBg: 'bg-cyan-500/20', iconText: 'text-cyan-400' },
 ]
 
@@ -454,6 +527,15 @@ const props = defineProps({
     isRestarting: { type: Boolean, default: false },
     restartError: { type: String, default: null }
 })
+
+// Sync custom provider fields when settings load from API
+watch(customProviderSettings, (newVal) => {
+    if (newVal) {
+        customModel.value = newVal.model || ''
+        customBaseUrl.value = newVal.baseUrl || ''
+        customCheapModel.value = newVal.cheapModel || ''
+    }
+}, { deep: true })
 
 onMounted(async () => {
     diskUsage.value = await getDiskUsage()

@@ -1,5 +1,7 @@
 # Skill API - dostęp do AI z aplikacji
 
+**Uwaga:** Skill API wymaga backendu Python. Jeśli apka potrzebuje AI features (transkrypcja, analiza obrazów, LLM), agent pisze osobny skrypt Python z FastAPI, a frontend (HTML) komunikuje się z nim przez `fetch()`. HTML app i Python backend to osobne pliki.
+
 Twoja aplikacja może korzystać z AI przez Skill API.
 
 ## Setup

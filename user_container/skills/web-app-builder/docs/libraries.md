@@ -88,18 +88,23 @@ new Chart(ctx, {
 });
 ```
 
-### With Alpine.js
+### With Vue 3
 ```html
-<div x-data="chartComponent()">
-    <canvas x-ref="chart"></canvas>
+<div id="app">
+    <canvas ref="chartRef"></canvas>
+    <button @click="updateData([40, 50, 60])">Update</button>
 </div>
 
 <script>
-function chartComponent() {
-    return {
-        chart: null,
-        init() {
-            this.chart = new Chart(this.$refs.chart, {
+const { createApp, ref, onMounted } = Vue;
+
+createApp({
+    setup() {
+        const chartRef = ref(null);
+        let chartInstance = null;
+
+        onMounted(() => {
+            chartInstance = new Chart(chartRef.value, {
                 type: 'bar',
                 data: {
                     labels: ['A', 'B', 'C'],
@@ -109,13 +114,16 @@ function chartComponent() {
                     }]
                 }
             });
-        },
-        updateData(newData) {
-            this.chart.data.datasets[0].data = newData;
-            this.chart.update();
+        });
+
+        function updateData(newData) {
+            chartInstance.data.datasets[0].data = newData;
+            chartInstance.update();
         }
+
+        return { chartRef, updateData };
     }
-}
+}).mount('#app');
 </script>
 ```
 
@@ -250,33 +258,38 @@ map.on('click', (e) => {
 });
 ```
 
-### With Alpine.js
+### With Vue 3
 ```html
-<div x-data="mapComponent()" x-init="initMap()">
-    <div x-ref="map" style="height: 400px;"></div>
-    <button @click="addMarker()">Add Marker</button>
+<div id="app">
+    <div ref="mapRef" style="height: 400px;"></div>
+    <button @click="addMarker()" class="btn btn-primary mt-2">Add Marker</button>
 </div>
 
 <script>
-function mapComponent() {
-    return {
-        map: null,
-        markers: [],
+const { createApp, ref, onMounted } = Vue;
 
-        initMap() {
-            this.map = L.map(this.$refs.map).setView([51.505, -0.09], 13);
+createApp({
+    setup() {
+        const mapRef = ref(null);
+        let map = null;
+        const markers = [];
+
+        onMounted(() => {
+            map = L.map(mapRef.value).setView([51.505, -0.09], 13);
             L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
                 attribution: '&copy; OpenStreetMap'
-            }).addTo(this.map);
-        },
+            }).addTo(map);
+        });
 
-        addMarker() {
-            const center = this.map.getCenter();
-            const marker = L.marker(center).addTo(this.map);
-            this.markers.push(marker);
+        function addMarker() {
+            const center = map.getCenter();
+            const marker = L.marker(center).addTo(map);
+            markers.push(marker);
         }
+
+        return { mapRef, addMarker };
     }
-}
+}).mount('#app');
 </script>
 ```
 
@@ -328,41 +341,41 @@ quill.on('text-change', (delta, oldDelta, source) => {
 </script>
 ```
 
-### With Alpine.js
+### With Vue 3
 ```html
-<div x-data="editorComponent()">
-    <div x-ref="editor"></div>
-    <button @click="save()">Save</button>
+<div id="app">
+    <div ref="editorRef"></div>
+    <button @click="save()" class="btn btn-primary mt-2">Save</button>
 </div>
 
 <script>
-function editorComponent() {
-    return {
-        quill: null,
+const { createApp, ref, onMounted } = Vue;
 
-        init() {
-            this.quill = new Quill(this.$refs.editor, {
+createApp({
+    setup() {
+        const editorRef = ref(null);
+        let quill = null;
+
+        onMounted(() => {
+            quill = new Quill(editorRef.value, {
                 theme: 'snow',
                 modules: {
                     toolbar: [['bold', 'italic'], ['link', 'image']]
                 }
             });
-        },
+        });
 
-        getContent() {
-            return this.quill.root.innerHTML;
-        },
+        function getContent() { return quill.root.innerHTML; }
+        function setContent(html) { quill.root.innerHTML = html; }
 
-        setContent(html) {
-            this.quill.root.innerHTML = html;
-        },
-
-        save() {
-            const content = this.getContent();
+        function save() {
+            const content = getContent();
             // Save to database
         }
+
+        return { editorRef, save };
     }
-}
+}).mount('#app');
 </script>
 ```
 
@@ -435,46 +448,51 @@ document.querySelectorAll('.sortable-list').forEach(list => {
 </script>
 ```
 
-### With Alpine.js
+### With Vue 3
 ```html
-<div x-data="kanban()" x-init="initSortable()">
-    <template x-for="column in columns" :key="column.id">
-        <div class="column">
-            <h3 x-text="column.name"></h3>
-            <ul :id="column.id" x-ref="column">
-                <template x-for="item in column.items" :key="item.id">
-                    <li :data-id="item.id" x-text="item.title"></li>
-                </template>
+<div id="app">
+    <div class="flex gap-4">
+        <div v-for="column in columns" :key="column.id">
+            <h3 class="font-bold mb-2">{{ column.name }}</h3>
+            <ul :ref="el => columnRefs[column.id] = el" class="min-h-[100px] bg-base-200 p-2 rounded">
+                <li v-for="item in column.items" :key="item.id" :data-id="item.id"
+                    class="p-2 bg-base-100 rounded mb-1 cursor-move">
+                    {{ item.title }}
+                </li>
             </ul>
         </div>
-    </template>
+    </div>
 </div>
 
 <script>
-function kanban() {
-    return {
-        columns: [
-            { id: 'todo', name: 'Todo', items: [{id: 1, title: 'Task 1'}] },
-            { id: 'done', name: 'Done', items: [] }
-        ],
+const { createApp, ref, reactive, onMounted, nextTick } = Vue;
 
-        initSortable() {
-            this.$nextTick(() => {
-                document.querySelectorAll('[x-ref="column"]').forEach(el => {
-                    new Sortable(el, {
-                        group: 'kanban',
-                        animation: 150,
-                        onEnd: this.handleMove.bind(this)
-                    });
+createApp({
+    setup() {
+        const columns = reactive([
+            { id: 'todo', name: 'Todo', items: [{ id: 1, title: 'Task 1' }] },
+            { id: 'done', name: 'Done', items: [] }
+        ]);
+        const columnRefs = {};
+
+        onMounted(async () => {
+            await nextTick();
+            Object.values(columnRefs).forEach(el => {
+                new Sortable(el, {
+                    group: 'kanban',
+                    animation: 150,
+                    onEnd: handleMove
                 });
             });
-        },
+        });
 
-        handleMove(evt) {
+        function handleMove(evt) {
             // Update data model based on DOM changes
         }
+
+        return { columns, columnRefs, handleMove };
     }
-}
+}).mount('#app');
 </script>
 ```
 

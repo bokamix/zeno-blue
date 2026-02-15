@@ -219,7 +219,16 @@
       "apiKeyError": "Failed to save key",
       "anthropicApiKey": "Anthropic API Key",
       "openaiApiKey": "OpenAI API Key",
-      "serperApiKey": "Serper API Key (Web Search)"
+      "serperApiKey": "Serper API Key (Web Search)",
+      "customProviderApiKey": "Custom Provider API Key",
+      "customProvider": "Custom (LiteLLM)",
+      "customProviderModel": "Model ID",
+      "customProviderModelPlaceholder": "ollama/llama3, azure/gpt-4, openrouter/...",
+      "customProviderBaseUrl": "Base URL",
+      "customProviderBaseUrlPlaceholder": "http://localhost:11434",
+      "customProviderCheapModel": "Cheap Model (optional)",
+      "customProviderCheapModelPlaceholder": "Same as main model if empty",
+      "customProviderHelp": "Supports Ollama, Azure, OpenRouter, LM Studio, and any OpenAI-compatible API"
     },
     "cancelConfirm": {
       "title": "Stop execution?",

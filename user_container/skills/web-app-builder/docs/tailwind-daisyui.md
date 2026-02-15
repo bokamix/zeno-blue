@@ -772,22 +772,33 @@ Tailwind CSS provides utility classes for styling. DaisyUI adds pre-built compon
 <html data-theme="sunset">
 ```
 
-### Toggle Dark Mode with Alpine
+### Toggle Dark Mode with Vue 3
 ```html
-<div x-data="{ dark: false }" x-init="
-    dark = localStorage.getItem('theme') === 'dark';
-    $watch('dark', val => {
-        localStorage.setItem('theme', val ? 'dark' : 'light');
-        document.documentElement.setAttribute('data-theme', val ? 'dark' : 'light');
-    });
-    document.documentElement.setAttribute('data-theme', dark ? 'dark' : 'light');
-">
+<div id="app">
     <label class="swap swap-rotate">
-        <input type="checkbox" x-model="dark">
+        <input type="checkbox" :checked="dark" @change="toggleDark">
         <span class="swap-on">Dark</span>
         <span class="swap-off">Light</span>
     </label>
 </div>
+
+<script>
+const { createApp, ref, onMounted } = Vue;
+createApp({
+    setup() {
+        const dark = ref(localStorage.getItem('theme') === 'dark');
+        function toggleDark() {
+            dark.value = !dark.value;
+            localStorage.setItem('theme', dark.value ? 'dark' : 'light');
+            document.documentElement.setAttribute('data-theme', dark.value ? 'dark' : 'light');
+        }
+        onMounted(() => {
+            document.documentElement.setAttribute('data-theme', dark.value ? 'dark' : 'light');
+        });
+        return { dark, toggleDark };
+    }
+}).mount('#app');
+</script>
 ```
 
 ### Theme Colors

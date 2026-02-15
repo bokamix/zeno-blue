@@ -45,6 +45,20 @@ def calculate_cost(
     model_prices = provider_prices.get(model)
 
     if not model_prices:
+        # Try LiteLLM's built-in cost calculator (covers 300+ models)
+        try:
+            import litellm
+            prompt_tokens = usage.get("prompt_tokens", 0)
+            completion_tokens = usage.get("completion_tokens", 0)
+            cost = litellm.completion_cost(
+                model=model,
+                prompt_tokens=prompt_tokens,
+                completion_tokens=completion_tokens
+            )
+            if cost and cost > 0:
+                return cost
+        except Exception:
+            pass
         log(f"[Pricing] Unknown model {provider}/{model}, using fallback pricing")
         model_prices = fallback
 

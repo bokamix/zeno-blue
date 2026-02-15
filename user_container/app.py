@@ -1877,10 +1877,17 @@ async def get_settings():
     all_settings = db.get_all_settings()
 
     # Apply defaults for known settings
-    return {
+    result = {
         "model_provider": all_settings.get("model_provider", "anthropic"),
-        # Add more settings here as needed
     }
+
+    # Include custom provider settings when provider is "custom"
+    if result["model_provider"] == "custom":
+        result["custom_provider_model"] = all_settings.get("custom_provider_model", "")
+        result["custom_provider_cheap_model"] = all_settings.get("custom_provider_cheap_model", "")
+        result["custom_provider_base_url"] = all_settings.get("custom_provider_base_url", "")
+
+    return result
 
 
 @app.put("/settings")
@@ -1894,27 +1901,40 @@ async def update_settings(payload: dict):
     # Validate model_provider if provided
     if "model_provider" in payload:
         provider = payload["model_provider"]
-        if provider not in ("anthropic", "openai"):
+        if provider not in ("anthropic", "openai", "custom"):
             raise HTTPException(
                 status_code=400,
-                detail=f"Invalid model_provider: {provider}. Must be 'anthropic' or 'openai'."
+                detail=f"Invalid model_provider: {provider}. Must be 'anthropic', 'openai', or 'custom'."
             )
         db.set_setting("model_provider", provider)
         log(f"[Settings] Updated model_provider to {provider}")
 
+    # Save custom provider settings if provided
+    for key in ("custom_provider_model", "custom_provider_cheap_model", "custom_provider_base_url"):
+        if key in payload:
+            value = payload[key].strip() if isinstance(payload[key], str) else ""
+            db.set_setting(key, value)
+
     # Return updated settings
-    return {
+    current_provider = db.get_setting("model_provider", "anthropic")
+    result = {
         "status": "ok",
         "settings": {
-            "model_provider": db.get_setting("model_provider", "anthropic"),
+            "model_provider": current_provider,
         }
     }
+    if current_provider == "custom":
+        result["settings"]["custom_provider_model"] = db.get_setting("custom_provider_model", "")
+        result["settings"]["custom_provider_cheap_model"] = db.get_setting("custom_provider_cheap_model", "")
+        result["settings"]["custom_provider_base_url"] = db.get_setting("custom_provider_base_url", "")
+    return result
 
 
 ALLOWED_API_KEYS = {
     "anthropic_api_key": "ANTHROPIC_API_KEY",
     "openai_api_key": "OPENAI_API_KEY",
     "serper_api_key": "SERPER_API_KEY",
+    "custom_provider_api_key": "CUSTOM_PROVIDER_API_KEY",
 }
 
 
@@ -1992,10 +2012,10 @@ async def validate_provider(provider: str):
     """
     from user_container.config import settings as app_settings
 
-    if provider not in ("anthropic", "openai"):
+    if provider not in ("anthropic", "openai", "custom"):
         raise HTTPException(
             status_code=400,
-            detail=f"Invalid provider: {provider}. Must be 'anthropic' or 'openai'."
+            detail=f"Invalid provider: {provider}. Must be 'anthropic', 'openai', or 'custom'."
         )
 
     if provider == "anthropic":
@@ -2004,6 +2024,11 @@ async def validate_provider(provider: str):
     elif provider == "openai":
         if not app_settings.openai_api_key:
             return {"valid": False, "error": "OpenAI API key is not configured"}
+    elif provider == "custom":
+        # Custom provider needs a model configured (API key is optional for local providers)
+        custom_model = db.get_setting("custom_provider_model") or app_settings.custom_provider_model
+        if not custom_model:
+            return {"valid": False, "error": "Custom provider model is not configured. Set it in settings first."}
 
     return {"valid": True}
 

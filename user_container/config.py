@@ -34,6 +34,12 @@ class Settings(BaseModel):
     anthropic_model: str = os.getenv("ANTHROPIC_MODEL", "claude-sonnet-4-5-20250929")
     anthropic_cheap_model: str = os.getenv("ANTHROPIC_CHEAP_MODEL", "claude-haiku-4-5-20251001")
 
+    # Custom Provider (LiteLLM - supports Ollama, Azure, OpenRouter, LM Studio, etc.)
+    custom_provider_model: Optional[str] = os.getenv("CUSTOM_PROVIDER_MODEL")           # e.g. "ollama/llama3"
+    custom_provider_cheap_model: Optional[str] = os.getenv("CUSTOM_PROVIDER_CHEAP_MODEL")  # e.g. "ollama/llama3"
+    custom_provider_base_url: Optional[str] = os.getenv("CUSTOM_PROVIDER_BASE_URL")     # e.g. "http://localhost:11434"
+    custom_provider_api_key: Optional[str] = os.getenv("CUSTOM_PROVIDER_API_KEY")       # optional for local providers
+
     # Groq Configuration (fast routing)
     groq_api_key: Optional[str] = os.getenv("GROQ_API_KEY")
     groq_routing_model: str = os.getenv("GROQ_ROUTING_MODEL", "llama-3.1-8b-instant")

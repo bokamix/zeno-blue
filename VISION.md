@@ -48,54 +48,76 @@ Setup should be achievable by anyone who can follow a simple guide (copy-paste a
 ## Architecture Pillars
 
 ### Single-user, single-process
-One ZENO instance = one user. Simple, no auth complexity. Lightweight enough to run on a Raspberry Pi or a $5/mo VPS.
+One ZENO instance = one user. Simple, no auth complexity. Lightweight enough to run on a Raspberry Pi or a $5/mo VPS. FastAPI + asyncio, SQLite with WAL mode, no Redis/Docker required.
 
 ### Always-on (24/7 service)
-- **Scheduler** - Cron-like task scheduling ("every Monday at 9am, generate sales report")
-- **Triggers/Webhooks** - React to external events (incoming email, API call, file change)
-- **Background tasks** - Long-running jobs that don't block the UI
-- **Monitoring** - Watch for conditions and act automatically
+- **CRON Scheduler** - APScheduler-based task scheduling ("every Monday at 9am, generate sales report")
+- **Background jobs** - In-memory queue + SQLite persistence, long-running jobs don't block the UI
+- **Triggers/Webhooks** - React to external events (planned: incoming HTTP, file changes)
+
+### Intelligent Routing & Delegation
+- **Routing agent** - Classifies task complexity (depth 0 = direct answer, 1 = standard, 2 = complex)
+- **Delegation** - Parallel sub-agents using cheap models (Haiku) for independent subtasks
+- **Exploration** - Dedicated executor for codebase analysis and research
 
 ### AI Model Flexibility
 Users connect whatever models they want:
-- **Cloud APIs** - Anthropic, OpenAI, Google (API key)
-- **Local models** - Ollama, LM Studio (privacy, free, offline)
-- **Custom endpoints** - OpenRouter, Azure, self-hosted (any OpenAI-compatible API)
+- **Cloud APIs** - Anthropic (Claude Sonnet/Haiku/Opus), OpenAI (GPT-5/5-mini)
+- **Fast routing** - Groq (Llama 3.1) for instant task classification
+- **Planned** - Ollama, LM Studio, OpenRouter, Azure, any OpenAI-compatible endpoint
 
 ### Extensibility System (Skills & Tools)
 
-**Built-in tools** - Shell, files, web search, web fetch, document processing
+**16 built-in tools** - Shell, file ops (read/write/edit/list), web search, web fetch, search in files, delegate, explore, schedule, ask user, recall from chat
 
-**Skill Marketplace** - Community-driven repository where users:
-- Browse and install skills with one click
-- Rate and review skills
-- See what's popular / trending
+**12 skills** with intelligent routing (TTL-based decay):
+- **Documents** - PDF (extract, create, merge, split, fill forms), DOCX, XLSX
+- **Media** - Image analysis (Claude/GPT-4V vision), audio/video transcription (Whisper)
+- **Web** - Screenshots (Playwright), web app builder (FastAPI + Alpine.js + Tailwind)
+- **Deployment** - App deploy & manage (register, start, stop, restart, logs, port management)
+- **Design** - Frontend design, n8n workflow generation
 
 **Custom skills** - Users write their own in Python:
 - Simple API: define inputs, outputs, and logic
 - Drop a file into `skills/` directory
-- Automatically discovered and available to the agent
+- Automatically discovered via SKILL.md format
+
+### Apps System
+Users can deploy custom web apps directly from ZENO:
+- FastAPI-based apps with automatic port assignment (3100-3199)
+- Full lifecycle management (register, start, stop, restart, delete, update, logs)
+- SQLite-tracked app state with PID management
+
+### Context & Cost Management
+- **Context compression** - Automatic compression at 70% of context window, preserves recent messages and decisions
+- **Conversation summarization** - Hierarchical memory with semantic summaries
+- **Cost tracking** - Per-request token usage and cost calculation, integrated with Langfuse observability
+- **Skill usage tracking** - Monitor API consumption per skill
 
 ### Full Internet Access
-- Web search (configurable search providers)
+- Web search (Serper API)
 - Fetch and parse web pages
 - Call external APIs
-- Receive incoming webhooks
-- Send notifications (email, Slack, Discord, etc.)
+- Planned: incoming webhooks, notifications (email, Slack, Discord)
 
 ## Installation
 
-Single bash script - no Docker required:
+One command to install, one command to run:
 ```bash
-curl -fsSL https://get.zeno.ai | bash
+# Install
+curl -fsSL https://raw.githubusercontent.com/.../install.sh | bash
+
+# Run
+zeno
 ```
 
-The script handles:
-1. Check system requirements (Python, Node.js)
-2. Download and set up ZENO
-3. Launch setup wizard in browser
-4. User enters API key (or configures local model)
-5. Done - ZENO is running
+The `install.sh` script handles:
+1. OS detection (macOS/Linux, suggests WSL for Windows)
+2. Install `uv` (Python package manager)
+3. Download and extract ZENO to `~/.zeno/`
+4. Create virtual environment and install dependencies
+5. Create `zeno` CLI wrapper
+6. Launch setup wizard in browser - user enters API key and configures preferences
 
 ## What ZENO is NOT
 
@@ -110,41 +132,53 @@ The script handles:
 |---------|------|-----------|-----|---------|
 | Self-hosted | Yes | Yes | Yes | Yes |
 | True agent (not just chat) | Yes | No | Partial | Yes |
-| 24/7 autonomous | Yes | No | Yes | Partial |
-| Simple setup | Yes | Yes | Medium | Hard |
-| Skill marketplace | Yes | No | Yes | No |
-| Local model support | Yes | Yes | No | No |
+| 24/7 scheduled tasks | Yes | No | Yes | No |
+| Simple one-command setup | Yes | Yes | Medium | Hard |
+| Skill/plugin system | Yes (12 built-in) | Partial | Yes | No |
+| App deployment | Yes | No | No | No |
+| Task delegation | Yes (parallel) | No | Yes (workflows) | Partial |
+| Multi-model (cloud) | Yes (3 providers) | Yes | No | Partial |
+| Cost tracking | Yes | No | No | No |
 | Non-technical users | Yes | Yes | No | No |
+| Responsive UI + i18n | Yes (EN, PL) | Yes | Partial | No |
 
-## Roadmap (High-level)
+## Roadmap
 
-### Phase 1 - Foundation (Current)
-- [x] Core agent with tool use
-- [x] Chat UI (Vue 3)
-- [x] Basic tools (shell, files, web)
-- [x] Multi-model support (Anthropic, OpenAI)
-- [ ] Local model support (Ollama)
-- [ ] Stable skill/plugin API
+### Phase 1 - Foundation (DONE)
+- [x] Core agent with intelligent routing (depth 0-2) and delegation
+- [x] Chat UI (Vue 3, responsive, dark/light mode, i18n EN+PL)
+- [x] 16 tools (shell, files, web, delegate, explore, schedule, ask_user, recall...)
+- [x] 12 skills (PDF, DOCX, XLSX, image, transcription, web-app-builder, app-deploy...)
+- [x] Skill router with TTL-based decay
+- [x] Multi-model support (Anthropic, OpenAI, Groq for routing)
+- [x] CRON scheduler with APScheduler + background job queue
+- [x] Apps system (deploy and manage user web apps)
+- [x] Setup wizard + bash installer (`install.sh` → `zeno` CLI)
+- [x] Cost tracking + usage monitoring (Langfuse integration)
+- [x] Context compression + conversation summarization
+- [x] File management with drag-and-drop upload
 
-### Phase 2 - Autonomy
-- [ ] Scheduler (cron-like tasks)
-- [ ] Webhook triggers
-- [ ] Background task management UI
-- [ ] Notification system (email, Slack, Discord)
-- [ ] File watcher triggers
-
-### Phase 3 - Ecosystem
-- [ ] Skill marketplace (browse, install, rate)
-- [ ] Community skill repository
+### Phase 2 - Ecosystem (NEXT)
+- [ ] Skill marketplace (community repo, browse, install, rate)
 - [ ] Skill creation wizard in UI
-- [ ] Skill templates and docs
+- [ ] Skill templates and documentation for contributors
 
-### Phase 4 - Polish & Growth
-- [ ] One-line installer script
-- [ ] Setup wizard (web-based)
-- [ ] Mobile-friendly UI
-- [ ] Internationalization
-- [ ] Cloud deploy templates (DigitalOcean, Railway, etc.)
+### Phase 3 - Event-driven Automation (NEXT)
+- [ ] Webhook triggers (react to incoming HTTP events)
+- [ ] File watcher triggers
+- [ ] Notification system (email, Slack, Discord, webhooks out)
+- [ ] Event chaining (trigger A fires task B)
+
+### Phase 4 - Model Flexibility
+- [ ] Ollama / LM Studio support (local models)
+- [ ] Custom OpenAI-compatible endpoints (OpenRouter, Azure, self-hosted)
+- [ ] Model routing rules (use local for simple, cloud for complex)
+
+### Phase 5 - Growth
+- [ ] Cloud deploy templates (DigitalOcean, Railway, Render)
+- [ ] RAG / semantic search (vector DB for knowledge base)
+- [ ] More languages (i18n expansion)
+- [ ] Plugin API for custom tools (not just skills)
 
 ---
 

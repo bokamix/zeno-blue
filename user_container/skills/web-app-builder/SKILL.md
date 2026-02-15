@@ -1,29 +1,44 @@
 ---
 name: web-app-builder
-description: "Build full-stack web applications with FastAPI (Python backend), SQLite (database), Alpine.js (frontend), Tailwind CSS + DaisyUI (styling). Use when user wants to create a web app, build an application, make a dashboard, create a tool, or develop any interactive web interface with database."
+description: "Build web apps as single HTML files with Vue 3 (CDN), InstantDB (real-time DB + auth), Tailwind CSS + DaisyUI. No backend, no npm, no build step."
 ---
 
 # Web App Builder
 
-Build complete web applications with a simple, no-build-step stack:
-- **Backend**: FastAPI (Python) - REST API + serves static files
-- **Database**: SQLite - one file per project, zero configuration
-- **Frontend**: Alpine.js - reactive UI directly in HTML
-- **Styling**: Tailwind CSS + DaisyUI - beautiful UI from CDN
+Build web applications as single HTML files - no backend, no npm, no build step:
+- **Frontend**: Vue 3 (CDN) - Composition API with setup()
+- **Database**: InstantDB (real-time, cloud) OR localStorage (offline)
+- **Auth**: InstantDB Auth (magic codes, Google OAuth)
+- **Styling**: Tailwind CSS + DaisyUI (CDN)
+- **Output**: Single HTML file -> `/workspace/artifacts/<name>.html`
+
+## When to Use InstantDB vs localStorage
+
+| Feature | InstantDB | localStorage |
+|---------|-----------|-------------|
+| Multi-user | Yes | No |
+| Real-time sync | Yes | No |
+| Authentication | Built-in | Manual |
+| Cloud storage | Yes | Browser only |
+| Offline support | Limited | Full |
+| Setup required | App ID needed | None |
+
+**Use InstantDB when:** multi-user apps, real-time collaboration, data persistence across devices, auth needed.
+**Use localStorage when:** single-user tools, calculators, offline apps, quick prototypes, no account needed.
 
 ## Important: Editing Existing Apps
 
-**When user asks to fix, improve, or change an existing app - MODIFY THE EXISTING FILES, do NOT create a new app!**
+**When user asks to fix, improve, or change an existing app - MODIFY THE EXISTING FILE, do NOT create a new app!**
 
-1. First, check if app already exists: `list_dir("/workspace")`
-2. If app exists, read and edit existing files (`read_file`, `write_file`)
+1. First, check if app already exists: `list_dir("/workspace/artifacts")`
+2. If app exists, read and edit the existing file (`read_file`, `write_file`)
 3. Only create new app if user explicitly asks for a NEW app
 
 **Examples:**
-- "Fix the button" -> Edit existing `index.html`
-- "Add dark mode" -> Modify existing app files
+- "Fix the button" -> Edit existing HTML file
+- "Add dark mode" -> Modify existing app
 - "The form doesn't work" -> Debug and fix existing code
-- "Create a NEW todo app" -> Create new directory and files
+- "Create a NEW todo app" -> Create new file
 
 ## Styling Options
 
@@ -50,241 +65,211 @@ Build complete web applications with a simple, no-build-step stack:
 ### Project Structure
 
 ```
-/workspace/my-app/
-├── app.py          # Backend: FastAPI + SQLite
-├── index.html      # Frontend: Alpine.js + Tailwind
-└── data.db         # Database (auto-created on first run)
+/workspace/artifacts/my-app.html   <-- one file, that's everything!
 ```
 
-### Minimal Example: Todo App
+### Boilerplate - With InstantDB
 
-**app.py**
-```python
-# /// script
-# dependencies = ["fastapi", "uvicorn"]
-# ///
-
-import sqlite3
-import json
-import asyncio
-from pathlib import Path
-from fastapi import FastAPI, Request, HTTPException
-from fastapi.responses import HTMLResponse, StreamingResponse
-from contextlib import asynccontextmanager
-
-DB_PATH = Path(__file__).parent / "data.db"
-
-def get_db():
-    conn = sqlite3.connect(DB_PATH)
-    conn.row_factory = sqlite3.Row
-    return conn
-
-def init_db():
-    conn = get_db()
-    conn.executescript("""
-        CREATE TABLE IF NOT EXISTS todos (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            title TEXT NOT NULL,
-            done BOOLEAN DEFAULT 0,
-            created_at TEXT DEFAULT CURRENT_TIMESTAMP
-        );
-    """)
-    conn.commit()
-    conn.close()
-
-# SSE for real-time
-subscribers: list[asyncio.Queue] = []
-
-async def broadcast(event: str, data: dict):
-    message = f"event: {event}\ndata: {json.dumps(data)}\n\n"
-    for queue in subscribers:
-        await queue.put(message)
-
-@asynccontextmanager
-async def lifespan(app: FastAPI):
-    init_db()
-    yield
-
-app = FastAPI(lifespan=lifespan)
-
-@app.get("/api/todos")
-async def list_todos():
-    conn = get_db()
-    todos = conn.execute("SELECT * FROM todos ORDER BY created_at DESC").fetchall()
-    conn.close()
-    return [dict(t) for t in todos]
-
-@app.post("/api/todos")
-async def create_todo(request: Request):
-    data = await request.json()
-    conn = get_db()
-    cursor = conn.execute("INSERT INTO todos (title) VALUES (?)", (data["title"],))
-    conn.commit()
-    todo = conn.execute("SELECT * FROM todos WHERE id = ?", (cursor.lastrowid,)).fetchone()
-    conn.close()
-    await broadcast("todo_created", dict(todo))
-    return dict(todo)
-
-@app.put("/api/todos/{todo_id}")
-async def update_todo(todo_id: int, request: Request):
-    data = await request.json()
-    conn = get_db()
-    conn.execute("UPDATE todos SET done = ? WHERE id = ?", (data["done"], todo_id))
-    conn.commit()
-    todo = conn.execute("SELECT * FROM todos WHERE id = ?", (todo_id,)).fetchone()
-    conn.close()
-    await broadcast("todo_updated", dict(todo))
-    return dict(todo)
-
-@app.delete("/api/todos/{todo_id}")
-async def delete_todo(todo_id: int):
-    conn = get_db()
-    conn.execute("DELETE FROM todos WHERE id = ?", (todo_id,))
-    conn.commit()
-    conn.close()
-    await broadcast("todo_deleted", {"id": todo_id})
-    return {"ok": True}
-
-@app.get("/api/events")
-async def events():
-    queue = asyncio.Queue()
-    subscribers.append(queue)
-    async def stream():
-        try:
-            yield "event: connected\ndata: {}\n\n"
-            while True:
-                try:
-                    message = await asyncio.wait_for(queue.get(), timeout=30)
-                    yield message
-                except asyncio.TimeoutError:
-                    yield "event: ping\ndata: {}\n\n"
-        finally:
-            subscribers.remove(queue)
-    return StreamingResponse(stream(), media_type="text/event-stream")
-
-@app.get("/")
-async def index():
-    return HTMLResponse(Path("index.html").read_text())
-
-if __name__ == "__main__":
-    import uvicorn
-    import sys
-    port = int(sys.argv[1]) if len(sys.argv) > 1 else 8000
-    uvicorn.run(app, host="0.0.0.0", port=port)
-```
-
-**index.html**
 ```html
 <!DOCTYPE html>
 <html lang="en" data-theme="light">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Todo App</title>
+    <title>My App</title>
     <link href="https://cdn.jsdelivr.net/npm/daisyui@4/dist/full.min.css" rel="stylesheet">
     <script src="https://cdn.tailwindcss.com"></script>
-    <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3/dist/cdn.min.js"></script>
+    <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
 </head>
 <body class="min-h-screen bg-base-200 p-8">
-    <div x-data="todoApp()" x-init="init()" class="max-w-md mx-auto">
+    <div id="app" class="max-w-md mx-auto">
         <h1 class="text-3xl font-bold mb-6">Todo List</h1>
 
         <!-- Add form -->
         <form @submit.prevent="addTodo" class="flex gap-2 mb-6">
-            <input type="text" x-model="newTitle" placeholder="What needs to be done?"
+            <input type="text" v-model="newTitle" placeholder="What needs to be done?"
                    class="input input-bordered flex-1" required>
             <button type="submit" class="btn btn-primary">Add</button>
         </form>
 
         <!-- Todo list -->
         <div class="space-y-2">
-            <template x-for="todo in todos" :key="todo.id">
-                <div class="card bg-base-100 shadow">
-                    <div class="card-body p-4 flex-row items-center gap-4">
-                        <input type="checkbox" :checked="todo.done"
-                               @change="toggleTodo(todo)"
-                               class="checkbox checkbox-primary">
-                        <span class="flex-1" :class="{'line-through opacity-50': todo.done}"
-                              x-text="todo.title"></span>
-                        <button @click="deleteTodo(todo.id)" class="btn btn-ghost btn-sm text-error">
-                            Delete
-                        </button>
-                    </div>
+            <div v-for="todo in todos" :key="todo.id" class="card bg-base-100 shadow">
+                <div class="card-body p-4 flex-row items-center gap-4">
+                    <input type="checkbox" :checked="todo.done"
+                           @change="toggleTodo(todo)"
+                           class="checkbox checkbox-primary">
+                    <span class="flex-1" :class="{'line-through opacity-50': todo.done}">
+                        {{ todo.title }}
+                    </span>
+                    <button @click="deleteTodo(todo.id)" class="btn btn-ghost btn-sm text-error">
+                        Delete
+                    </button>
                 </div>
-            </template>
+            </div>
         </div>
 
         <!-- Stats -->
         <div class="mt-6 text-sm opacity-70">
-            <span x-text="todos.filter(t => !t.done).length"></span> remaining
+            {{ remaining }} remaining
         </div>
     </div>
 
-    <script>
-    function todoApp() {
-        return {
-            todos: [],
-            newTitle: '',
+    <script type="module">
+    import { init, id } from 'https://unpkg.com/@instantdb/core@latest/dist/standalone/index.js';
 
-            async init() {
-                await this.loadTodos();
-                this.connectSSE();
-            },
+    const db = init({ appId: 'YOUR_APP_ID' });
 
-            async loadTodos() {
-                const res = await fetch('/api/todos');
-                this.todos = await res.json();
-            },
+    const { createApp, ref, computed, onMounted, onUnmounted } = Vue;
 
-            async addTodo() {
-                if (!this.newTitle.trim()) return;
-                await fetch('/api/todos', {
-                    method: 'POST',
-                    headers: {'Content-Type': 'application/json'},
-                    body: JSON.stringify({title: this.newTitle})
+    createApp({
+        setup() {
+            const todos = ref([]);
+            const newTitle = ref('');
+            let unsub = null;
+
+            onMounted(() => {
+                unsub = db.subscribeQuery({ todos: {} }, (resp) => {
+                    if (resp.data) todos.value = resp.data.todos;
                 });
-                this.newTitle = '';
-            },
+            });
 
-            async toggleTodo(todo) {
-                await fetch(`/api/todos/${todo.id}`, {
-                    method: 'PUT',
-                    headers: {'Content-Type': 'application/json'},
-                    body: JSON.stringify({done: !todo.done})
-                });
-            },
+            onUnmounted(() => { if (unsub) unsub(); });
 
-            async deleteTodo(id) {
-                await fetch(`/api/todos/${id}`, {method: 'DELETE'});
-            },
-
-            connectSSE() {
-                const es = new EventSource('/api/events');
-                es.addEventListener('todo_created', (e) => {
-                    this.todos.unshift(JSON.parse(e.data));
-                });
-                es.addEventListener('todo_updated', (e) => {
-                    const todo = JSON.parse(e.data);
-                    const idx = this.todos.findIndex(t => t.id === todo.id);
-                    if (idx !== -1) this.todos[idx] = todo;
-                });
-                es.addEventListener('todo_deleted', (e) => {
-                    const {id} = JSON.parse(e.data);
-                    this.todos = this.todos.filter(t => t.id !== id);
-                });
+            function addTodo() {
+                if (!newTitle.value.trim()) return;
+                db.transact(db.tx.todos[id()].update({
+                    title: newTitle.value.trim(),
+                    done: false,
+                    createdAt: Date.now()
+                }));
+                newTitle.value = '';
             }
+
+            function toggleTodo(todo) {
+                db.transact(db.tx.todos[todo.id].update({ done: !todo.done }));
+            }
+
+            function deleteTodo(todoId) {
+                db.transact(db.tx.todos[todoId].delete());
+            }
+
+            const remaining = computed(() => todos.value.filter(t => !t.done).length);
+
+            return { todos, newTitle, addTodo, toggleTodo, deleteTodo, remaining };
         }
-    }
+    }).mount('#app');
     </script>
 </body>
 </html>
 ```
 
-### Deploy
+### Boilerplate - With localStorage (no InstantDB)
 
-```bash
-# Deploy the app
-uv run app.py
+```html
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>My App</title>
+    <link href="https://cdn.jsdelivr.net/npm/daisyui@4/dist/full.min.css" rel="stylesheet">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
+</head>
+<body class="min-h-screen bg-base-200 p-8">
+    <div id="app" class="max-w-md mx-auto">
+        <h1 class="text-3xl font-bold mb-6">Todo List</h1>
+
+        <!-- Add form -->
+        <form @submit.prevent="addTodo" class="flex gap-2 mb-6">
+            <input type="text" v-model="newTitle" placeholder="What needs to be done?"
+                   class="input input-bordered flex-1" required>
+            <button type="submit" class="btn btn-primary">Add</button>
+        </form>
+
+        <!-- Todo list -->
+        <div class="space-y-2">
+            <div v-for="todo in todos" :key="todo.id" class="card bg-base-100 shadow">
+                <div class="card-body p-4 flex-row items-center gap-4">
+                    <input type="checkbox" :checked="todo.done"
+                           @change="toggleTodo(todo.id)"
+                           class="checkbox checkbox-primary">
+                    <span class="flex-1" :class="{'line-through opacity-50': todo.done}">
+                        {{ todo.title }}
+                    </span>
+                    <button @click="deleteTodo(todo.id)" class="btn btn-ghost btn-sm text-error">
+                        Delete
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Stats -->
+        <div class="mt-6 text-sm opacity-70">
+            {{ remaining }} remaining
+        </div>
+    </div>
+
+    <script>
+    const { createApp, ref, computed, watch } = Vue;
+
+    createApp({
+        setup() {
+            const todos = ref(JSON.parse(localStorage.getItem('todos') || '[]'));
+            const newTitle = ref('');
+
+            // Auto-save to localStorage
+            watch(todos, (val) => {
+                localStorage.setItem('todos', JSON.stringify(val));
+            }, { deep: true });
+
+            function addTodo() {
+                if (!newTitle.value.trim()) return;
+                todos.value.push({
+                    id: crypto.randomUUID(),
+                    title: newTitle.value.trim(),
+                    done: false,
+                    createdAt: Date.now()
+                });
+                newTitle.value = '';
+            }
+
+            function toggleTodo(id) {
+                const todo = todos.value.find(t => t.id === id);
+                if (todo) todo.done = !todo.done;
+            }
+
+            function deleteTodo(id) {
+                todos.value = todos.value.filter(t => t.id !== id);
+            }
+
+            const remaining = computed(() => todos.value.filter(t => !t.done).length);
+
+            return { todos, newTitle, addTodo, toggleTodo, deleteTodo, remaining };
+        }
+    }).mount('#app');
+    </script>
+</body>
+</html>
+```
+
+---
+
+## CDN Links
+
+```html
+<!-- Vue 3 -->
+<script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
+
+<!-- InstantDB (ESM module) -->
+<script type="module">
+  import { init, id } from 'https://unpkg.com/@instantdb/core@latest/dist/standalone/index.js';
+</script>
+
+<!-- Tailwind CSS + DaisyUI -->
+<link href="https://cdn.jsdelivr.net/npm/daisyui@4/dist/full.min.css" rel="stylesheet">
+<script src="https://cdn.tailwindcss.com"></script>
 ```
 
 ---
@@ -293,59 +278,32 @@ uv run app.py
 
 ### How It Works
 
-1. **FastAPI** serves both the API and the frontend HTML
-2. **SQLite** stores data in `data.db` in the project folder
-3. **Alpine.js** makes the HTML reactive without a build step
-4. **SSE** provides real-time updates without WebSockets
+1. **Vue 3** provides reactivity and component structure via CDN
+2. **InstantDB** handles real-time data sync and auth from the browser
+3. **Tailwind + DaisyUI** provide styling without build step
+4. Single HTML file - open directly in browser, no server needed
 
 ### Why This Stack?
 
-- **No build step**: Just write HTML/JS and run Python
-- **Single deployment**: One app serves everything
-- **No CORS issues**: Frontend and API on same origin
-- **Portable**: Copy the folder and it works
-- **Simple debugging**: All code visible and editable
-
----
-
-## Backend Reference
-
-See `docs/backend.md` for complete backend documentation:
-- Database patterns (schema, queries, relations)
-- API patterns (validation, errors, pagination)
-- SSE real-time patterns
-- File upload handling
+- **No build step**: Just open the HTML file
+- **No backend**: InstantDB handles data and auth
+- **Real-time by default**: Data syncs automatically across all clients
+- **Single file**: Easy to create, share, and modify
+- **Zero deployment**: Open in browser and it works
 
 ---
 
 ## Frontend Reference
 
-### CDN Links
+### Vue 3 Basics
 
-```html
-<!-- Tailwind CSS + DaisyUI (styling) -->
-<link href="https://cdn.jsdelivr.net/npm/daisyui@4/dist/full.min.css" rel="stylesheet">
-<script src="https://cdn.tailwindcss.com"></script>
+See `docs/vue-cdn.md` for full Vue 3 CDN documentation:
+- Composition API: `ref()`, `reactive()`, `computed()`, `watch()`
+- Template syntax: `{{ }}`, `v-bind`/`:`, `v-on`/`@`, `v-model`, `v-for`, `v-if`
+- Lifecycle: `onMounted()`, `onUnmounted()`
+- Migration table from Alpine.js
 
-<!-- Alpine.js (reactivity) -->
-<script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3/dist/cdn.min.js"></script>
-```
-
-### Alpine.js Basics
-
-See `docs/alpine.md` for full Alpine.js documentation.
-
-**Core directives:**
-- `x-data="{ count: 0 }"` - Component state
-- `x-init="loadData()"` - Run on init
-- `x-model="title"` - Two-way binding
-- `x-text="message"` - Text content
-- `@click="doSomething()"` - Event handler
-- `x-for="item in items"` - Loop
-- `x-if="condition"` - Conditional
-- `x-show="visible"` - Show/hide
-
-### Tailwind + DaisyUI Basics
+### Tailwind + DaisyUI
 
 See `docs/tailwind-daisyui.md` for full styling documentation.
 
@@ -365,136 +323,169 @@ See `docs/tailwind-daisyui.md` for full styling documentation.
 
 ---
 
+## Database Reference
+
+See `docs/instantdb.md` for full InstantDB documentation:
+- Real-time subscriptions
+- CRUD operations (transact)
+- Relations (link/unlink)
+- Authentication (magic codes, Google OAuth)
+- localStorage fallback pattern
+
+---
+
 ## Common Patterns
 
-### Authentication
-
-**Backend (app.py)**
-```python
-@app.post("/api/register")
-async def register(request: Request):
-    data = await request.json()
-    conn = get_db()
-    try:
-        conn.execute(
-            "INSERT INTO users (username, password) VALUES (?, ?)",
-            (data["username"], data["password"])
-        )
-        conn.commit()
-        user = conn.execute(
-            "SELECT id, username FROM users WHERE username = ?",
-            (data["username"],)
-        ).fetchone()
-        return dict(user)
-    except sqlite3.IntegrityError:
-        raise HTTPException(400, "Username taken")
-    finally:
-        conn.close()
-
-@app.post("/api/login")
-async def login(request: Request):
-    data = await request.json()
-    conn = get_db()
-    user = conn.execute(
-        "SELECT id, username FROM users WHERE username = ? AND password = ?",
-        (data["username"], data["password"])
-    ).fetchone()
-    conn.close()
-    if not user:
-        raise HTTPException(401, "Invalid credentials")
-    return dict(user)
-```
-
-**Frontend (index.html)**
-```javascript
-// In Alpine component
-user: JSON.parse(localStorage.getItem('user')) || null,
-
-async login() {
-    const res = await fetch('/api/login', {
-        method: 'POST',
-        headers: {'Content-Type': 'application/json'},
-        body: JSON.stringify({username: this.username, password: this.password})
-    });
-    if (res.ok) {
-        this.user = await res.json();
-        localStorage.setItem('user', JSON.stringify(this.user));
-    } else {
-        this.error = 'Invalid credentials';
-    }
-},
-
-logout() {
-    this.user = null;
-    localStorage.removeItem('user');
-}
-```
-
-### Login Form Template
+### Authentication (InstantDB Magic Codes)
 
 ```html
-<template x-if="!user">
-    <div class="max-w-sm mx-auto mt-20">
+<div id="app">
+    <!-- Login form -->
+    <div v-if="!user" class="max-w-sm mx-auto mt-20">
         <div class="card bg-base-100 shadow-xl">
             <div class="card-body">
                 <h2 class="card-title">Login</h2>
-
-                <div class="tabs tabs-boxed mb-4">
-                    <a class="tab" :class="{'tab-active': mode === 'login'}" @click="mode = 'login'">Login</a>
-                    <a class="tab" :class="{'tab-active': mode === 'register'}" @click="mode = 'register'">Register</a>
+                <div v-if="!codeSent">
+                    <input type="email" v-model="email" placeholder="Email"
+                           class="input input-bordered w-full mb-4" required>
+                    <button @click="sendCode" class="btn btn-primary w-full"
+                            :disabled="sending">
+                        {{ sending ? 'Sending...' : 'Send Login Code' }}
+                    </button>
                 </div>
-
-                <form @submit.prevent="mode === 'login' ? login() : register()">
-                    <div class="form-control">
-                        <input type="text" x-model="username" placeholder="Username"
-                               class="input input-bordered" required>
-                    </div>
-                    <div class="form-control mt-2">
-                        <input type="password" x-model="password" placeholder="Password"
-                               class="input input-bordered" required>
-                    </div>
-                    <button type="submit" class="btn btn-primary w-full mt-4"
-                            x-text="mode === 'login' ? 'Login' : 'Register'"></button>
-                </form>
-
-                <p x-show="error" class="text-error mt-2" x-text="error"></p>
+                <div v-else>
+                    <p class="mb-4 text-sm">Code sent to {{ email }}</p>
+                    <input type="text" v-model="code" placeholder="Enter code"
+                           class="input input-bordered w-full mb-4" required>
+                    <button @click="verifyCode" class="btn btn-primary w-full">
+                        Verify
+                    </button>
+                </div>
+                <p v-if="error" class="text-error mt-2">{{ error }}</p>
             </div>
         </div>
     </div>
-</template>
+
+    <!-- Main app (when logged in) -->
+    <div v-else>
+        <div class="navbar bg-base-100 shadow mb-4">
+            <div class="flex-1"><span class="text-xl font-bold">My App</span></div>
+            <div class="flex-none gap-2">
+                <span class="text-sm">{{ user.email }}</span>
+                <button @click="signOut" class="btn btn-ghost btn-sm">Logout</button>
+            </div>
+        </div>
+        <!-- App content here -->
+    </div>
+</div>
+
+<script type="module">
+import { init, id } from 'https://unpkg.com/@instantdb/core@latest/dist/standalone/index.js';
+const db = init({ appId: 'YOUR_APP_ID' });
+const { createApp, ref, onMounted } = Vue;
+
+createApp({
+    setup() {
+        const user = ref(null);
+        const email = ref('');
+        const code = ref('');
+        const codeSent = ref(false);
+        const sending = ref(false);
+        const error = ref('');
+
+        onMounted(() => {
+            db.subscribeAuth((auth) => {
+                user.value = auth.user || null;
+            });
+        });
+
+        async function sendCode() {
+            sending.value = true;
+            error.value = '';
+            try {
+                await db.auth.sendMagicCode({ email: email.value });
+                codeSent.value = true;
+            } catch (e) { error.value = e.message; }
+            finally { sending.value = false; }
+        }
+
+        async function verifyCode() {
+            error.value = '';
+            try {
+                await db.auth.signInWithMagicCode({ email: email.value, code: code.value });
+            } catch (e) { error.value = 'Invalid code'; }
+        }
+
+        function signOut() { db.auth.signOut(); }
+
+        return { user, email, code, codeSent, sending, error, sendCode, verifyCode, signOut };
+    }
+}).mount('#app');
+</script>
 ```
 
-### Data Table
+### Data Table with Sorting
 
 ```html
 <div class="overflow-x-auto">
     <table class="table">
         <thead>
             <tr>
-                <th>Name</th>
-                <th>Email</th>
+                <th @click="sortBy('name')" class="cursor-pointer">
+                    Name {{ sortKey === 'name' ? (sortAsc ? '↑' : '↓') : '' }}
+                </th>
+                <th @click="sortBy('email')" class="cursor-pointer">
+                    Email {{ sortKey === 'email' ? (sortAsc ? '↑' : '↓') : '' }}
+                </th>
                 <th>Status</th>
                 <th>Actions</th>
             </tr>
         </thead>
         <tbody>
-            <template x-for="user in users" :key="user.id">
-                <tr>
-                    <td x-text="user.name"></td>
-                    <td x-text="user.email"></td>
-                    <td>
-                        <span class="badge" :class="user.active ? 'badge-success' : 'badge-ghost'"
-                              x-text="user.active ? 'Active' : 'Inactive'"></span>
-                    </td>
-                    <td>
-                        <button @click="editUser(user)" class="btn btn-ghost btn-xs">Edit</button>
-                        <button @click="deleteUser(user.id)" class="btn btn-ghost btn-xs text-error">Delete</button>
-                    </td>
-                </tr>
-            </template>
+            <tr v-for="user in sortedUsers" :key="user.id">
+                <td>{{ user.name }}</td>
+                <td>{{ user.email }}</td>
+                <td>
+                    <span class="badge" :class="user.active ? 'badge-success' : 'badge-ghost'">
+                        {{ user.active ? 'Active' : 'Inactive' }}
+                    </span>
+                </td>
+                <td>
+                    <button @click="editUser(user)" class="btn btn-ghost btn-xs">Edit</button>
+                    <button @click="deleteUser(user.id)" class="btn btn-ghost btn-xs text-error">Delete</button>
+                </td>
+            </tr>
         </tbody>
     </table>
 </div>
+
+<script>
+setup() {
+    const users = ref([]);
+    const sortKey = ref('name');
+    const sortAsc = ref(true);
+
+    const sortedUsers = computed(() => {
+        return [...users.value].sort((a, b) => {
+            const valA = a[sortKey.value];
+            const valB = b[sortKey.value];
+            const cmp = String(valA).localeCompare(String(valB));
+            return sortAsc.value ? cmp : -cmp;
+        });
+    });
+
+    function sortBy(key) {
+        if (sortKey.value === key) {
+            sortAsc.value = !sortAsc.value;
+        } else {
+            sortKey.value = key;
+            sortAsc.value = true;
+        }
+    }
+
+    return { users, sortKey, sortAsc, sortedUsers, sortBy };
+}
+</script>
 ```
 
 ### Modal Dialog
@@ -504,7 +495,7 @@ logout() {
 <button @click="showModal = true" class="btn btn-primary">Open Modal</button>
 
 <!-- Modal -->
-<div x-show="showModal" class="modal modal-open">
+<div v-show="showModal" class="modal modal-open">
     <div class="modal-box">
         <h3 class="font-bold text-lg">Modal Title</h3>
         <p class="py-4">Modal content goes here.</p>
@@ -515,14 +506,66 @@ logout() {
     </div>
     <div class="modal-backdrop" @click="showModal = false"></div>
 </div>
+
+<script>
+setup() {
+    const showModal = ref(false);
+
+    function saveAndClose() {
+        // save logic
+        showModal.value = false;
+    }
+
+    return { showModal, saveAndClose };
+}
+</script>
 ```
+
+### Dark Mode Toggle
+
+```html
+<label class="swap swap-rotate">
+    <input type="checkbox" :checked="dark" @change="toggleDark">
+    <span class="swap-on">Dark</span>
+    <span class="swap-off">Light</span>
+</label>
+
+<script>
+setup() {
+    const dark = ref(localStorage.getItem('theme') === 'dark');
+
+    function toggleDark() {
+        dark.value = !dark.value;
+        localStorage.setItem('theme', dark.value ? 'dark' : 'light');
+        document.documentElement.setAttribute('data-theme', dark.value ? 'dark' : 'light');
+    }
+
+    onMounted(() => {
+        document.documentElement.setAttribute('data-theme', dark.value ? 'dark' : 'light');
+    });
+
+    return { dark, toggleDark };
+}
+</script>
+```
+
+---
+
+## InstantDB App ID
+
+When the app needs InstantDB (multi-user, real-time, auth), **ask the user** for their App ID using `ask_user`.
+
+Provide these instructions:
+1. Go to https://www.instantdb.com/dash
+2. Create a new app (or select existing)
+3. Copy the App ID from the dashboard
+4. Paste it here
 
 ---
 
 ## Additional Libraries
 
 See `docs/libraries.md` for integration guides:
-
 - **Chart.js** - Simple charts
 - **Leaflet** - Maps
 - **Quill** - Rich text editor
@@ -532,123 +575,20 @@ See `docs/libraries.md` for integration guides:
 
 ---
 
-## Deployment
+## Docs References
 
-### ⚠️ NEVER Run Apps Directly!
-
-**DO NOT** run your app like this:
-```bash
-uv run app.py 8001  # WRONG - app will not be accessible!
-```
-
-Apps must be deployed through the `app-deploy` skill to get a public URL.
-
-**Correct workflow:**
-1. Write your `app.py` and `index.html`
-2. Deploy using `register_app.py` (see below)
-3. Get the public URL from the deployment output
-
-### CRITICAL: Port Handling
-
-Your `app.py` **MUST** read the port from command line argument. The deployment system assigns a dynamic port.
-
-The boilerplate already handles this correctly:
-```python
-if __name__ == "__main__":
-    import uvicorn
-    import sys
-    port = int(sys.argv[1]) if len(sys.argv) > 1 else 8000
-    uvicorn.run(app, host="0.0.0.0", port=port)
-```
-
-**WRONG** (will NOT work):
-```python
-uvicorn.run(app, host="0.0.0.0", port=8000)  # Hardcoded - BREAKS!
-```
-
-### Deploy Command
-
-After creating `app.py` and `index.html`, deploy using:
-
-```bash
-uv run /app/user_container/skills/app-deploy/scripts/register_app.py \
-  --name "my-app" \
-  --cwd "/workspace/my-app" \
-  --cmd "uv run app.py {port}"
-```
-
-**Parameters:**
-- `--name`: App name (used in URL, lowercase, no spaces)
-- `--cwd`: Directory with your `app.py` and `index.html`
-- `--cmd`: Command to run. **Always use `{port}` placeholder!**
-
-### After Deployment
-
-The script outputs the public URL:
-```
-https://my-app.{username}.{domain}
-```
-
-The app runs in background and auto-restarts if it crashes.
+- `docs/vue-cdn.md` - Vue 3 CDN reference (Composition API, template syntax, patterns)
+- `docs/instantdb.md` - InstantDB CRUD, auth, permissions, localStorage fallback
+- `docs/tailwind-daisyui.md` - Styling (Tailwind utilities + DaisyUI components)
+- `docs/libraries.md` - Chart.js, Leaflet, Quill, SortableJS, Day.js etc.
+- `docs/skill-api.md` - AI features (requires separate Python backend)
 
 ---
 
-## Troubleshooting
+## Skill API - AI in Applications
 
-### Database Issues
+Apps can use AI (transcription, image analysis, LLM) via the Skill API.
 
-**"Database is locked"**
-- Make sure to close connections: `conn.close()`
-- Use context managers when possible
+**Documentation:** See `docs/skill-api.md`
 
-**Schema changes**
-- Delete `data.db` to recreate schema
-- Or add migration logic in `init_db()`
-
-### API Issues
-
-**CORS errors**
-- Should not happen (same origin)
-- Check if you're accessing from the correct URL
-
-**500 errors**
-- Check uvicorn console output
-- Add try/except with logging
-
-### SSE Issues
-
-**Not receiving events**
-- Check EventSource is connected
-- Verify broadcast is being called
-- Check browser console for errors
-
----
-
-## Skill API - AI w aplikacjach
-
-Aplikacje mogą korzystać z AI (transkrypcja, analiza obrazów, LLM) przez wbudowane API.
-
-**Dokumentacja:** Zobacz `docs/skill-api.md`
-
-**Dynamiczne wykrywanie skilli:**
-- Użyj `list_available_skills()` żeby sprawdzić co jest dostępne
-- Nowe skille są automatycznie wykrywane - nie trzeba aktualizować kodu
-
-**Kiedy używać:**
-- Transkrypcja nagrań audio
-- Analiza/OCR obrazów
-- Generowanie tekstu przez LLM
-- Podsumowania, tłumaczenia, ekstrakcja danych
-
-**Przykład:**
-```python
-from skill_client import chat, transcribe, list_available_skills
-
-# Sprawdź dostępne skille
-skills = list_available_skills()
-print([s['name'] for s in skills])
-
-# Transkrypcja + podsumowanie
-transcript = transcribe("/workspace/meeting.mp3")
-summary = chat([{"role": "user", "content": f"Podsumuj: {transcript['result']['text']}"}])
-```
+**Important:** The Skill API requires a Python backend. If your app needs AI features, write a separate Python script with FastAPI and have the frontend communicate with it via fetch. The HTML app and the Python script are separate files.

@@ -315,36 +315,32 @@ If skill says "run `uv run transcribe.py <audio_path> [options]`", you run: `uv 
 When user asks you to create a web app, follow this workflow:
 
 **Step 1: Read the web-app-builder skill**
-The skill at `/app/user_container/skills/web-app-builder/SKILL.md` has everything you need:
-- Ready-to-use boilerplate (FastAPI backend + HTML frontend)
-- Patterns for common features (forms, tables, SSE, file uploads)
+The skill at `/app/user_container/skills/web-app-builder/SKILL.md` has everything:
+- Ready-to-use boilerplate (Vue 3 + InstantDB single HTML file)
+- Patterns for CRUD, auth, real-time, tables
 - Working examples - DON'T reinvent the wheel
 
-**Step 2: Plan your app structure**
-Decide: what endpoints? what data model? Simple is better.
+**Step 2: Plan your app**
+Decide: what data entities? InstantDB or localStorage? Auth needed?
 
-**Step 3: Write the files**
-- `app.py` - FastAPI backend (MUST accept port as CLI argument!)
-- `index.html` - Single-file frontend with Tailwind + Alpine.js
-- Put them in `/workspace/projects/<app-name>/`
+**Step 3: Write the file**
+- Single HTML file with Vue 3 + Tailwind/DaisyUI
+- Save to `/workspace/artifacts/<app-name>.html`
+- No backend needed! No deployment step!
 
-**Step 4: Deploy with app-deploy skill**
-```bash
-uv run /app/user_container/skills/app-deploy/scripts/register_app.py \
-  --name "<app-name>" \
-  --cwd "/workspace/projects/<app-name>" \
-  --cmd "uv run app.py {{port}}"
-```
+**Step 4: Tell the user**
+- File is at `/workspace/artifacts/<app-name>.html`
+- They can open it directly in their browser
 
 **CRITICAL MISTAKES TO AVOID:**
-- ❌ NEVER run `uv run app.py 8001` directly - app won't be accessible!
-- ❌ NEVER explore the codebase for hours - READ THE SKILL instead
-- ❌ NEVER hardcode ports - use `sys.argv[1]` for dynamic port
-- ✅ ALWAYS deploy via `register_app.py` to get a public URL
+- NEVER create app.py unless user explicitly needs Python backend
+- NEVER use Alpine.js - use Vue 3
+- NEVER explore codebase for hours - READ THE SKILL
+- ALWAYS save to `/workspace/artifacts/`
+- ALWAYS ask for InstantDB App ID if app needs database
 
 **Using AI features in apps (transcription, image analysis, LLM):**
-See `/app/user_container/skills/web-app-builder/docs/skill-api.md` for the Internal API.
-Copy the `skill_client.py` helper into your app directory.
+See `/app/user_container/skills/web-app-builder/docs/skill-api.md` - requires a separate Python backend script.
 
 ## SCRIPT EXECUTION (when writing your own scripts)
 **CRITICAL: NEVER use `pip install` or `npm install` - they break the container.**

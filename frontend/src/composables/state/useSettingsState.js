@@ -6,11 +6,16 @@ const isDarkTheme = ref(true)
 const sidebarPosition = ref('left')
 const currentLanguage = ref(getCurrentLanguage())
 const soundEnabled = ref(false)
-const modelProvider = ref('anthropic')  // "anthropic" or "openai"
+const modelProvider = ref('anthropic')  // "anthropic", "openai", or "custom"
 const modelProviderLoading = ref(false)
 const modelProviderError = ref(null)
 const apiKeys = ref({})
 const apiKeysLoading = ref(false)
+const customProviderSettings = ref({
+    model: '',
+    cheapModel: '',
+    baseUrl: '',
+})
 
 export function useSettingsState() {
     // Apply theme to document
@@ -86,6 +91,14 @@ export function useSettingsState() {
             if (res.ok) {
                 const data = await res.json()
                 modelProvider.value = data.model_provider || 'anthropic'
+                // Load custom provider settings if applicable
+                if (data.model_provider === 'custom') {
+                    customProviderSettings.value = {
+                        model: data.custom_provider_model || '',
+                        cheapModel: data.custom_provider_cheap_model || '',
+                        baseUrl: data.custom_provider_base_url || '',
+                    }
+                }
             }
         } catch (e) {
             console.error('Failed to load model provider setting', e)
@@ -119,7 +132,7 @@ export function useSettingsState() {
 
     // Set model provider via API
     const setModelProvider = async (provider) => {
-        if (!['anthropic', 'openai'].includes(provider)) return
+        if (!['anthropic', 'openai', 'custom'].includes(provider)) return
         modelProviderError.value = null
         modelProviderLoading.value = true
         try {
@@ -133,6 +146,36 @@ export function useSettingsState() {
             }
         } catch (e) {
             console.error('Failed to save model provider setting', e)
+        } finally {
+            modelProviderLoading.value = false
+        }
+    }
+
+    // Save custom provider settings via API
+    const saveCustomProvider = async (settings) => {
+        modelProviderError.value = null
+        modelProviderLoading.value = true
+        try {
+            const res = await fetch('/settings', {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    model_provider: 'custom',
+                    custom_provider_model: settings.model || '',
+                    custom_provider_cheap_model: settings.cheapModel || '',
+                    custom_provider_base_url: settings.baseUrl || '',
+                })
+            })
+            if (res.ok) {
+                modelProvider.value = 'custom'
+                customProviderSettings.value = { ...settings }
+                return true
+            }
+            return false
+        } catch (e) {
+            console.error('Failed to save custom provider settings', e)
+            modelProviderError.value = 'Failed to save custom provider settings'
+            return false
         } finally {
             modelProviderLoading.value = false
         }
@@ -192,6 +235,7 @@ export function useSettingsState() {
         modelProviderError,
         apiKeys,
         apiKeysLoading,
+        customProviderSettings,
 
         // Actions
         applyTheme,
@@ -205,6 +249,7 @@ export function useSettingsState() {
         playNotificationSound,
         loadModelProvider,
         setModelProvider,
+        saveCustomProvider,
         validateApiKey,
         loadApiKeys,
         saveApiKey,
