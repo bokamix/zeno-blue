@@ -43,7 +43,9 @@ class JobQueue:
     # --- Job State (in-memory cache + SQLite persistence) ---
 
     def create_job(self, job_id: str, conversation_id: str, message: str,
-                   skip_history: bool = False):
+                   skip_history: bool = False,
+                   headless: bool = False,
+                   ask_user_default: str = "proceed"):
         """Create a new job in both cache and SQLite."""
         now = datetime.utcnow().isoformat()
         job_data = {
@@ -62,6 +64,8 @@ class JobQueue:
             "user_response": None,
             "is_cancelled": False,
             "skip_history": skip_history,
+            "headless": headless,
+            "ask_user_default": ask_user_default,
             "suggestions": None,
         }
         self._job_cache[job_id] = job_data

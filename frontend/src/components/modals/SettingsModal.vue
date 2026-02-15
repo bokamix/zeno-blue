@@ -329,6 +329,66 @@
                     </div>
                 </div>
 
+                <!-- ZENO API Keys Section (visible when auth enabled) -->
+                <div v-if="authEnabled" class="border-b border-[var(--border-subtle)]">
+                    <button
+                        @click="zenoApiKeysExpanded = !zenoApiKeysExpanded; if (zenoApiKeysExpanded) loadZenoApiKeys()"
+                        class="w-full flex items-center justify-between py-3 text-left"
+                    >
+                        <div class="flex items-center gap-3">
+                            <div class="p-2 rounded-lg bg-orange-500/20">
+                                <KeyRound class="w-4 h-4 text-orange-400" />
+                            </div>
+                            <span class="text-sm text-[var(--text-primary)]">{{ $t('modals.settings.zenoApiKeys') }}</span>
+                        </div>
+                        <ChevronDown
+                            class="w-4 h-4 text-zinc-400 transition-transform"
+                            :class="{ 'rotate-180': zenoApiKeysExpanded }"
+                        />
+                    </button>
+
+                    <div v-show="zenoApiKeysExpanded" class="pl-4 pb-3 space-y-2">
+                        <p class="text-[10px] text-zinc-500 mb-2">{{ $t('modals.settings.zenoApiKeysDesc') }}</p>
+
+                        <!-- Existing keys -->
+                        <div v-for="key in zenoApiKeys" :key="key.id" class="flex items-center justify-between py-1.5">
+                            <div class="flex items-center gap-2 min-w-0">
+                                <span class="text-xs text-zinc-400 font-mono truncate">{{ key.masked }}</span>
+                                <span class="text-[10px] text-zinc-600">{{ key.created_at }}</span>
+                            </div>
+                            <button
+                                @click="deleteZenoApiKey(key.id)"
+                                class="px-2 py-1 text-xs rounded-lg text-red-400 hover:bg-red-500/20 transition-all flex-shrink-0"
+                            >
+                                {{ $t('common.delete') }}
+                            </button>
+                        </div>
+
+                        <!-- Newly generated key (show once) -->
+                        <div v-if="newlyGeneratedKey" class="p-3 rounded-xl bg-green-500/10 border border-green-500/20">
+                            <p class="text-[10px] text-green-400 mb-1">{{ $t('modals.settings.zenoApiKeyCopyHint') }}</p>
+                            <div class="flex items-center gap-2">
+                                <code class="text-xs text-green-300 font-mono break-all flex-1">{{ newlyGeneratedKey }}</code>
+                                <button
+                                    @click="copyToClipboard(newlyGeneratedKey)"
+                                    class="px-2 py-1 text-xs rounded-lg bg-green-500/20 text-green-400 hover:bg-green-500/30 transition-all flex-shrink-0"
+                                >
+                                    {{ copied ? $t('common.saved') : 'Copy' }}
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- Generate button -->
+                        <button
+                            @click="generateZenoApiKey"
+                            :disabled="generatingKey"
+                            class="w-full px-3 py-2 text-xs rounded-lg font-medium transition-all bg-orange-500/20 text-orange-400 hover:bg-orange-500/30 disabled:opacity-50 disabled:cursor-not-allowed"
+                        >
+                            {{ generatingKey ? $t('common.loading') : $t('modals.settings.zenoApiKeyGenerate') }}
+                        </button>
+                    </div>
+                </div>
+
                 <!-- Help Button -->
                 <button
                     @click="openCrispChat"
@@ -559,6 +619,64 @@ const handleSaveKey = async (keyName) => {
         apiKeySaveStatus.value = 'error'
     }
 }
+// ZENO API Keys state
+const authEnabled = ref(false)
+const zenoApiKeysExpanded = ref(false)
+const zenoApiKeys = ref([])
+const newlyGeneratedKey = ref(null)
+const generatingKey = ref(false)
+const copied = ref(false)
+
+const checkAuthEnabled = async () => {
+    try {
+        const res = await fetch('/api/auth/status')
+        if (res.ok) {
+            const data = await res.json()
+            authEnabled.value = data.auth_enabled
+        }
+    } catch {}
+}
+
+const loadZenoApiKeys = async () => {
+    try {
+        const res = await fetch('/api/auth/api-keys')
+        if (res.ok) {
+            zenoApiKeys.value = await res.json()
+        }
+    } catch {}
+}
+
+const generateZenoApiKey = async () => {
+    generatingKey.value = true
+    newlyGeneratedKey.value = null
+    try {
+        const res = await fetch('/api/auth/api-keys', { method: 'POST' })
+        if (res.ok) {
+            const data = await res.json()
+            newlyGeneratedKey.value = data.key
+            await loadZenoApiKeys()
+        }
+    } catch {}
+    generatingKey.value = false
+}
+
+const deleteZenoApiKey = async (keyId) => {
+    try {
+        const res = await fetch(`/api/auth/api-keys/${keyId}`, { method: 'DELETE' })
+        if (res.ok) {
+            await loadZenoApiKeys()
+        }
+    } catch {}
+}
+
+const copyToClipboard = async (text) => {
+    try {
+        await navigator.clipboard.writeText(text)
+        copied.value = true
+        setTimeout(() => { copied.value = false }, 2000)
+    } catch {}
+}
+
 const openCrispChat = () => {
     emit('close')
     if (window.$crisp) {
@@ -600,6 +718,7 @@ watch(customProviderSettings, (newVal) => {
 
 onMounted(async () => {
     diskUsage.value = await getDiskUsage()
+    checkAuthEnabled()
 })
 
 </script>

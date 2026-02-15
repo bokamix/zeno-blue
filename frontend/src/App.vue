@@ -2,6 +2,9 @@
     <!-- Setup screen (first run) -->
     <SetupScreen v-if="needsSetup && setupChecked" @complete="onSetupComplete" />
 
+    <!-- Login screen (auth enabled but not authenticated) -->
+    <LoginScreen v-else-if="needsLogin && setupChecked" @authenticated="onAuthenticated" />
+
     <!-- Main app -->
     <PullToRefresh v-else-if="setupChecked">
     <div
@@ -198,6 +201,7 @@ import { useToast } from './composables/useToast'
 
 // Components
 import SetupScreen from './components/SetupScreen.vue'
+import LoginScreen from './components/LoginScreen.vue'
 import Sidebar from './components/Sidebar.vue'
 import Toast from './components/Toast.vue'
 import FileViewer from './components/FileViewer.vue'
@@ -308,6 +312,9 @@ provide('swipeState', { isDragging, dragTarget, sidebarTransform, settingsDragOf
 const needsSetup = ref(false)
 const setupChecked = ref(false)
 
+// Auth state
+const needsLogin = ref(false)
+
 const checkSetup = async () => {
     try {
         const res = await fetch('/setup/status')
@@ -321,10 +328,33 @@ const checkSetup = async () => {
     setupChecked.value = true
 }
 
+const checkAuth = async () => {
+    try {
+        const res = await fetch('/api/auth/status')
+        if (!res.ok) return
+        const data = await res.json()
+        if (!data.auth_enabled) {
+            needsLogin.value = false
+            return
+        }
+        // Auth is enabled - check if we have a valid session
+        const testRes = await fetch('/conversations')
+        if (testRes.status === 401) {
+            needsLogin.value = true
+        }
+    } catch {
+        // Server not available
+    }
+}
+
 const onSetupComplete = () => {
     needsSetup.value = false
     // Reload the page to reinitialize with new config
     window.location.reload()
+}
+
+const onAuthenticated = () => {
+    needsLogin.value = false
 }
 
 // Computed for showing settings during drag
@@ -1169,6 +1199,10 @@ onMounted(async () => {
     // Check if first-run setup is needed
     await checkSetup()
     if (needsSetup.value) return
+
+    // Check if auth is required
+    await checkAuth()
+    if (needsLogin.value) return
 
     // Initialize LogRocket (fire and forget)
     initLogRocket()

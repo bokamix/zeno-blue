@@ -3,8 +3,21 @@
     "subtitle": "Configure your AI agent to get started",
     "provider": "LLM Provider",
     "apiKey": "API Key",
+    "accessPassword": "Access Password (optional)",
+    "accessPasswordPlaceholder": "Set a password for remote access",
+    "accessPasswordConfirm": "Confirm password",
+    "accessPasswordHint": "Required for remote access. Leave empty for localhost-only use.",
+    "passwordMismatch": "Passwords do not match",
     "start": "Get Started",
     "saving": "Saving..."
+  },
+  "auth": {
+    "loginSubtitle": "Enter your password to continue",
+    "password": "Password",
+    "passwordPlaceholder": "Enter access password",
+    "login": "Sign In",
+    "invalidPassword": "Invalid password",
+    "logout": "Sign Out"
   },
   "common": {
     "loading": "Loading...",
@@ -234,7 +247,11 @@
       "customProviderHelp": "Supports Ollama, Azure, OpenRouter, LM Studio, and any OpenAI-compatible API",
       "customInstructions": "Custom Instructions",
       "customInstructionsDesc": "These instructions will be added to every conversation. Use them to customize the agent's behavior.",
-      "customInstructionsPlaceholder": "e.g., Always respond in Polish. Use formal tone. Focus on concise answers."
+      "customInstructionsPlaceholder": "e.g., Always respond in Polish. Use formal tone. Focus on concise answers.",
+      "zenoApiKeys": "API Keys (External Access)",
+      "zenoApiKeysDesc": "Generate API keys to access ZENO from external tools and scripts.",
+      "zenoApiKeyGenerate": "Generate New Key",
+      "zenoApiKeyCopyHint": "Copy this key now. It won't be shown again."
     },
     "customSkills": {
       "title": "Custom Skills",

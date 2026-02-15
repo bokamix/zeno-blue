@@ -49,6 +49,28 @@
                         />
                     </div>
 
+                    <!-- Access Password (optional) -->
+                    <div>
+                        <label class="block text-sm font-medium text-[var(--text-secondary)] mb-2">
+                            {{ $t('setup.accessPassword') }}
+                        </label>
+                        <input
+                            v-model="accessPassword"
+                            type="password"
+                            :placeholder="$t('setup.accessPasswordPlaceholder')"
+                            class="w-full px-4 py-3 rounded-xl bg-[var(--bg-surface)] border border-[var(--border-subtle)] text-[var(--text-primary)] placeholder-[var(--text-muted)] focus:outline-none focus:border-blue-500/50 transition-colors"
+                        />
+                        <input
+                            v-if="accessPassword"
+                            v-model="accessPasswordConfirm"
+                            type="password"
+                            :placeholder="$t('setup.accessPasswordConfirm')"
+                            class="w-full mt-2 px-4 py-3 rounded-xl bg-[var(--bg-surface)] border border-[var(--border-subtle)] text-[var(--text-primary)] placeholder-[var(--text-muted)] focus:outline-none focus:border-blue-500/50 transition-colors"
+                            @keydown.enter="submitSetup"
+                        />
+                        <p class="text-xs text-[var(--text-muted)] mt-1">{{ $t('setup.accessPasswordHint') }}</p>
+                    </div>
+
                     <!-- Error -->
                     <p v-if="error" class="text-sm text-red-400">{{ error }}</p>
 
@@ -76,23 +98,36 @@ const { t } = useI18n()
 
 const provider = ref('anthropic')
 const apiKey = ref('')
+const accessPassword = ref('')
+const accessPasswordConfirm = ref('')
 const error = ref('')
 const isSubmitting = ref(false)
 
 const submitSetup = async () => {
     if (!apiKey.value.trim()) return
 
+    // Validate password confirmation
+    if (accessPassword.value && accessPassword.value !== accessPasswordConfirm.value) {
+        error.value = t('setup.passwordMismatch')
+        return
+    }
+
     isSubmitting.value = true
     error.value = ''
 
     try {
+        const payload = {
+            provider: provider.value,
+            api_key: apiKey.value.trim()
+        }
+        if (accessPassword.value.trim()) {
+            payload.password = accessPassword.value.trim()
+        }
+
         const res = await fetch('/setup', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                provider: provider.value,
-                api_key: apiKey.value.trim()
-            })
+            body: JSON.stringify(payload)
         })
 
         if (!res.ok) {

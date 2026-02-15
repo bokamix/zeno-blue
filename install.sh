@@ -131,6 +131,9 @@ case "${1:-}" in
         echo "  ✅ ZENO updated!"
         echo ""
         ;;
+    serve)
+        exec bash "$ZENO_APP/scripts/serve.sh" "${@:2}"
+        ;;
     *)
         exec uv run --python 3.12 "$ZENO_APP/zeno.py" "$@"
         ;;

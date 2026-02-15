@@ -67,6 +67,8 @@ def make_ask_user_tool(job_id: str, job_queue, db=None):
         3. Wait for user_response (blocking via threading.Event)
         4. Save user response as user message
         5. Return response to agent
+
+        Headless mode: auto-respond with ask_user_default without waiting.
         """
         question = args.get("question")
         if not question:
@@ -80,6 +82,31 @@ def make_ask_user_tool(job_id: str, job_queue, db=None):
 
         # Get conversation_id from context
         conversation_id = get_conversation_id()
+
+        # Check headless mode
+        job_data = job_queue.get_job(job_id)
+        is_headless = job_data.get("headless", False) if job_data else False
+
+        if is_headless:
+            default_response = (job_data or {}).get("ask_user_default", "proceed")
+            log(f"[ask_user] Headless mode - auto-responding: {default_response}")
+
+            # Save question and auto-response to history
+            if db and conversation_id:
+                question_msg = {"role": "assistant", "content": question}
+                metadata = {"type": "question", "options": options}
+                db.save_message_from_dict(conversation_id, question_msg, metadata=metadata)
+
+                response_msg = {"role": "user", "content": default_response}
+                metadata = {"type": "question_response", "auto": True}
+                db.save_message_from_dict(conversation_id, response_msg, metadata=metadata)
+
+            return {
+                "status": "success",
+                "question": question,
+                "response": default_response,
+                "auto": True,
+            }
 
         # 1. Save question as assistant message (visible in chat history)
         if db and conversation_id:

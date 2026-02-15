@@ -87,6 +87,10 @@ class Settings(BaseModel):
     langfuse_host: str = os.getenv("LANGFUSE_HOST", "https://cloud.langfuse.com")
     langfuse_tags: Optional[str] = os.getenv("LANGFUSE_TAGS")  # Comma-separated tags, e.g. "experiment:v2,env:prod"
 
+    # Auth (opt-in password protection for remote access)
+    auth_password: Optional[str] = os.getenv("ZENO_PASSWORD")  # None = no auth (localhost mode)
+    auth_session_ttl: int = int(os.getenv("AUTH_SESSION_TTL", "604800"))  # 7 days
+
     # Admin panel (HTTP Basic Auth)
     admin_username: str = os.getenv("ADMIN_USERNAME", "admin")
     admin_password: Optional[str] = os.getenv("ADMIN_PASSWORD")  # None = admin panel disabled

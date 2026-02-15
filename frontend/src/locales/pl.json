@@ -3,8 +3,21 @@
     "subtitle": "Skonfiguruj agenta AI, aby rozpocząć",
     "provider": "Dostawca LLM",
     "apiKey": "Klucz API",
+    "accessPassword": "Hasło dostępu (opcjonalne)",
+    "accessPasswordPlaceholder": "Ustaw hasło do zdalnego dostępu",
+    "accessPasswordConfirm": "Potwierdź hasło",
+    "accessPasswordHint": "Wymagane do zdalnego dostępu. Pozostaw puste dla trybu localhost.",
+    "passwordMismatch": "Hasła nie pasują do siebie",
     "start": "Rozpocznij",
     "saving": "Zapisywanie..."
+  },
+  "auth": {
+    "loginSubtitle": "Wpisz hasło, aby kontynuować",
+    "password": "Hasło",
+    "passwordPlaceholder": "Wpisz hasło dostępu",
+    "login": "Zaloguj się",
+    "invalidPassword": "Nieprawidłowe hasło",
+    "logout": "Wyloguj się"
   },
   "common": {
     "loading": "Wczytywanie...",
@@ -234,7 +247,11 @@
       "customProviderHelp": "Obsługuje Ollama, Azure, OpenRouter, LM Studio i dowolne API kompatybilne z OpenAI",
       "customInstructions": "Instrukcje niestandardowe",
       "customInstructionsDesc": "Te instrukcje zostaną dodane do każdej konwersacji. Użyj ich, aby dostosować zachowanie agenta.",
-      "customInstructionsPlaceholder": "np. Zawsze odpowiadaj po polsku. Używaj formalnego tonu. Skup się na zwięzłych odpowiedziach."
+      "customInstructionsPlaceholder": "np. Zawsze odpowiadaj po polsku. Używaj formalnego tonu. Skup się na zwięzłych odpowiedziach.",
+      "zenoApiKeys": "Klucze API (dostęp zewnętrzny)",
+      "zenoApiKeysDesc": "Generuj klucze API do dostępu do ZENO z zewnętrznych narzędzi i skryptów.",
+      "zenoApiKeyGenerate": "Generuj nowy klucz",
+      "zenoApiKeyCopyHint": "Skopiuj ten klucz teraz. Nie zostanie wyświetlony ponownie."
     },
     "customSkills": {
       "title": "Niestandardowe umiejętności",

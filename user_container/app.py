@@ -16,7 +16,7 @@ import time
 import mimetypes
 from datetime import datetime, timedelta
 from fastapi import FastAPI, HTTPException, Request, UploadFile, File, Form, Header
-from fastapi.responses import Response, StreamingResponse, FileResponse, HTMLResponse, RedirectResponse
+from fastapi.responses import Response, StreamingResponse, FileResponse, HTMLResponse, RedirectResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
 import shutil
@@ -35,6 +35,7 @@ from sentry_sdk.integrations.starlette import StarletteIntegration
 
 from user_container.config import settings, get_app_url
 from user_container.security import init_secrets_file
+from user_container.auth import auth_middleware
 from user_container.db.db import DB, JobActivity
 from user_container.runner.runner import Runner
 from user_container.supervisor.supervisor import Supervisor
@@ -46,6 +47,7 @@ from user_container.jobs.queue import init_job_queue, get_job_queue
 from user_container.scheduler.scheduler import init_scheduler, close_scheduler, get_scheduler
 from user_container.scheduler.models import UpdateScheduledJobRequest
 from user_container import admin as admin_module
+from user_container.api_v1 import router as api_v1_router
 from user_container.internal_api import skills as internal_skills
 from user_container.internal_api import llm as internal_llm
 import threading
@@ -102,6 +104,13 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# --- Auth Middleware ---
+
+@app.middleware("http")
+async def _auth_middleware(request: Request, call_next):
+    return await auth_middleware(request, call_next)
+
 
 # --- Subdomain Middleware ---
 
@@ -416,8 +425,70 @@ async def setup_config(payload: dict):
         settings.openai_api_key = api_key
     settings.model_provider = provider
 
+    # Handle optional password
+    password = payload.get("password", "").strip()
+    if password:
+        # Add ZENO_PASSWORD to .env
+        # Re-read env_lines to include what we just wrote
+        with open(env_path) as f:
+            current_lines = [line.rstrip("\n") for line in f if not line.strip().startswith("ZENO_PASSWORD=")]
+        current_lines.append(f"ZENO_PASSWORD={password}")
+        with open(env_path, "w") as f:
+            f.write("\n".join(current_lines) + "\n")
+        settings.auth_password = password
+        log(f"[Setup] Access password configured")
+
     log(f"[Setup] Configured {provider} provider, saved to {env_path}")
     return {"status": "ok", "provider": provider}
+
+
+# --- Auth Endpoints ---
+
+@app.get("/api/auth/status")
+async def auth_status():
+    """Check if auth is enabled (public, no auth required)."""
+    return {"auth_enabled": bool(settings.auth_password)}
+
+
+@app.post("/api/auth/login")
+async def auth_login(payload: dict):
+    """Login with password. Returns httponly session cookie."""
+    from user_container.auth import create_session
+
+    password = payload.get("password", "")
+    if not settings.auth_password:
+        raise HTTPException(status_code=400, detail="Auth is not enabled")
+
+    if password != settings.auth_password:
+        raise HTTPException(status_code=401, detail="Invalid password")
+
+    session_id = create_session()
+    response = JSONResponse(content={"status": "ok"})
+    response.set_cookie(
+        key="zeno_session",
+        value=session_id,
+        httponly=True,
+        samesite="lax",
+        max_age=settings.auth_session_ttl,
+        secure=settings.base_url.startswith("https"),
+    )
+    log("[Auth] User logged in")
+    return response
+
+
+@app.post("/api/auth/logout")
+async def auth_logout(request: Request):
+    """Logout - clear session cookie."""
+    from user_container.auth import delete_session
+
+    session_id = request.cookies.get("zeno_session")
+    if session_id:
+        delete_session(session_id)
+
+    response = JSONResponse(content={"status": "ok"})
+    response.delete_cookie("zeno_session")
+    log("[Auth] User logged out")
+    return response
 
 
 @app.get("/api/config")
@@ -2088,6 +2159,71 @@ async def validate_provider(provider: str):
     return {"valid": True}
 
 
+# --- ZENO API Keys (for external access) ---
+
+def _get_zeno_api_keys() -> list:
+    """Load ZENO API keys from app_state."""
+    row = db.fetchone("SELECT value FROM app_state WHERE key = ?", ("api_keys",))
+    if not row:
+        return []
+    try:
+        return json.loads(row["value"])
+    except (json.JSONDecodeError, TypeError):
+        return []
+
+
+def _save_zeno_api_keys(keys: list):
+    """Save ZENO API keys to app_state."""
+    db.execute(
+        """INSERT OR REPLACE INTO app_state (key, value, updated_at)
+           VALUES (?, ?, ?)""",
+        ("api_keys", json.dumps(keys), DB.now())
+    )
+
+
+@app.get("/api/auth/api-keys")
+async def list_zeno_api_keys():
+    """List API keys (masked)."""
+    keys = _get_zeno_api_keys()
+    return [
+        {
+            "id": k["id"],
+            "masked": k["key"][:8] + "..." + k["key"][-4:] if len(k.get("key", "")) > 12 else "***",
+            "created_at": k.get("created_at"),
+        }
+        for k in keys
+    ]
+
+
+@app.post("/api/auth/api-keys")
+async def create_zeno_api_key():
+    """Generate a new ZENO API key."""
+    import secrets as _secrets
+    key_id = str(uuid.uuid4())[:8]
+    token = "zeno_" + _secrets.token_urlsafe(32)
+    keys = _get_zeno_api_keys()
+    keys.append({
+        "id": key_id,
+        "key": token,
+        "created_at": DB.now(),
+    })
+    _save_zeno_api_keys(keys)
+    log(f"[Auth] Generated new API key {key_id}")
+    return {"id": key_id, "key": token}
+
+
+@app.delete("/api/auth/api-keys/{key_id}")
+async def delete_zeno_api_key(key_id: str):
+    """Delete a ZENO API key."""
+    keys = _get_zeno_api_keys()
+    new_keys = [k for k in keys if k["id"] != key_id]
+    if len(new_keys) == len(keys):
+        raise HTTPException(status_code=404, detail="API key not found")
+    _save_zeno_api_keys(new_keys)
+    log(f"[Auth] Deleted API key {key_id}")
+    return {"status": "ok"}
+
+
 # --- Custom Skills CRUD ---
 
 @app.get("/custom-skills")
@@ -2161,6 +2297,9 @@ async def delete_custom_skill(skill_id: str):
 # --- Admin Panel ---
 # Mount admin router (HTTP Basic Auth protected)
 app.include_router(admin_module.router)
+
+# Mount external API router
+app.include_router(api_v1_router)
 
 
 # --- Frontend Static Files ---
