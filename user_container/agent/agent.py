@@ -822,12 +822,47 @@ class Agent:
                     elif call_id in exec_by_id:
                         results.append(exec_by_id[call_id])
 
-                # If ALL calls were blocked, inject synthesis prompt
+                # If ALL calls were blocked, track consecutive all-blocked steps
                 if not allowed_calls and blocked_map:
-                    log_debug(f"[Agent] ALL tool calls blocked - forcing synthesis")
-                    if job_id:
-                        self.db.add_job_activity(job_id, "tool_limit", "All tool calls blocked by hard limit")
-                    self._save_message(conversation_id, "user", content=get_total_limit_prompt(), internal=True)
+                    consecutive_all_blocked = loop_state.get("consecutive_all_blocked", 0) + 1
+                    loop_state["consecutive_all_blocked"] = consecutive_all_blocked
+                    log_debug(f"[Agent] ALL tool calls blocked ({consecutive_all_blocked}x consecutive)")
+
+                    if consecutive_all_blocked == 1:
+                        # First time: inject synthesis prompt
+                        if job_id:
+                            self.db.add_job_activity(job_id, "tool_limit", "All tool calls blocked by hard limit")
+                        self._save_message(conversation_id, "user", content=get_total_limit_prompt(), internal=True)
+
+                    if consecutive_all_blocked >= 3:
+                        # 3 consecutive steps with ALL calls blocked - model is ignoring errors
+                        log_error(f"[Agent] HARD STOP: {consecutive_all_blocked} consecutive steps with all tool calls blocked")
+                        if job_id:
+                            self.db.add_job_activity(
+                                job_id, "loop_hard_stop",
+                                f"Stopped: model ignored {consecutive_all_blocked} consecutive blocked tool responses",
+                                is_error=True
+                            )
+                        fallback_msg = (
+                            "I was working on your request but got stuck in a loop of tool calls. "
+                            "Here's what I gathered so far — please try rephrasing your request if the result is incomplete."
+                        )
+                        self._save_message(conversation_id, "assistant", content=fallback_msg)
+                        elapsed_time = time.time() - start_time
+                        end_trace(
+                            output=fallback_msg,
+                            status="success",
+                            metadata={"consecutive_all_blocked": consecutive_all_blocked, "graceful_stop": True},
+                            tags=["status:success", "reason:all_blocked_loop_recovered"],
+                        )
+                        return {
+                            "status": "success",
+                            "summary": fallback_msg,
+                            "steps": step_count,
+                            "elapsed_seconds": round(elapsed_time, 2)
+                        }
+                else:
+                    loop_state["consecutive_all_blocked"] = 0
 
                 # Check if cancelled during tool execution - don't save partial results
                 # (would break tool_use/tool_result pairs)
@@ -836,13 +871,22 @@ class Agent:
 
                 # === PER-TOOL LIMIT TRACKING (Faza 1) ===
                 # Count tool usage and check limits BEFORE loop detection
+                # Only track actually executed calls, not blocked ones
+                blocked_call_ids = set(blocked_map.keys()) if blocked_map else set()
+
                 for idx, call in enumerate(response["tool_calls"]):
                     if isinstance(call, dict):
                         call_tool_name = call["function"]["name"]
                         call_tool_args = call["function"]["arguments"]
+                        call_id = call["id"]
                     else:
                         call_tool_name = call.function.name
                         call_tool_args = call.function.arguments
+                        call_id = call.id
+
+                    # Skip counter increment and limit messages for blocked calls
+                    if call_id in blocked_call_ids:
+                        continue
 
                     # Increment counters
                     loop_state["tool_counts"][call_tool_name] += 1

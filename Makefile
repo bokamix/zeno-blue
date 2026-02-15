@@ -25,9 +25,15 @@ up-d:
 down:
 	docker compose down
 
-# View logs
-logs:
+# View docker logs
+docker-logs:
 	docker compose logs -f app
+
+# View all logs for a conversation (messages + job activities)
+# Usage: make logs id=<conversation_id>
+ID ?= $(id)
+logs:
+	@python3 scripts/logs.py $(ID)
 
 # Alias for 'up' (legacy compatibility)
 dev: up
