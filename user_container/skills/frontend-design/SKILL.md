@@ -8,6 +8,10 @@ This skill guides creation of distinctive, production-grade frontend interfaces 
 
 The user provides frontend requirements: a component, page, application, or interface to build. They may include context about the purpose, audience, or technical constraints.
 
+## Output
+Save all created files to `artifacts/` using the write_file tool.
+Example: write_file(path="artifacts/landing-page.html", content="...")
+
 ## Design Process
 
 Think like a designer from a software house, not like an automation. Every design must be unique.

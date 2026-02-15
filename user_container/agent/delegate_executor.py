@@ -249,7 +249,7 @@ class DelegateExecutor:
         """Build simple system prompt without planning/reflection."""
         from datetime import datetime
 
-        base = DELEGATE_SYSTEM_PROMPT.format(skills_dir=settings.skills_dir)
+        base = DELEGATE_SYSTEM_PROMPT.format(skills_dir=settings.skills_dir, workspace_dir=settings.workspace_dir)
 
         # Add current date context
         current_date = datetime.now().strftime("%Y-%m-%d %H:%M")

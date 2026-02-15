@@ -509,9 +509,13 @@ RIGHT: web_search → respond with "Top 5 AI trends: 1. ... 2. ..." // YES!
 3. Respond with findings as structured text
 
 ## WORKSPACE
-If you absolutely MUST write files (e.g., task explicitly says "create script"):
-- `tmp/` in workspace - temporary files only
-- NEVER `artifacts/` - reserved for main agent
+Your workspace is `{workspace_dir}`. Structure:
+- `{workspace_dir}/artifacts/` - USER-VISIBLE outputs (reserved for main agent)
+- `{workspace_dir}/tmp/` - temporary files only
+
+If you MUST write files, use `tmp/` subfolder via write_file tool.
+NEVER write files to artifacts/ - that's the main agent's job.
+NEVER use hardcoded paths like /workspace. Always use the workspace path above.
 """
 
 # =============================================================================

@@ -10,7 +10,7 @@ Build web applications as single HTML files - no backend, no npm, no build step:
 - **Database**: InstantDB (real-time, cloud) OR localStorage (offline)
 - **Auth**: InstantDB Auth (magic codes, Google OAuth)
 - **Styling**: Tailwind CSS + DaisyUI (CDN)
-- **Output**: Single HTML file -> `/workspace/artifacts/<name>.html`
+- **Output**: Single HTML file -> `artifacts/<name>.html`
 
 ## When to Use InstantDB vs localStorage
 
@@ -30,7 +30,7 @@ Build web applications as single HTML files - no backend, no npm, no build step:
 
 **When user asks to fix, improve, or change an existing app - MODIFY THE EXISTING FILE, do NOT create a new app!**
 
-1. First, check if app already exists: `list_dir("/workspace/artifacts")`
+1. First, check if app already exists: `list_dir("artifacts")`
 2. If app exists, read and edit the existing file (`read_file`, `write_file`)
 3. Only create new app if user explicitly asks for a NEW app
 
@@ -65,7 +65,7 @@ Build web applications as single HTML files - no backend, no npm, no build step:
 ### Project Structure
 
 ```
-/workspace/artifacts/my-app.html   <-- one file, that's everything!
+artifacts/my-app.html   <-- one file, that's everything!
 ```
 
 ### Boilerplate - With InstantDB

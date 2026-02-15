@@ -84,7 +84,7 @@ if __name__ == "__main__":
 ```bash
 uv run /app/user_container/skills/app-deploy/scripts/register_app.py \
   --name "my-app" \
-  --cwd "/workspace/projects/my-app" \
+  --cwd "projects/my-app" \
   --cmd "uv run app.py {port}"
 ```
 
@@ -94,7 +94,7 @@ No extra dependencies needed.
 ```bash
 uv run /app/user_container/skills/app-deploy/scripts/register_app.py \
   --name "static-site" \
-  --cwd "/workspace/site" \
+  --cwd "site" \
   --cmd "python -m http.server {port}"
 ```
 
@@ -143,7 +143,7 @@ uv run /app/user_container/skills/app-deploy/scripts/update_app.py \
 uv run /app/user_container/skills/app-deploy/scripts/update_app.py \
   --app-id "my-app-a1b2" \
   --name "Updated App" \
-  --cwd "/workspace/new-location"
+  --cwd "new-location"
 ```
 
 ### Stop / Start Apps

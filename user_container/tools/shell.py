@@ -5,6 +5,7 @@ import re
 from typing import Any, Dict
 import shlex
 
+from user_container.config import settings
 from user_container.db.db import DB
 from user_container.runner.runner import Runner
 from user_container.tools.registry import ToolSchema, make_parameters
@@ -210,7 +211,7 @@ def is_clean_skill_command(cmd: str, cwd: str = "") -> bool:
         return False
 
     # Resolve to absolute path (handles relative paths, .., symlinks)
-    cwd = cwd or "/workspace"
+    cwd = cwd or settings.workspace_dir
     resolved = resolve_script_path(script_path, cwd)
     if not resolved:
         return False
@@ -303,7 +304,7 @@ DO NOT USE FOR:
 - Searching text → use `search_in_files` instead
 - Fetching URLs → use `web_fetch` instead
 
-Commands run in /workspace by default. Timeout: 30s.""",
+Commands run in workspace directory by default. Timeout: 30s.""",
     parameters=make_parameters({
         "cmd": {
             "type": "string",
@@ -311,7 +312,7 @@ Commands run in /workspace by default. Timeout: 30s.""",
         },
         "cwd": {
             "type": ["string", "null"],
-            "description": "Working directory (defaults to /workspace).",
+            "description": f"Working directory (defaults to {settings.workspace_dir}).",
         },
         "timeout_s": {
             "type": ["integer", "null"],
@@ -321,7 +322,7 @@ Commands run in /workspace by default. Timeout: 30s.""",
 )
 
 SHELL_DEFAULTS = {
-    "cwd": "/workspace",
+    "cwd": settings.workspace_dir,
     "timeout_s": 120,  # Wall clock timeout (CPU limit is separate in runner.py)
 }
 
@@ -340,7 +341,7 @@ def make_shell_tool(runner: Runner, db: DB):
         else:
             raise ValueError("shell.cmd must be a list or string")
 
-        cwd = args.get("cwd", "/workspace")
+        cwd = args.get("cwd", settings.workspace_dir)
         timeout_s = int(args.get("timeout_s", SHELL_DEFAULTS["timeout_s"]))
 
         # Security: validate command doesn't access blocked paths
@@ -364,7 +365,7 @@ def make_shell_tool(runner: Runner, db: DB):
             script_path = extract_script_path(cmd_str)
             logging.warning(f"SHELL DEBUG: has_metachar={has_metachar}, script_path={script_path}")
             if script_path:
-                resolved = resolve_script_path(script_path, cwd or "/workspace")
+                resolved = resolve_script_path(script_path, cwd or settings.workspace_dir)
                 logging.warning(f"SHELL DEBUG: resolved={resolved}")
 
         res = runner.run(cmd=cmd, cwd=cwd, timeout_s=timeout_s, env=env, demote=demote_to_sandbox)
