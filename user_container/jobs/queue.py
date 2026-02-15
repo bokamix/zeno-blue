@@ -20,6 +20,7 @@ class JobQueue:
     def __init__(self, db):
         self.db = db
         self._pending: asyncio.Queue = asyncio.Queue()
+        self._loop: Optional[asyncio.AbstractEventLoop] = None
         # Threading events for ask_user wake-up (agent runs in thread)
         self._sync_events: Dict[str, threading.Event] = {}
         # In-memory job cache for fast access (avoids DB round-trips for hot data)
@@ -27,11 +28,25 @@ class JobQueue:
         # Suggestions cache (in-memory, short-lived)
         self._suggestions: Dict[str, list] = {}
 
+    def set_event_loop(self, loop: asyncio.AbstractEventLoop):
+        """Store reference to main event loop for thread-safe enqueue."""
+        self._loop = loop
+
     # --- Enqueue / Dequeue ---
 
     def enqueue(self, job_id: str):
-        """Add job to pending queue."""
-        self._pending.put_nowait(job_id)
+        """Add job to pending queue (thread-safe)."""
+        try:
+            asyncio.get_running_loop()
+            # Called from within the event loop (e.g., API endpoint)
+            self._pending.put_nowait(job_id)
+        except RuntimeError:
+            # Called from a non-asyncio thread (e.g., APScheduler)
+            if self._loop:
+                self._loop.call_soon_threadsafe(self._pending.put_nowait, job_id)
+            else:
+                log("[JobQueue] WARNING: No event loop set, falling back to put_nowait")
+                self._pending.put_nowait(job_id)
 
     async def dequeue(self, timeout=5) -> Optional[str]:
         """Get next job. Returns None on timeout."""

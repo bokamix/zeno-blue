@@ -262,11 +262,14 @@ async def on_startup():
     # Initialize in-process job queue (replaces Redis)
     init_job_queue(db)
 
+    # Store event loop reference for thread-safe enqueue from APScheduler
+    job_queue = get_job_queue()
+    job_queue.set_event_loop(asyncio.get_running_loop())
+
     # Start async worker loop (replaces multiprocessing workers)
     asyncio.create_task(_worker_loop())
 
     # Start job scheduler (A.7)
-    job_queue = get_job_queue()
     scheduler = init_scheduler(db, job_queue)
     scheduler.start()
 
@@ -312,6 +315,7 @@ async def _execute_job(job_id: str):
                              result=result,
                              completed_at=datetime.utcnow().isoformat())
         log(f"[Worker] Job {job_id} completed")
+        _update_scheduled_run(job_id, "completed", result)
     except Exception as e:
         import traceback
         error_msg = str(e)
@@ -322,6 +326,18 @@ async def _execute_job(job_id: str):
         job_queue.set_status(job_id, status=status,
                              error=error_msg,
                              completed_at=datetime.utcnow().isoformat())
+        _update_scheduled_run(job_id, status, error_msg)
+    finally:
+        job_queue.cleanup_job(job_id)
+
+
+def _update_scheduled_run(job_id: str, status: str, result: str = None):
+    """Update scheduled_job_runs if this job was triggered by the scheduler."""
+    try:
+        preview = (result[:200] + "...") if result and len(result) > 200 else result
+        db.update_scheduled_job_run_by_job_id(job_id, status, preview)
+    except Exception as e:
+        log(f"[Worker] Failed to update scheduled run for job {job_id}: {e}")
 
 
 def _run_agent_job(job_id: str, job_data: dict) -> str:

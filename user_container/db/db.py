@@ -1227,6 +1227,17 @@ class DB:
             (self.now(), status, result_preview, run_id)
         )
 
+    def update_scheduled_job_run_by_job_id(self, job_id: str, status: str, result_preview: str = None) -> None:
+        """Update a scheduled job run by its job_id."""
+        self.execute(
+            """
+            UPDATE scheduled_job_runs
+            SET completed_at = ?, status = ?, result_preview = ?
+            WHERE job_id = ?
+            """,
+            (self.now(), status, result_preview, job_id)
+        )
+
     def get_scheduled_job_runs(self, scheduled_job_id: str, limit: int = 10) -> List[Dict[str, Any]]:
         """Get run history for a scheduled job."""
         return self.fetchall(
