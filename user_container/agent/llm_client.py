@@ -36,32 +36,14 @@ BASE_DELAY = 5.0  # seconds (longer start for better spread)
 MAX_DELAY = 120.0  # seconds (longer than 60s rate limit window)
 
 
-# Model output limits (conservative values, not absolute max)
-# Claude Sonnet 4.5: max 64K output, we use 16K for safety
-# Claude Haiku: max 8K output
-# GPT-5.2: max 128K output, we use 32K for safety
-MODEL_OUTPUT_LIMITS = {
-    # Anthropic models
-    "claude-sonnet": 16384,  # Sonnet models (max 64K, use 16K safely)
-    "claude-opus": 16384,    # Opus models (max 32K, use 16K safely)
-    "claude-haiku": 8192,    # Haiku models (max 8K)
-    # OpenAI models
-    "gpt-5.2": 32768,        # GPT-5.2 (max 128K, use 32K safely)
-    "gpt-5-mini": 16384,     # GPT-5-mini
-    "gpt-5": 32768,          # GPT-5
-    "gpt-4": 8192,           # GPT-4 variants
-    # Default fallback
-    "default": 8192
-}
+# Default max_tokens for all models. Agent responses rarely exceed 2-4K tokens.
+# Keep low to avoid 402 errors on OpenRouter with limited credits.
+DEFAULT_MAX_TOKENS = 8192
 
 
 def get_output_limit(model: str) -> int:
-    """Get appropriate max_tokens for a model based on its capabilities."""
-    model_lower = model.lower()
-    for prefix, limit in MODEL_OUTPUT_LIMITS.items():
-        if prefix != "default" and prefix in model_lower:
-            return limit
-    return MODEL_OUTPUT_LIMITS["default"]
+    """Get max_tokens for a model. Uses a single default — agent output is rarely large."""
+    return DEFAULT_MAX_TOKENS
 
 
 @dataclass
