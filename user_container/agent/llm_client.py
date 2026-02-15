@@ -224,11 +224,15 @@ class LiteLLMProvider(BaseLLMProvider):
                 error_str = str(e)
                 is_rate_limit = "rate_limit" in error_str or "429" in error_str
                 is_thinking_error = "thinking" in error_str.lower() and ("400" in error_str or "invalid" in error_str.lower())
+                is_tool_pair_error = "tool_use_id" in error_str and "tool_result" in error_str
 
-                # Handle thinking block error - retry without thinking (Anthropic-specific)
-                if is_thinking_error and not thinking_retry_done and is_anthropic:
+                # Handle thinking block or tool pair error - retry without thinking (Anthropic-specific)
+                # Tool pair errors can happen when thinking content blocks interfere with
+                # LiteLLM's tool_use/tool_result conversion for the Anthropic API
+                if (is_thinking_error or is_tool_pair_error) and not thinking_retry_done and is_anthropic:
                     thinking_retry_done = True
-                    _log("[LiteLLM] Thinking block error, retrying without thinking in history")
+                    error_type = "tool pair" if is_tool_pair_error else "thinking block"
+                    _log(f"[LiteLLM] {error_type} error, retrying without thinking in history")
                     kwargs["messages"] = self._prepare_messages(messages, include_thinking=False)
                     kwargs.pop("thinking", None)
                     continue
@@ -300,29 +304,15 @@ class LiteLLMProvider(BaseLLMProvider):
                 if msg.get("content"):
                     content_blocks.append({"type": "text", "text": msg["content"]})
 
-                # Tool use blocks (convert from OpenAI format to Anthropic content blocks)
+                # Tool use blocks - keep in OpenAI format for LiteLLM to convert
+                # (embedding tool_use directly in content blocks can cause LiteLLM
+                # conversion issues where tool_use blocks get lost, leading to
+                # orphan tool_result errors from the Anthropic API)
+                prepared_msg = {"role": "assistant", "content": content_blocks}
                 if msg.get("tool_calls"):
-                    for tc in msg["tool_calls"]:
-                        func = tc.get("function", {})
-                        args = func.get("arguments", "{}")
-                        if isinstance(args, str):
-                            try:
-                                args = json.loads(args)
-                            except json.JSONDecodeError:
-                                args = {}
-                        content_blocks.append({
-                            "type": "tool_use",
-                            "id": tc.get("id"),
-                            "name": func.get("name"),
-                            "input": args
-                        })
+                    prepared_msg["tool_calls"] = msg["tool_calls"]
 
-                # Defensive: ensure thinking blocks are first
-                thinking_types = ("thinking", "redacted_thinking")
-                if len(content_blocks) > 1 and content_blocks[0].get("type") not in thinking_types:
-                    content_blocks.sort(key=lambda b: 0 if b.get("type") in thinking_types else 1)
-
-                prepared.append({"role": "assistant", "content": content_blocks})
+                prepared.append(prepared_msg)
                 continue
 
             # Standard message - strip custom fields, keep OpenAI format

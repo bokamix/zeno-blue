@@ -17,24 +17,6 @@
                 <!-- Options grid -->
                 <div class="px-4 pb-6 grid grid-cols-2 gap-3">
                     <button
-                        @click="$emit('open-apps')"
-                        class="nav-tile"
-                    >
-                        <div class="nav-tile-icon bg-gradient-to-br from-blue-500/20 to-purple-500/20">
-                            <LayoutGrid class="w-6 h-6 text-blue-400" />
-                        </div>
-                        <span class="nav-tile-label">{{ $t('nav.apps') }}</span>
-                    </button>
-                    <button
-                        @click="$emit('open-integrations')"
-                        class="nav-tile"
-                    >
-                        <div class="nav-tile-icon bg-gradient-to-br from-sky-500/20 to-fuchsia-500/20">
-                            <Plug class="w-6 h-6 text-sky-400" />
-                        </div>
-                        <span class="nav-tile-label">{{ $t('nav.integrations') }}</span>
-                    </button>
-                    <button
                         @click="$emit('open-scheduler')"
                         class="nav-tile"
                     >
@@ -68,9 +50,9 @@
 </template>
 
 <script setup>
-import { LayoutGrid, Plug, Clock, Settings, Sparkles } from 'lucide-vue-next'
+import { Clock, Settings, Sparkles } from 'lucide-vue-next'
 
-defineEmits(['close', 'open-apps', 'open-integrations', 'open-scheduler', 'open-skills', 'open-settings'])
+defineEmits(['close', 'open-scheduler', 'open-skills', 'open-settings'])
 </script>
 
 <style scoped>

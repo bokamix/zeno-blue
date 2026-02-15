@@ -48,8 +48,6 @@
             <HeaderBar
                 @toggle-sidebar="toggleSidebar"
                 @open-mobile-nav="showMobileNav = true"
-                @open-apps="showAppsModal = true"
-                @open-integrations="showIntegrationsModal = true"
                 @open-scheduler="showScheduledJobsModal = true"
                 @open-skills="showCustomSkillsModal = true"
                 @open-settings="openSettingsModal"
@@ -101,18 +99,6 @@
             @close="showSchedulerDetailModal = false"
             @select-conversation="handleSchedulerConversationSelect"
             @deleted="refreshConversations"
-        />
-
-        <!-- Integrations Modal -->
-        <IntegrationsModal
-            v-if="showIntegrationsModal"
-            @close="showIntegrationsModal = false"
-        />
-
-        <!-- Apps Modal -->
-        <AppsModal
-            v-if="showAppsModal"
-            @close="showAppsModal = false"
         />
 
         <!-- Custom Skills Modal -->
@@ -168,8 +154,6 @@
         <MobileNavSheet
             v-if="showMobileNav"
             @close="showMobileNav = false"
-            @open-apps="showAppsModal = true; showMobileNav = false"
-            @open-integrations="showIntegrationsModal = true; showMobileNav = false"
             @open-scheduler="showScheduledJobsModal = true; showMobileNav = false"
             @open-skills="showCustomSkillsModal = true; showMobileNav = false"
             @open-settings="openSettingsModal(); showMobileNav = false"
@@ -239,8 +223,6 @@ const lazyModal = (loader) => defineAsyncComponent({
 })
 const ScheduledJobsModal = lazyModal(() => import('./components/modals/ScheduledJobsModal.vue'))
 const SchedulerDetailModal = lazyModal(() => import('./components/modals/SchedulerDetailModal.vue'))
-const IntegrationsModal = lazyModal(() => import('./components/modals/IntegrationsModal.vue'))
-const AppsModal = lazyModal(() => import('./components/modals/AppsModal.vue'))
 const CustomSkillsModal = lazyModal(() => import('./components/modals/CustomSkillsModal.vue'))
 const SettingsModal = lazyModal(() => import('./components/modals/SettingsModal.vue'))
 const CancelConfirmModal = lazyModal(() => import('./components/modals/CancelConfirmModal.vue'))
@@ -280,8 +262,6 @@ const {
     isSidebarCollapsed,
     showMobileNav,
     showSettingsModal,
-    showAppsModal,
-    showIntegrationsModal,
     showScheduledJobsModal,
     showCustomSkillsModal,
     showRestartConfirm,
@@ -1098,10 +1078,6 @@ const handleGlobalKeydown = (e) => {
             showSchedulerDetailModal.value = false
         } else if (showScheduledJobsModal.value) {
             showScheduledJobsModal.value = false
-        } else if (showIntegrationsModal.value) {
-            showIntegrationsModal.value = false
-        } else if (showAppsModal.value) {
-            showAppsModal.value = false
         } else if (showSettingsModal.value) {
             showSettingsModal.value = false
         } else if (fileToView.value) {

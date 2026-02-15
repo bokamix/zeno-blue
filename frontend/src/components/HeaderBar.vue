@@ -8,7 +8,7 @@
 
         <!-- Content -->
         <div class="relative flex items-center justify-between w-full">
-            <!-- Left: Hamburger (mobile) + Apps menu (mobile) -->
+            <!-- Left: Hamburger (mobile) + Nav menu (mobile) -->
             <div class="flex items-center gap-1">
                 <!-- Hamburger menu (mobile only) -->
                 <button
@@ -17,23 +17,17 @@
                 >
                     <Menu class="w-5 h-5" />
                 </button>
-                <!-- Apps menu (mobile only) -->
+                <!-- Nav menu (mobile only) -->
                 <button
                     @click="$emit('open-mobile-nav')"
                     class="md:hidden p-2 text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors"
                 >
-                    <LayoutGrid class="w-5 h-5" />
+                    <Sparkles class="w-5 h-5" />
                 </button>
             </div>
 
             <!-- Center: Navigation Pills (desktop only) -->
             <nav class="hidden md:flex nav-pill absolute left-1/2 -translate-x-1/2">
-                <button @click="$emit('open-apps')" class="nav-pill-item flex items-center gap-2">
-                    <LayoutGrid class="w-4 h-4" /> {{ $t('nav.apps') }}
-                </button>
-                <button @click="$emit('open-integrations')" class="nav-pill-item flex items-center gap-2">
-                    <Plug class="w-4 h-4" /> {{ $t('nav.integrations') }}
-                </button>
                 <button @click="$emit('open-scheduler')" class="nav-pill-item flex items-center gap-2">
                     <Clock class="w-4 h-4" /> {{ $t('nav.scheduler') }}
                 </button>
@@ -63,13 +57,11 @@
 </template>
 
 <script setup>
-import { Menu, LayoutGrid, Plug, Clock, Settings, Plus, Sparkles } from 'lucide-vue-next'
+import { Menu, Clock, Settings, Plus, Sparkles } from 'lucide-vue-next'
 
 defineEmits([
     'toggle-sidebar',
     'open-mobile-nav',
-    'open-apps',
-    'open-integrations',
     'open-scheduler',
     'open-settings',
     'open-skills',

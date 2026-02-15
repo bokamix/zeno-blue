@@ -5,16 +5,17 @@ from pydantic import BaseModel
 import os
 
 class Settings(BaseModel):
-    # Build info (set during docker build)
+    # Build info
     build_version: str = os.getenv("BUILD_VERSION", "dev")
     build_time: str = os.getenv("BUILD_TIME", "unknown")
     git_hash: str = os.getenv("GIT_HASH", "unknown")
 
-    workspace_dir: str = os.getenv("WORKSPACE_DIR", "/workspace")
-    artifacts_dir: str = os.getenv("ARTIFACTS_DIR", "/workspace/artifacts")
-    skills_dir: str = os.getenv("SKILLS_DIR", "/app/user_container/skills")
-    data_dir: str = os.getenv("DATA_DIR", "/data")
-    db_path: str = os.getenv("DB_PATH", "/data/runtime.db")
+    # Paths - defaults for native mode (zeno.py overrides these via env vars)
+    workspace_dir: str = os.getenv("WORKSPACE_DIR", os.path.join(os.path.expanduser("~"), ".zeno", "workspace"))
+    artifacts_dir: str = os.getenv("ARTIFACTS_DIR", os.path.join(os.path.expanduser("~"), ".zeno", "workspace", "artifacts"))
+    skills_dir: str = os.getenv("SKILLS_DIR", os.path.join(os.path.dirname(os.path.abspath(__file__)), "skills"))
+    data_dir: str = os.getenv("DATA_DIR", os.path.join(os.path.expanduser("~"), ".zeno", "data"))
+    db_path: str = os.getenv("DB_PATH", os.path.join(os.path.expanduser("~"), ".zeno", "data", "runtime.db"))
 
     # Port pool for spawned user apps
     app_port_min: int = int(os.getenv("APP_PORT_MIN", "3100"))

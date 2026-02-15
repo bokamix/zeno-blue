@@ -17,8 +17,6 @@ const showMobileNav = ref(false)
 
 // Modal states
 const showSettingsModal = ref(false)
-const showAppsModal = ref(false)
-const showIntegrationsModal = ref(false)
 const showScheduledJobsModal = ref(false)
 const showCustomSkillsModal = ref(false)
 
@@ -79,14 +77,6 @@ export function useUIState() {
         showSettingsModal.value = true
     }
 
-    const openAppsModal = () => {
-        showAppsModal.value = true
-    }
-
-    const openIntegrationsModal = () => {
-        showIntegrationsModal.value = true
-    }
-
     const openScheduledJobsModal = () => {
         showScheduledJobsModal.value = true
     }
@@ -98,8 +88,6 @@ export function useUIState() {
     // Close all modals
     const closeAllModals = () => {
         showSettingsModal.value = false
-        showAppsModal.value = false
-        showIntegrationsModal.value = false
         showScheduledJobsModal.value = false
         showCustomSkillsModal.value = false
         showRestartConfirm.value = false
@@ -125,14 +113,6 @@ export function useUIState() {
             showScheduledJobsModal.value = false
             return true
         }
-        if (showIntegrationsModal.value) {
-            showIntegrationsModal.value = false
-            return true
-        }
-        if (showAppsModal.value) {
-            showAppsModal.value = false
-            return true
-        }
         if (showSettingsModal.value) {
             showSettingsModal.value = false
             return true
@@ -151,8 +131,6 @@ export function useUIState() {
         sidebarWidth,
         showMobileNav,
         showSettingsModal,
-        showAppsModal,
-        showIntegrationsModal,
         showScheduledJobsModal,
         showCustomSkillsModal,
         showRestartConfirm,
@@ -170,8 +148,6 @@ export function useUIState() {
         setSidebarWidth,
         loadSidebarWidth,
         openSettingsModal,
-        openAppsModal,
-        openIntegrationsModal,
         openScheduledJobsModal,
         openCustomSkillsModal,
         closeAllModals,

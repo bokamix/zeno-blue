@@ -1157,8 +1157,11 @@ Your next message should include text for the user, not just tool calls."""
         """Build full system prompt with loaded skills and planning injection."""
         from datetime import datetime
 
-        # Substitute skills_dir placeholder
-        base = BASE_SYSTEM_PROMPT.format(skills_dir=settings.skills_dir)
+        # Substitute path placeholders
+        base = BASE_SYSTEM_PROMPT.format(
+            skills_dir=settings.skills_dir,
+            workspace_dir=settings.workspace_dir
+        )
 
         # Add current date context
         current_date = datetime.now().strftime("%Y-%m-%d %H:%M")

@@ -65,6 +65,13 @@
                             :oauth="pendingOAuth"
                             @start-oauth="startOAuth"
                         />
+
+                        <!-- Post-response suggestions (after bot finishes) -->
+                        <PostResponseSuggestions
+                            v-if="showPostResponseSuggestions"
+                            :suggestions="postResponseSuggestions"
+                            @select="handlePostResponseSelect"
+                        />
                     </template>
                 </VirtualMessageList>
             </div>
@@ -98,14 +105,6 @@
         <!-- Input Area - Only visible when chat tab is active -->
         <div v-show="activeTabId === 'chat'" class="px-4 md:px-6 pt-4 pb-6 shrink-0 bg-[var(--bg-base)]">
             <div class="max-w-3xl mx-auto">
-                <!-- Post-response suggestions (after bot finishes) -->
-                <PostResponseSuggestions
-                    v-if="showPostResponseSuggestions"
-                    :suggestions="postResponseSuggestions"
-                    @select="handlePostResponseSelect"
-                    class="mb-3"
-                />
-
                 <!-- File Attachments Preview Gallery -->
                 <div v-if="attachedFiles.length > 0" class="mb-3 flex flex-wrap gap-2">
                     <div
