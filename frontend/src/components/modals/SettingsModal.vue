@@ -379,61 +379,6 @@
                     <MessageCircle class="w-4 h-4 text-zinc-500 group-hover:text-blue-400 transition-colors" />
                 </button>
 
-                <!-- System Section -->
-                <div class="pt-2">
-                    <h3 class="text-xs font-semibold text-zinc-500 uppercase tracking-wider mb-4">{{ $t('modals.settings.system') }}</h3>
-
-                    <!-- Storage Usage -->
-                    <div v-if="diskUsage" class="mb-4 p-3 rounded-xl bg-[var(--bg-surface)]">
-                        <div class="flex items-center justify-between text-xs mb-2">
-                            <div class="flex items-center gap-2">
-                                <div class="p-1.5 rounded-lg bg-blue-500/20">
-                                    <HardDrive class="w-3.5 h-3.5 text-blue-400" />
-                                </div>
-                                <span class="text-[var(--text-secondary)]">{{ $t('sidebar.storage') }}</span>
-                            </div>
-                            <span class="text-[var(--text-muted)]">
-                                {{ $t('sidebar.storageUsed', { used: diskUsage.used_human, total: diskUsage.total_human }) }}
-                            </span>
-                        </div>
-                        <div class="h-2 bg-[var(--bg-base)] rounded-full overflow-hidden">
-                            <div
-                                class="h-full rounded-full transition-all duration-300"
-                                :class="storageBarColorClass"
-                                :style="{ width: diskUsage.used_percent + '%' }"
-                            ></div>
-                        </div>
-                    </div>
-
-                    <!-- Restart Button -->
-                    <div class="flex items-center justify-between py-3">
-                        <div class="flex items-center gap-3">
-                            <div class="p-2 rounded-lg bg-orange-500/20">
-                                <RefreshCw class="w-4 h-4 text-orange-400" :class="{ 'animate-spin': isRestarting }" />
-                            </div>
-                            <div>
-                                <span class="text-sm text-[var(--text-primary)]">{{ $t('modals.settings.restartContainer') }}</span>
-                                <p class="text-xs text-zinc-500">{{ $t('modals.settings.restartContainerDesc') }}</p>
-                            </div>
-                        </div>
-                        <button
-                            @click="$emit('request-restart')"
-                            :disabled="restartCooldown > 0 || isRestarting"
-                            class="px-4 py-2 text-sm rounded-xl font-medium transition-all"
-                            :class="restartCooldown > 0 || isRestarting
-                                ? 'bg-zinc-500/20 text-zinc-500 cursor-not-allowed'
-                                : 'bg-orange-500/20 text-orange-400 hover:bg-orange-500/30 border border-orange-500/20'"
-                        >
-                            <span v-if="isRestarting">{{ $t('modals.settings.restarting') }}</span>
-                            <span v-else-if="restartCooldown > 0">{{ restartCooldown }}s</span>
-                            <span v-else>{{ $t('modals.settings.restart') }}</span>
-                        </button>
-                    </div>
-
-                    <!-- Error message -->
-                    <p v-if="restartError" class="text-xs text-red-400 mt-2">{{ restartError }}</p>
-
-                </div>
             </div>
         </div>
     </div>
@@ -441,11 +386,10 @@
 
 <script setup>
 import { ref, computed, onMounted, inject, watch } from 'vue'
-import { Settings, X, Sun, Moon, PanelLeft, PanelRight, Globe, RefreshCw, Volume2, VolumeX, ChevronDown, Cpu, HelpCircle, MessageCircle, HardDrive, KeyRound, Eye, EyeOff, MessageSquare } from 'lucide-vue-next'
-import { useApi } from '../../composables/useApi'
+import { Settings, X, Sun, Moon, PanelLeft, PanelRight, Globe, Volume2, VolumeX, ChevronDown, Cpu, HelpCircle, MessageCircle, KeyRound, Eye, EyeOff, MessageSquare } from 'lucide-vue-next'
 import { useSettingsState } from '../../composables/state'
 
-const emit = defineEmits(['close', 'request-restart'])
+const emit = defineEmits(['close'])
 
 // Swipe gesture state from parent
 const swipeState = inject('swipeState', {
@@ -468,16 +412,6 @@ const panelStyle = computed(() => {
     }
 })
 
-const { getDiskUsage } = useApi()
-const diskUsage = ref(null)
-
-const storageBarColorClass = computed(() => {
-    if (!diskUsage.value) return 'bg-blue-500'
-    const percent = diskUsage.value.used_percent
-    if (percent >= 90) return 'bg-red-500'
-    if (percent >= 75) return 'bg-amber-500'
-    return 'bg-blue-500'
-})
 
 const {
     isDarkTheme,
@@ -669,20 +603,13 @@ const dashboardUrl = computed(() => {
     return `https://app.${baseDomain}/dashboard`
 })
 
-// Restart state (passed as props or from composable)
-const props = defineProps({
-    restartCooldown: { type: Number, default: 0 },
-    isRestarting: { type: Boolean, default: false },
-    restartError: { type: String, default: null }
-})
 
 // Sync custom prompt when settings load from API
 watch(customSystemPrompt, (newVal) => {
     localCustomPrompt.value = newVal || ''
 })
 
-onMounted(async () => {
-    diskUsage.value = await getDiskUsage()
+onMounted(() => {
     loadOpenRouterModels()
 })
 
