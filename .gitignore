@@ -12,4 +12,4 @@ frontend/node_modules/
 # Build artifacts (PyInstaller)
 .build-venv/
 build/
-dist/
+/dist/
