@@ -2150,6 +2150,19 @@ if FRONTEND_DIR.exists():
             return FileResponse(favicon_path)
         raise HTTPException(status_code=404)
 
+    # SW files must never be cached so browsers always fetch the latest version
+    @app.get("/sw.js")
+    async def serve_sw():
+        response = FileResponse(FRONTEND_DIR / "sw.js", media_type="application/javascript")
+        response.headers["Cache-Control"] = "no-cache, no-store, must-revalidate"
+        return response
+
+    @app.get("/registerSW.js")
+    async def serve_register_sw():
+        response = FileResponse(FRONTEND_DIR / "registerSW.js", media_type="application/javascript")
+        response.headers["Cache-Control"] = "no-cache, no-store, must-revalidate"
+        return response
+
     # Catch-all route for SPA - must be LAST
     # Note: This route only handles paths not matched by other routes above
     @app.get("/{full_path:path}")
@@ -2164,5 +2177,5 @@ if FRONTEND_DIR.exists():
         # Serve index.html for SPA routing with no-cache to prevent stale HTML
         # (asset files have hashed names so they're safe to cache, but index.html must always be fresh)
         response = FileResponse(FRONTEND_DIR / "index.html")
-        response.headers["Cache-Control"] = "no-cache"
+        response.headers["Cache-Control"] = "no-cache, no-store, must-revalidate"
         return response
