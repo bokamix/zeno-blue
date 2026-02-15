@@ -190,13 +190,23 @@ echo -e "  Run:    ${BOLD}zeno${NC}"
 echo -e "  Update: ${BOLD}zeno update${NC}"
 echo ""
 
-# Try to make zeno available immediately in current session
-export PATH="$ZENO_BIN:$PATH"
-
-# If still not in PATH (pipe context), show one-liner
-if ! command -v zeno &>/dev/null; then
-    echo -e "  Run this to start using zeno now:"
+# When running via pipe (curl | bash), PATH changes don't persist in parent shell
+if [ ! -t 0 ]; then
+    shell_name="$(basename "$SHELL")"
+    echo -e "  ${YELLOW}To start using zeno now, run:${NC}"
+    case "$shell_name" in
+        zsh)  echo -e "  ${GREEN}source ~/.zshrc${NC}" ;;
+        fish) echo -e "  ${GREEN}source ~/.config/fish/config.fish${NC}" ;;
+        bash)
+            if [ -f "$HOME/.bash_profile" ]; then
+                echo -e "  ${GREEN}source ~/.bash_profile${NC}"
+            else
+                echo -e "  ${GREEN}source ~/.bashrc${NC}"
+            fi
+            ;;
+        *)    echo -e "  ${GREEN}source ~/.profile${NC}" ;;
+    esac
     echo ""
-    echo -e "    ${GREEN}export PATH=\"\$HOME/.zeno/bin:\$PATH\"${NC}"
-    echo ""
+else
+    export PATH="$ZENO_BIN:$PATH"
 fi
