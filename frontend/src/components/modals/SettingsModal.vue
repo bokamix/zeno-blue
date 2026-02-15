@@ -41,6 +41,46 @@
 
             <!-- Modal Body -->
             <div class="p-6 space-y-6 overflow-y-auto">
+                <!-- Custom Instructions Section (Collapsible) -->
+                <div class="border-b border-[var(--border-subtle)]">
+                    <button
+                        @click="customInstructionsExpanded = !customInstructionsExpanded"
+                        class="w-full flex items-center justify-between py-3 text-left"
+                    >
+                        <div class="flex items-center gap-3">
+                            <div class="p-2 rounded-lg bg-blue-500/20">
+                                <MessageSquare class="w-4 h-4 text-blue-400" />
+                            </div>
+                            <span class="text-sm text-[var(--text-primary)]">{{ $t('modals.settings.customInstructions') }}</span>
+                        </div>
+                        <ChevronDown
+                            class="w-4 h-4 text-zinc-400 transition-transform"
+                            :class="{ 'rotate-180': customInstructionsExpanded }"
+                        />
+                    </button>
+
+                    <div v-show="customInstructionsExpanded" class="pl-4 pb-3 space-y-2">
+                        <p class="text-[10px] text-zinc-500">{{ $t('modals.settings.customInstructionsDesc') }}</p>
+                        <textarea
+                            v-model="localCustomPrompt"
+                            :placeholder="$t('modals.settings.customInstructionsPlaceholder')"
+                            rows="4"
+                            :maxlength="10000"
+                            class="w-full px-3 py-2 text-xs rounded-lg bg-[var(--bg-elevated)] text-[var(--text-primary)] border border-[var(--border-subtle)] outline-none focus:border-blue-500/50 resize-y min-h-[80px] max-h-[200px]"
+                        ></textarea>
+                        <div class="flex items-center justify-between">
+                            <span class="text-[10px] text-zinc-500">{{ localCustomPrompt.length }} / 10,000</span>
+                            <button
+                                @click="handleSaveCustomPrompt"
+                                :disabled="customSystemPromptSaving || localCustomPrompt === customSystemPrompt"
+                                class="px-3 py-1.5 text-xs rounded-lg font-medium transition-all bg-blue-500/20 text-blue-400 hover:bg-blue-500/30 disabled:opacity-50 disabled:cursor-not-allowed"
+                            >
+                                {{ customSystemPromptSaving ? $t('common.saving') : customPromptSaved ? $t('common.saved') : $t('common.save') }}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
                 <!-- Preferences Section (Collapsible) -->
                 <div class="border-b border-[var(--border-subtle)]">
                     <button
@@ -368,7 +408,7 @@
 
 <script setup>
 import { ref, computed, onMounted, inject, watch } from 'vue'
-import { Settings, X, Sun, Moon, PanelLeft, PanelRight, Globe, RefreshCw, Volume2, VolumeX, ChevronDown, Cpu, HelpCircle, MessageCircle, HardDrive, KeyRound, Eye, EyeOff } from 'lucide-vue-next'
+import { Settings, X, Sun, Moon, PanelLeft, PanelRight, Globe, RefreshCw, Volume2, VolumeX, ChevronDown, Cpu, HelpCircle, MessageCircle, HardDrive, KeyRound, Eye, EyeOff, MessageSquare } from 'lucide-vue-next'
 import { useApi } from '../../composables/useApi'
 import { useSettingsState } from '../../composables/state'
 
@@ -417,6 +457,9 @@ const {
     apiKeys,
     apiKeysLoading,
     customProviderSettings,
+    customSystemPrompt,
+    customSystemPromptSaving,
+    saveCustomPrompt,
     toggleTheme,
     toggleSidebarPosition,
     toggleLanguage,
@@ -456,6 +499,19 @@ const handleSaveCustomProvider = async () => {
         cheapModel: customCheapModel.value.trim(),
     })
     savingCustomProvider.value = false
+}
+
+// Custom instructions state
+const customInstructionsExpanded = ref(false)
+const localCustomPrompt = ref(customSystemPrompt.value || '')
+const customPromptSaved = ref(false)
+
+const handleSaveCustomPrompt = async () => {
+    const ok = await saveCustomPrompt(localCustomPrompt.value)
+    if (ok) {
+        customPromptSaved.value = true
+        setTimeout(() => { customPromptSaved.value = false }, 2000)
+    }
 }
 
 const settingsExpanded = ref(true)
@@ -526,6 +582,11 @@ const props = defineProps({
     restartCooldown: { type: Number, default: 0 },
     isRestarting: { type: Boolean, default: false },
     restartError: { type: String, default: null }
+})
+
+// Sync custom prompt when settings load from API
+watch(customSystemPrompt, (newVal) => {
+    localCustomPrompt.value = newVal || ''
 })
 
 // Sync custom provider fields when settings load from API

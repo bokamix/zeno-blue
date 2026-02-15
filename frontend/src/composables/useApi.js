@@ -356,6 +356,48 @@ export function useApi() {
         return res.json()
     }
 
+    // Custom Skills CRUD
+    const getCustomSkills = async () => {
+        const res = await fetchWithTimeout(`${API_BASE}/custom-skills`)
+        if (!res.ok) throw new Error('Failed to get custom skills')
+        return res.json()
+    }
+
+    const createCustomSkill = async (data) => {
+        const res = await fetchWithTimeout(`${API_BASE}/custom-skills`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(data)
+        })
+        if (res.status === 409) throw new Error('Skill already exists')
+        if (!res.ok) {
+            const err = await res.json().catch(() => ({}))
+            throw new Error(err.detail || 'Failed to create skill')
+        }
+        return res.json()
+    }
+
+    const updateCustomSkill = async (skillId, data) => {
+        const res = await fetchWithTimeout(`${API_BASE}/custom-skills/${encodeURIComponent(skillId)}`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(data)
+        })
+        if (!res.ok) {
+            const err = await res.json().catch(() => ({}))
+            throw new Error(err.detail || 'Failed to update skill')
+        }
+        return res.json()
+    }
+
+    const deleteCustomSkill = async (skillId) => {
+        const res = await fetchWithTimeout(`${API_BASE}/custom-skills/${encodeURIComponent(skillId)}`, {
+            method: 'DELETE'
+        })
+        if (!res.ok) throw new Error('Failed to delete skill')
+        return res.json()
+    }
+
     // Check if server is available (with short timeout for fast offline detection)
     const checkHealth = async (timeout = 2000) => {
         try {
@@ -408,6 +450,10 @@ export function useApi() {
         createDirectory,
         createFile,
         checkHealth,
-        getDiskUsage
+        getDiskUsage,
+        getCustomSkills,
+        createCustomSkill,
+        updateCustomSkill,
+        deleteCustomSkill
     }
 }

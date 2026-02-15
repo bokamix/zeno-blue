@@ -332,6 +332,17 @@ class DB:
                 updated_at TEXT NOT NULL
               )
             """)
+            # Custom skills (user-defined skills stored in DB instead of filesystem)
+            cur.execute("""
+              CREATE TABLE IF NOT EXISTS custom_skills (
+                id TEXT PRIMARY KEY,
+                name TEXT NOT NULL,
+                description TEXT DEFAULT '',
+                instructions TEXT NOT NULL,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+              )
+            """)
             conn.commit()
             conn.close()
 
@@ -1523,3 +1534,34 @@ class DB:
             (conversation_id,)
         )
         return row["last_id"] if row else None
+
+    # --- Custom Skills Methods ---
+
+    def get_custom_skills(self) -> List[Dict[str, Any]]:
+        """Get all custom skills."""
+        return self.fetchall("SELECT * FROM custom_skills ORDER BY name ASC")
+
+    def get_custom_skill(self, skill_id: str) -> Optional[Dict[str, Any]]:
+        """Get a custom skill by ID."""
+        return self.fetchone("SELECT * FROM custom_skills WHERE id = ?", (skill_id,))
+
+    def create_custom_skill(self, skill_id: str, name: str, description: str, instructions: str) -> None:
+        """Create a new custom skill."""
+        now = self.now()
+        self.execute(
+            "INSERT INTO custom_skills (id, name, description, instructions, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?)",
+            (skill_id, name, description, instructions, now, now)
+        )
+
+    def update_custom_skill(self, skill_id: str, name: str, description: str, instructions: str) -> bool:
+        """Update an existing custom skill. Returns True if found and updated."""
+        result = self.execute(
+            "UPDATE custom_skills SET name = ?, description = ?, instructions = ?, updated_at = ? WHERE id = ?",
+            (name, description, instructions, self.now(), skill_id)
+        )
+        return result.rowcount > 0
+
+    def delete_custom_skill(self, skill_id: str) -> bool:
+        """Delete a custom skill. Returns True if found and deleted."""
+        result = self.execute("DELETE FROM custom_skills WHERE id = ?", (skill_id,))
+        return result.rowcount > 0

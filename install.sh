@@ -1,5 +1,6 @@
 #!/bin/bash
-# ZENO installer - curl -fsSL https://raw.githubusercontent.com/bokamix/zeno-blue/main/install.sh | bash
+# ZENO installer
+# curl -fsSL https://raw.githubusercontent.com/bokamix/zeno-blue/main/install.sh | bash && export PATH="$HOME/.zeno/bin:$PATH"
 set -e
 
 ZENO_HOME="$HOME/.zeno"
@@ -105,9 +106,28 @@ case "${1:-}" in
         tmpfile=$(mktemp)
         trap 'rm -f "$tmpfile"' EXIT
         curl -fsSL "https://github.com/bokamix/zeno-blue/archive/refs/heads/main.tar.gz" -o "$tmpfile"
+
+        # Preserve node_modules for faster frontend rebuild
+        if [ -d "$ZENO_APP/frontend/node_modules" ]; then
+            mv "$ZENO_APP/frontend/node_modules" "/tmp/_zeno_node_modules_$$"
+        fi
+
         rm -rf "$ZENO_APP"
         mkdir -p "$ZENO_APP"
         tar xzf "$tmpfile" --strip-components=1 -C "$ZENO_APP"
+
+        # Restore node_modules
+        if [ -d "/tmp/_zeno_node_modules_$$" ]; then
+            mv "/tmp/_zeno_node_modules_$$" "$ZENO_APP/frontend/node_modules"
+        fi
+
+        # Rebuild frontend
+        if command -v npm &>/dev/null && [ -f "$ZENO_APP/frontend/package.json" ]; then
+            echo "  Building frontend..."
+            (cd "$ZENO_APP/frontend" && npm install --silent 2>/dev/null && npm run build --silent 2>/dev/null)
+            echo "  Frontend ready."
+        fi
+
         echo "  ✅ ZENO updated!"
         echo ""
         ;;
@@ -170,21 +190,13 @@ echo -e "  Run:    ${BOLD}zeno${NC}"
 echo -e "  Update: ${BOLD}zeno update${NC}"
 echo ""
 
-# Check if ~/.zeno/bin is already in current PATH
-if ! echo "$PATH" | tr ':' '\n' | grep -qF "$ZENO_BIN"; then
-    echo -e "  ${YELLOW}Restart your terminal or run:${NC}"
-    shell_name="$(basename "$SHELL")"
-    case "$shell_name" in
-        zsh)  echo -e "  ${GREEN}source ~/.zshrc${NC}" ;;
-        bash)
-            if [ -f "$HOME/.bash_profile" ]; then
-                echo -e "  ${GREEN}source ~/.bash_profile${NC}"
-            else
-                echo -e "  ${GREEN}source ~/.bashrc${NC}"
-            fi
-            ;;
-        fish) echo -e "  ${GREEN}source ~/.config/fish/config.fish${NC}" ;;
-        *)    echo -e "  ${GREEN}source ~/.profile${NC}" ;;
-    esac
+# Try to make zeno available immediately in current session
+export PATH="$ZENO_BIN:$PATH"
+
+# If still not in PATH (pipe context), show one-liner
+if ! command -v zeno &>/dev/null; then
+    echo -e "  Run this to start using zeno now:"
+    echo ""
+    echo -e "    ${GREEN}export PATH=\"\$HOME/.zeno/bin:\$PATH\"${NC}"
     echo ""
 fi

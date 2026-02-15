@@ -20,6 +20,7 @@ const showSettingsModal = ref(false)
 const showAppsModal = ref(false)
 const showIntegrationsModal = ref(false)
 const showScheduledJobsModal = ref(false)
+const showCustomSkillsModal = ref(false)
 
 // Confirmation dialogs
 const showRestartConfirm = ref(false)
@@ -90,12 +91,17 @@ export function useUIState() {
         showScheduledJobsModal.value = true
     }
 
+    const openCustomSkillsModal = () => {
+        showCustomSkillsModal.value = true
+    }
+
     // Close all modals
     const closeAllModals = () => {
         showSettingsModal.value = false
         showAppsModal.value = false
         showIntegrationsModal.value = false
         showScheduledJobsModal.value = false
+        showCustomSkillsModal.value = false
         showRestartConfirm.value = false
         showCancelConfirm.value = false
         showMobileNav.value = false
@@ -109,6 +115,10 @@ export function useUIState() {
         }
         if (showMobileNav.value) {
             showMobileNav.value = false
+            return true
+        }
+        if (showCustomSkillsModal.value) {
+            showCustomSkillsModal.value = false
             return true
         }
         if (showScheduledJobsModal.value) {
@@ -144,6 +154,7 @@ export function useUIState() {
         showAppsModal,
         showIntegrationsModal,
         showScheduledJobsModal,
+        showCustomSkillsModal,
         showRestartConfirm,
         showCancelConfirm,
         inputFocused,
@@ -162,6 +173,7 @@ export function useUIState() {
         openAppsModal,
         openIntegrationsModal,
         openScheduledJobsModal,
+        openCustomSkillsModal,
         closeAllModals,
         handleEscapeKey
     }

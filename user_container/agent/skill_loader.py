@@ -12,73 +12,97 @@ class Skill:
 
 class SkillLoader:
     """
-    Loads skills from the filesystem (Anthropic-style).
-    Expects structure:
-    /skills_dir
-      /skill_name
-        SKILL.md
-        scripts/...
+    Loads skills from the filesystem (built-in) and SQLite DB (custom).
     """
-    
-    def __init__(self, skills_dir: str = "user_container/skills"):
+
+    def __init__(self, skills_dir: str = "user_container/skills", db=None):
         # Resolve to absolute path to avoid ambiguity
         self.skills_dir = os.path.abspath(skills_dir)
+        self.db = db
         self._skills_cache: Dict[str, Skill] = {}
 
     def load_skill(self, skill_name: str) -> Skill:
-        """Loads a skill by name, parsing SKILL.md."""
+        """Loads a skill by name, checking filesystem first then DB."""
         if skill_name in self._skills_cache:
             return self._skills_cache[skill_name]
 
+        # Check filesystem (built-in skills)
         skill_path = os.path.join(self.skills_dir, skill_name)
         manifest_path = os.path.join(skill_path, "SKILL.md")
+        if os.path.exists(manifest_path):
+            with open(manifest_path, "r", encoding="utf-8") as f:
+                raw_content = f.read()
 
-        if not os.path.exists(manifest_path):
-            raise ValueError(f"Skill '{skill_name}' not found at {skill_path}")
+            name, description, instructions = self._parse_markdown(raw_content)
+            final_name = name or skill_name
 
-        with open(manifest_path, "r", encoding="utf-8") as f:
-            raw_content = f.read()
+            skill = Skill(
+                name=final_name,
+                description=description or f"Skill loaded from {skill_name}",
+                instructions=instructions,
+                path=skill_path
+            )
 
-        name, description, instructions = self._parse_markdown(raw_content)
-        
-        # If name is missing in frontmatter, use folder name
-        final_name = name or skill_name
-        
-        skill = Skill(
-            name=final_name,
-            description=description or f"Skill loaded from {skill_name}",
-            instructions=instructions,
-            path=skill_path
-        )
-        
-        self._skills_cache[skill_name] = skill
-        return skill
+            self._skills_cache[skill_name] = skill
+            return skill
+
+        # Check DB (custom skills)
+        if self.db:
+            row = self.db.get_custom_skill(skill_name)
+            if row:
+                skill = Skill(
+                    name=row["name"],
+                    description=row.get("description") or "",
+                    instructions=row["instructions"],
+                    path="custom"
+                )
+                self._skills_cache[skill_name] = skill
+                return skill
+
+        raise ValueError(f"Skill '{skill_name}' not found in any skills directory")
 
     def list_available_skills(self) -> List[Dict[str, str]]:
         """
-        Scans the skills directory and returns a list of available skills
-        with their names and descriptions (from SKILL.md).
+        Scans filesystem skills directory and DB custom skills.
+        Returns a list of available skills with names and descriptions.
         """
         skills = []
-        if not os.path.exists(self.skills_dir):
-            return []
+        seen = set()
 
-        for item in os.listdir(self.skills_dir):
-            skill_path = os.path.join(self.skills_dir, item)
-            if os.path.isdir(skill_path) and os.path.exists(os.path.join(skill_path, "SKILL.md")):
-                try:
-                    # Load light version (just parse frontmatter) to get description
-                    # We could reuse load_skill but that reads full file
-                    # Optimally we cache this
-                    skill = self.load_skill(item)
+        # Filesystem built-in skills
+        if os.path.exists(self.skills_dir):
+            for item in os.listdir(self.skills_dir):
+                skill_path = os.path.join(self.skills_dir, item)
+                if os.path.isdir(skill_path) and os.path.exists(os.path.join(skill_path, "SKILL.md")):
+                    try:
+                        skill = self.load_skill(item)
+                        skills.append({
+                            "name": skill.name,
+                            "description": skill.description
+                        })
+                        seen.add(item)
+                    except Exception:
+                        continue
+
+        # DB custom skills
+        if self.db:
+            for row in self.db.get_custom_skills():
+                skill_id = row["id"]
+                if skill_id not in seen:
                     skills.append({
-                        "name": skill.name,
-                        "description": skill.description
+                        "name": row["name"],
+                        "description": row.get("description") or ""
                     })
-                except Exception:
-                    # Skip malformed skills
-                    continue
+                    seen.add(skill_id)
+
         return skills
+
+    def clear_cache(self, skill_name: str = None):
+        """Clear cached skills. If skill_name is given, only clear that one."""
+        if skill_name:
+            self._skills_cache.pop(skill_name, None)
+        else:
+            self._skills_cache.clear()
 
     def get_skill_prompts(self, skill_names: List[str]) -> str:
         """
@@ -86,9 +110,9 @@ class SkillLoader:
         """
         if not skill_names:
             return ""
-            
+
         blocks = ["\n# AVAILABLE SKILLS\n"]
-        
+
         for name in skill_names:
             try:
                 skill = self.load_skill(name)
@@ -99,7 +123,7 @@ class SkillLoader:
                 blocks.append("\n" + "-"*30 + "\n")
             except Exception as e:
                 blocks.append(f"!! Error loading skill '{name}': {e}")
-                
+
         return "\n".join(blocks)
 
     def _parse_markdown(self, content: str) -> tuple[Optional[str], Optional[str], str]:
@@ -118,18 +142,17 @@ class SkillLoader:
         if match:
             frontmatter_raw = match.group(1)
             instructions = content[match.end():] # Everything after the second ---
-            
+
             # Simple line-by-line parser for "key: value"
             for line in frontmatter_raw.split('\n'):
                 if ':' in line:
                     key, val = line.split(':', 1)
                     key = key.strip()
                     val = val.strip().strip('"\'')
-                    
+
                     if key == 'name':
                         name = val
                     elif key == 'description':
                         description = val
-                        
-        return name, description, instructions.strip()
 
+        return name, description, instructions.strip()

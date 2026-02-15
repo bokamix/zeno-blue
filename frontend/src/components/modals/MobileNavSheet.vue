@@ -44,6 +44,15 @@
                         <span class="nav-tile-label">{{ $t('nav.scheduler') }}</span>
                     </button>
                     <button
+                        @click="$emit('open-skills')"
+                        class="nav-tile"
+                    >
+                        <div class="nav-tile-icon bg-gradient-to-br from-amber-500/20 to-orange-500/20">
+                            <Sparkles class="w-6 h-6 text-amber-400" />
+                        </div>
+                        <span class="nav-tile-label">{{ $t('nav.skills') }}</span>
+                    </button>
+                    <button
                         @click="$emit('open-settings')"
                         class="nav-tile"
                     >
@@ -59,9 +68,9 @@
 </template>
 
 <script setup>
-import { LayoutGrid, Plug, Clock, Settings } from 'lucide-vue-next'
+import { LayoutGrid, Plug, Clock, Settings, Sparkles } from 'lucide-vue-next'
 
-defineEmits(['close', 'open-apps', 'open-integrations', 'open-scheduler', 'open-settings'])
+defineEmits(['close', 'open-apps', 'open-integrations', 'open-scheduler', 'open-skills', 'open-settings'])
 </script>
 
 <style scoped>

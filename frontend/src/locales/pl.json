@@ -32,6 +32,7 @@
     "apps": "Aplikacje",
     "integrations": "Integracje",
     "scheduler": "Harmonogram",
+    "skills": "Umiejętności",
     "settings": "Ustawienia",
     "newChat": "Nowy czat",
     "hideSidebar": "Ukryj pasek boczny",
@@ -228,7 +229,23 @@
       "customProviderBaseUrlPlaceholder": "http://localhost:11434",
       "customProviderCheapModel": "Tani model (opcjonalnie)",
       "customProviderCheapModelPlaceholder": "Taki sam jak główny model jeśli pusty",
-      "customProviderHelp": "Obsługuje Ollama, Azure, OpenRouter, LM Studio i dowolne API kompatybilne z OpenAI"
+      "customProviderHelp": "Obsługuje Ollama, Azure, OpenRouter, LM Studio i dowolne API kompatybilne z OpenAI",
+      "customInstructions": "Instrukcje niestandardowe",
+      "customInstructionsDesc": "Te instrukcje zostaną dodane do każdej konwersacji. Użyj ich, aby dostosować zachowanie agenta.",
+      "customInstructionsPlaceholder": "np. Zawsze odpowiadaj po polsku. Używaj formalnego tonu. Skup się na zwięzłych odpowiedziach."
+    },
+    "customSkills": {
+      "title": "Niestandardowe umiejętności",
+      "noSkills": "Brak niestandardowych umiejętności.",
+      "noSkillsHint": "Twórz umiejętności, aby nauczyć agenta nowych możliwości.",
+      "createSkill": "Utwórz umiejętność",
+      "editSkill": "Edytuj",
+      "nameLabel": "Nazwa umiejętności",
+      "namePlaceholder": "np. Podsumowywacz e-maili",
+      "descriptionLabel": "Opis",
+      "descriptionPlaceholder": "np. Podsumowuje wątki e-mail w punktach",
+      "instructionsLabel": "Instrukcje (Markdown)",
+      "instructionsPlaceholder": "Napisz szczegółowe instrukcje dla agenta...\n\nMożesz użyć formatowania markdown."
     },
     "cancelConfirm": {
       "title": "Zatrzymać wykonanie?",

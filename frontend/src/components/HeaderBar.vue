@@ -37,6 +37,9 @@
                 <button @click="$emit('open-scheduler')" class="nav-pill-item flex items-center gap-2">
                     <Clock class="w-4 h-4" /> {{ $t('nav.scheduler') }}
                 </button>
+                <button @click="$emit('open-skills')" class="nav-pill-item flex items-center gap-2">
+                    <Sparkles class="w-4 h-4" /> {{ $t('nav.skills') }}
+                </button>
             </nav>
 
             <!-- Right: Settings (desktop) + New Chat -->
@@ -60,7 +63,7 @@
 </template>
 
 <script setup>
-import { Menu, LayoutGrid, Plug, Clock, Settings, Plus } from 'lucide-vue-next'
+import { Menu, LayoutGrid, Plug, Clock, Settings, Plus, Sparkles } from 'lucide-vue-next'
 
 defineEmits([
     'toggle-sidebar',
@@ -69,6 +72,7 @@ defineEmits([
     'open-integrations',
     'open-scheduler',
     'open-settings',
+    'open-skills',
     'new-chat'
 ])
 </script>

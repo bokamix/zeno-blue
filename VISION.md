@@ -183,3 +183,7 @@ The `install.sh` script handles:
 ---
 
 *This is a living document. Updated as the vision evolves.*
+
+
+
+Niech da się exportować ustawienia projektu (pliki synchronizowane przez s3 lub firebase)

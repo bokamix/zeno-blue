@@ -234,7 +234,7 @@ UsageTracker.get_instance(db)
 
 runner = Runner()
 supervisor = Supervisor(db=db)
-skill_loader = SkillLoader() # Load skills from disk
+skill_loader = SkillLoader(db=db)
 
 # Initialize admin module with db
 admin_module.set_db(db)
@@ -1879,6 +1879,7 @@ async def get_settings():
     # Apply defaults for known settings
     result = {
         "model_provider": all_settings.get("model_provider", "anthropic"),
+        "custom_system_prompt": all_settings.get("custom_system_prompt", ""),
     }
 
     # Include custom provider settings when provider is "custom"
@@ -1909,6 +1910,14 @@ async def update_settings(payload: dict):
         db.set_setting("model_provider", provider)
         log(f"[Settings] Updated model_provider to {provider}")
 
+    # Save custom system prompt if provided
+    if "custom_system_prompt" in payload:
+        prompt = payload["custom_system_prompt"] if isinstance(payload["custom_system_prompt"], str) else ""
+        if len(prompt) > 10000:
+            raise HTTPException(status_code=400, detail="Custom system prompt must be under 10,000 characters.")
+        db.set_setting("custom_system_prompt", prompt)
+        log(f"[Settings] Updated custom_system_prompt ({len(prompt)} chars)")
+
     # Save custom provider settings if provided
     for key in ("custom_provider_model", "custom_provider_cheap_model", "custom_provider_base_url"):
         if key in payload:
@@ -1921,6 +1930,7 @@ async def update_settings(payload: dict):
         "status": "ok",
         "settings": {
             "model_provider": current_provider,
+            "custom_system_prompt": db.get_setting("custom_system_prompt", ""),
         }
     }
     if current_provider == "custom":
@@ -2033,6 +2043,76 @@ async def validate_provider(provider: str):
     return {"valid": True}
 
 
+# --- Custom Skills CRUD ---
+
+@app.get("/custom-skills")
+async def list_custom_skills():
+    """List all custom skills."""
+    rows = db.get_custom_skills()
+    return [
+        {
+            "id": r["id"],
+            "name": r["name"],
+            "description": r.get("description") or "",
+            "instructions": r["instructions"],
+        }
+        for r in rows
+    ]
+
+
+@app.post("/custom-skills")
+async def create_custom_skill(payload: dict):
+    """Create a new custom skill."""
+    name = (payload.get("name") or "").strip()
+    description = (payload.get("description") or "").strip()
+    instructions = (payload.get("instructions") or "").strip()
+
+    if not name:
+        raise HTTPException(status_code=400, detail="Skill name is required")
+    if not instructions:
+        raise HTTPException(status_code=400, detail="Skill instructions are required")
+
+    skill_id = uuid.uuid4().hex[:12]
+    db.create_custom_skill(skill_id, name, description, instructions)
+    skill_loader.clear_cache(skill_id)
+    log(f"[CustomSkills] Created skill '{skill_id}'")
+
+    return {"status": "ok", "id": skill_id, "name": name, "description": description}
+
+
+@app.put("/custom-skills/{skill_id}")
+async def update_custom_skill(skill_id: str, payload: dict):
+    """Update an existing custom skill."""
+    name = (payload.get("name") or "").strip()
+    description = (payload.get("description") or "").strip()
+    instructions = (payload.get("instructions") or "").strip()
+
+    if not name:
+        raise HTTPException(status_code=400, detail="Skill name is required")
+    if not instructions:
+        raise HTTPException(status_code=400, detail="Skill instructions are required")
+
+    if not db.update_custom_skill(skill_id, name, description, instructions):
+        raise HTTPException(status_code=404, detail=f"Skill '{skill_id}' not found")
+
+    skill_loader.clear_cache(skill_id)
+    log(f"[CustomSkills] Updated skill '{skill_id}'")
+
+    return {"status": "ok", "id": skill_id, "name": name, "description": description}
+
+
+@app.delete("/custom-skills/{skill_id}")
+async def delete_custom_skill(skill_id: str):
+    """Delete a custom skill."""
+    if not db.delete_custom_skill(skill_id):
+        raise HTTPException(status_code=404, detail=f"Skill '{skill_id}' not found")
+
+    skill_loader.clear_cache(skill_id)
+    log(f"[CustomSkills] Deleted skill '{skill_id}'")
+
+    return {"status": "ok"}
+
+
 # --- Admin Panel ---
 # Mount admin router (HTTP Basic Auth protected)
 app.include_router(admin_module.router)
@@ -2081,5 +2161,8 @@ if FRONTEND_DIR.exists():
         if file_path.is_file():
             return FileResponse(file_path)
 
-        # Otherwise serve index.html for SPA routing
-        return FileResponse(FRONTEND_DIR / "index.html")
+        # Serve index.html for SPA routing with no-cache to prevent stale HTML
+        # (asset files have hashed names so they're safe to cache, but index.html must always be fresh)
+        response = FileResponse(FRONTEND_DIR / "index.html")
+        response.headers["Cache-Control"] = "no-cache"
+        return response

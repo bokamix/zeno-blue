@@ -51,6 +51,7 @@
                 @open-apps="showAppsModal = true"
                 @open-integrations="showIntegrationsModal = true"
                 @open-scheduler="showScheduledJobsModal = true"
+                @open-skills="showCustomSkillsModal = true"
                 @open-settings="openSettingsModal"
                 @new-chat="newChat"
             />
@@ -114,6 +115,12 @@
             @close="showAppsModal = false"
         />
 
+        <!-- Custom Skills Modal -->
+        <CustomSkillsModal
+            v-if="showCustomSkillsModal"
+            @close="showCustomSkillsModal = false"
+        />
+
         <!-- Settings Modal (also show when dragging from right edge on mobile) -->
         <SettingsModal
             v-if="showSettingsModal || isDraggingSettings"
@@ -164,6 +171,7 @@
             @open-apps="showAppsModal = true; showMobileNav = false"
             @open-integrations="showIntegrationsModal = true; showMobileNav = false"
             @open-scheduler="showScheduledJobsModal = true; showMobileNav = false"
+            @open-skills="showCustomSkillsModal = true; showMobileNav = false"
             @open-settings="openSettingsModal(); showMobileNav = false"
         />
 
@@ -233,6 +241,7 @@ const ScheduledJobsModal = lazyModal(() => import('./components/modals/Scheduled
 const SchedulerDetailModal = lazyModal(() => import('./components/modals/SchedulerDetailModal.vue'))
 const IntegrationsModal = lazyModal(() => import('./components/modals/IntegrationsModal.vue'))
 const AppsModal = lazyModal(() => import('./components/modals/AppsModal.vue'))
+const CustomSkillsModal = lazyModal(() => import('./components/modals/CustomSkillsModal.vue'))
 const SettingsModal = lazyModal(() => import('./components/modals/SettingsModal.vue'))
 const CancelConfirmModal = lazyModal(() => import('./components/modals/CancelConfirmModal.vue'))
 const RestartConfirmModal = lazyModal(() => import('./components/modals/RestartConfirmModal.vue'))
@@ -274,6 +283,7 @@ const {
     showAppsModal,
     showIntegrationsModal,
     showScheduledJobsModal,
+    showCustomSkillsModal,
     showRestartConfirm,
     showCancelConfirm,
     toggleSidebar,

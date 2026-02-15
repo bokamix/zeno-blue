@@ -1165,6 +1165,11 @@ Your next message should include text for the user, not just tool calls."""
         day_of_week = datetime.now().strftime("%A")
         base = f"{base}\n\n## CURRENT DATE\nToday is {day_of_week}, {current_date}. Use this for any date-related tasks."
 
+        # Add custom user instructions if set
+        custom_prompt = self.db.get_setting("custom_system_prompt", "")
+        if custom_prompt.strip():
+            base = f"{base}\n\n## USER INSTRUCTIONS\n{custom_prompt.strip()}"
+
         # Add skills if present
         if skill_prompts:
             base = f"{base}\n\n# LOADED SKILLS\n{skill_prompts}"

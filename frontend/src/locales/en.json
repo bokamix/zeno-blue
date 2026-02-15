@@ -32,6 +32,7 @@
     "apps": "Apps",
     "integrations": "Integrations",
     "scheduler": "Scheduler",
+    "skills": "Skills",
     "settings": "Settings",
     "newChat": "New Chat",
     "hideSidebar": "Hide sidebar",
@@ -228,7 +229,23 @@
       "customProviderBaseUrlPlaceholder": "http://localhost:11434",
       "customProviderCheapModel": "Cheap Model (optional)",
       "customProviderCheapModelPlaceholder": "Same as main model if empty",
-      "customProviderHelp": "Supports Ollama, Azure, OpenRouter, LM Studio, and any OpenAI-compatible API"
+      "customProviderHelp": "Supports Ollama, Azure, OpenRouter, LM Studio, and any OpenAI-compatible API",
+      "customInstructions": "Custom Instructions",
+      "customInstructionsDesc": "These instructions will be added to every conversation. Use them to customize the agent's behavior.",
+      "customInstructionsPlaceholder": "e.g., Always respond in Polish. Use formal tone. Focus on concise answers."
+    },
+    "customSkills": {
+      "title": "Custom Skills",
+      "noSkills": "No custom skills yet.",
+      "noSkillsHint": "Create skills to teach the agent new capabilities.",
+      "createSkill": "Create Skill",
+      "editSkill": "Edit",
+      "nameLabel": "Skill Name",
+      "namePlaceholder": "e.g., Email Summarizer",
+      "descriptionLabel": "Description",
+      "descriptionPlaceholder": "e.g., Summarizes email threads into bullet points",
+      "instructionsLabel": "Instructions (Markdown)",
+      "instructionsPlaceholder": "Write detailed instructions for the agent...\n\nYou can use markdown formatting."
     },
     "cancelConfirm": {
       "title": "Stop execution?",

@@ -16,6 +16,8 @@ const customProviderSettings = ref({
     cheapModel: '',
     baseUrl: '',
 })
+const customSystemPrompt = ref('')
+const customSystemPromptSaving = ref(false)
 
 export function useSettingsState() {
     // Apply theme to document
@@ -92,6 +94,7 @@ export function useSettingsState() {
                 const data = await res.json()
                 modelProvider.value = data.model_provider || 'anthropic'
                 // Load custom provider settings if applicable
+                customSystemPrompt.value = data.custom_system_prompt || ''
                 if (data.model_provider === 'custom') {
                     customProviderSettings.value = {
                         model: data.custom_provider_model || '',
@@ -216,6 +219,28 @@ export function useSettingsState() {
         }
     }
 
+    // Save custom system prompt
+    const saveCustomPrompt = async (prompt) => {
+        customSystemPromptSaving.value = true
+        try {
+            const res = await fetch('/settings', {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ custom_system_prompt: prompt })
+            })
+            if (res.ok) {
+                customSystemPrompt.value = prompt
+                return true
+            }
+            return false
+        } catch (e) {
+            console.error('Failed to save custom system prompt', e)
+            return false
+        } finally {
+            customSystemPromptSaving.value = false
+        }
+    }
+
     // Load all settings from localStorage
     const loadSettings = () => {
         loadTheme()
@@ -236,6 +261,8 @@ export function useSettingsState() {
         apiKeys,
         apiKeysLoading,
         customProviderSettings,
+        customSystemPrompt,
+        customSystemPromptSaving,
 
         // Actions
         applyTheme,
@@ -253,6 +280,7 @@ export function useSettingsState() {
         validateApiKey,
         loadApiKeys,
         saveApiKey,
+        saveCustomPrompt,
         loadSettings
     }
 }
