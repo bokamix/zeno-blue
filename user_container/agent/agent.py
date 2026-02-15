@@ -834,7 +834,13 @@ class Agent:
                         # First time: inject synthesis prompt
                         if job_id:
                             self.db.add_job_activity(job_id, "tool_limit", "All tool calls blocked by hard limit")
-                        self._save_message(conversation_id, "user", content=get_total_limit_prompt(), internal=True)
+                        all_blocked_prompt = (
+                            "⚠️ ALL TOOLS BLOCKED\n\n"
+                            "Every tool you just tried to use has reached its limit and is now blocked.\n"
+                            "You MUST respond to the user NOW with a comprehensive summary of your findings.\n"
+                            "DO NOT attempt any more tool calls — they will all fail."
+                        )
+                        self._save_message(conversation_id, "user", content=all_blocked_prompt, internal=True)
 
                     if consecutive_all_blocked >= 3:
                         # 3 consecutive steps with ALL calls blocked - model is ignoring errors
@@ -855,7 +861,8 @@ class Agent:
                                 "response to the user's original request NOW."
                             )
                             self._save_message(conversation_id, "user", content=synthesis_instruction, internal=True)
-                            messages = self._build_message_history(conversation_id, system_prompt)
+                            synth_history = self.db.get_conversation_history(conversation_id, compress_old=True, recent_exchanges=5)
+                            messages = self._build_messages(system_prompt, synth_history)
                             log_debug("[Agent] Attempting final synthesis call with no tools")
                             if job_id:
                                 self.db.add_job_activity(job_id, "thinking_stream", "Synthesizing findings...")

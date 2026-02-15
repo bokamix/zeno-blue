@@ -406,7 +406,7 @@ class DB:
         """
         import json
 
-        query = "SELECT id, role, content, tool_calls, tool_call_id, thinking, thinking_signature FROM messages WHERE conversation_id=?"
+        query = "SELECT id, role, content, tool_calls, tool_call_id, thinking, thinking_signature, internal FROM messages WHERE conversation_id=?"
         if only_visible:
             query += " AND internal = 0"
         query += " ORDER BY id ASC"
@@ -658,11 +658,14 @@ class DB:
     def _find_exchange_boundary(self, rows: list, recent_exchanges: int) -> int:
         """Find index where recent exchanges start.
 
-        An 'exchange' is a user message + all following assistant/tool messages
-        until the next user message.
+        An 'exchange' is a non-internal user message + all following assistant/tool
+        messages until the next non-internal user message.
+
+        Internal user messages (tool limit warnings, nudges, etc.) are NOT counted
+        as exchange boundaries to prevent premature compression of actual results.
 
         Args:
-            rows: List of message rows (must have 'role' key)
+            rows: List of message rows (must have 'role' and 'internal' keys)
             recent_exchanges: Number of exchanges to keep full
 
         Returns:
@@ -671,8 +674,11 @@ class DB:
         if not rows:
             return 0
 
-        # Find user message indices
-        user_indices = [i for i, r in enumerate(rows) if r.get("role") == "user"]
+        # Find non-internal user message indices (only real user messages define exchanges)
+        user_indices = [
+            i for i, r in enumerate(rows)
+            if r.get("role") == "user" and not r.get("internal")
+        ]
 
         if len(user_indices) <= recent_exchanges:
             return 0  # All messages are "new"
