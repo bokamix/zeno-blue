@@ -99,10 +99,11 @@ class ContextManager:
     def compress(
         self,
         messages: List[Dict[str, Any]],
-        preserve_plan: bool = True
+        preserve_plan: bool = True,
+        force: bool = False
     ) -> Tuple[List[Dict[str, Any]], bool]:
         """
-        Compress messages if needed.
+        Compress messages if needed (or forced by user).
 
         Strategy:
         1. Keep: system prompt (first message)
@@ -113,11 +114,12 @@ class ContextManager:
         Args:
             messages: Full message history
             preserve_plan: Whether to keep plan messages intact
+            force: If True, skip the threshold check and compress regardless
 
         Returns:
             Tuple of (compressed messages, was_compressed)
         """
-        if not self.should_compress(messages):
+        if not force and not self.should_compress(messages):
             return messages, False
 
         if not self.llm:

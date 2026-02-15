@@ -558,10 +558,17 @@ class Agent:
 
             log_debug(f"Total messages: {len(messages)}")
 
-            # 4.7. Auto-compress context if needed (for long-running tasks)
-            messages, was_compressed = self.context_manager.compress(messages)
-            if was_compressed:
-                log_debug(f"[ContextManager] Compressed to {len(messages)} messages")
+            # 4.7. Emit token stats (auto-compress disabled — user controls compression)
+            context_stats = get_context_stats(messages)
+            if job_id:
+                usage_pct = context_stats["usage_percent"]
+                tokens = context_stats["tokens"]
+                max_tok = context_stats["max_tokens"]
+                self.db.add_job_activity(
+                    job_id, "token_stats",
+                    f"{tokens}/{max_tok} tokens ({usage_pct:.0%})",
+                    detail=json.dumps(context_stats)
+                )
 
             # Check if job was cancelled by user (checkpoint 2: before LLM call)
             if self._is_cancelled():
@@ -1279,16 +1286,7 @@ Your next message should include text for the user, not just tool calls."""
         - depth 0: "none" (no reasoning, fastest)
         - depth 1: "medium" (standard reasoning)
         - depth 2: "high" (deep reasoning for complex tasks)
-
-        If OPENAI_REASONING_EFFORT is set to a specific value (not "auto"),
-        that value is used regardless of depth.
         """
-        # Check if user has set a specific effort level
-        configured_effort = settings.openai_reasoning_effort
-        if configured_effort and configured_effort != "auto":
-            return configured_effort
-
-        # Auto-map from depth
         if depth == 0:
             return "none"
         elif depth == 1:

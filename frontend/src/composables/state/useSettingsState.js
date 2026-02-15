@@ -6,16 +6,8 @@ const isDarkTheme = ref(true)
 const sidebarPosition = ref('left')
 const currentLanguage = ref(getCurrentLanguage())
 const soundEnabled = ref(false)
-const modelProvider = ref('anthropic')  // "anthropic", "openai", or "custom"
-const modelProviderLoading = ref(false)
-const modelProviderError = ref(null)
 const apiKeys = ref({})
 const apiKeysLoading = ref(false)
-const customProviderSettings = ref({
-    model: '',
-    cheapModel: '',
-    baseUrl: '',
-})
 const customSystemPrompt = ref('')
 const customSystemPromptSaving = ref(false)
 
@@ -86,101 +78,34 @@ export function useSettingsState() {
         }
     }
 
-    // Load model provider from API
-    const loadModelProvider = async () => {
+    // Load settings from API
+    const loadOpenRouterSettings = async () => {
         try {
             const res = await fetch('/settings')
             if (res.ok) {
                 const data = await res.json()
-                modelProvider.value = data.model_provider || 'anthropic'
-                // Load custom provider settings if applicable
                 customSystemPrompt.value = data.custom_system_prompt || ''
-                if (data.model_provider === 'custom') {
-                    customProviderSettings.value = {
-                        model: data.custom_provider_model || '',
-                        cheapModel: data.custom_provider_cheap_model || '',
-                        baseUrl: data.custom_provider_base_url || '',
-                    }
-                }
             }
         } catch (e) {
-            console.error('Failed to load model provider setting', e)
+            console.error('Failed to load settings', e)
         }
     }
 
-    // Validate API key for provider before switching
-    const validateApiKey = async (provider) => {
-        modelProviderError.value = null
-        modelProviderLoading.value = true
-        try {
-            const res = await fetch(`/settings/validate-provider?provider=${provider}`)
-            if (res.ok) {
-                const data = await res.json()
-                if (!data.valid) {
-                    modelProviderError.value = data.error || `API key for ${provider} is not configured`
-                    return false
-                }
-                return true
-            }
-            modelProviderError.value = 'Failed to validate provider'
-            return false
-        } catch (e) {
-            console.error('Failed to validate provider', e)
-            modelProviderError.value = 'Failed to validate provider'
-            return false
-        } finally {
-            modelProviderLoading.value = false
-        }
-    }
-
-    // Set model provider via API
-    const setModelProvider = async (provider) => {
-        if (!['anthropic', 'openai', 'custom'].includes(provider)) return
-        modelProviderError.value = null
-        modelProviderLoading.value = true
-        try {
-            const res = await fetch('/settings', {
-                method: 'PUT',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ model_provider: provider })
-            })
-            if (res.ok) {
-                modelProvider.value = provider
-            }
-        } catch (e) {
-            console.error('Failed to save model provider setting', e)
-        } finally {
-            modelProviderLoading.value = false
-        }
-    }
-
-    // Save custom provider settings via API
-    const saveCustomProvider = async (settings) => {
-        modelProviderError.value = null
-        modelProviderLoading.value = true
+    // Save OpenRouter model selections via API
+    const saveOpenRouterModels = async (model, cheapModel) => {
         try {
             const res = await fetch('/settings', {
                 method: 'PUT',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
-                    model_provider: 'custom',
-                    custom_provider_model: settings.model || '',
-                    custom_provider_cheap_model: settings.cheapModel || '',
-                    custom_provider_base_url: settings.baseUrl || '',
+                    openrouter_model: model,
+                    openrouter_cheap_model: cheapModel,
                 })
             })
-            if (res.ok) {
-                modelProvider.value = 'custom'
-                customProviderSettings.value = { ...settings }
-                return true
-            }
-            return false
+            return res.ok
         } catch (e) {
-            console.error('Failed to save custom provider settings', e)
-            modelProviderError.value = 'Failed to save custom provider settings'
+            console.error('Failed to save model settings', e)
             return false
-        } finally {
-            modelProviderLoading.value = false
         }
     }
 
@@ -246,7 +171,7 @@ export function useSettingsState() {
         loadTheme()
         loadSidebarPosition()
         loadSoundSetting()
-        loadModelProvider()
+        loadOpenRouterSettings()
     }
 
     return {
@@ -255,12 +180,8 @@ export function useSettingsState() {
         sidebarPosition,
         currentLanguage,
         soundEnabled,
-        modelProvider,
-        modelProviderLoading,
-        modelProviderError,
         apiKeys,
         apiKeysLoading,
-        customProviderSettings,
         customSystemPrompt,
         customSystemPromptSaving,
 
@@ -274,10 +195,8 @@ export function useSettingsState() {
         toggleSound,
         loadSoundSetting,
         playNotificationSound,
-        loadModelProvider,
-        setModelProvider,
-        saveCustomProvider,
-        validateApiKey,
+        loadOpenRouterSettings,
+        saveOpenRouterModels,
         loadApiKeys,
         saveApiKey,
         saveCustomPrompt,

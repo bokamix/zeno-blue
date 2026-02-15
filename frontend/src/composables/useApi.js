@@ -417,6 +417,26 @@ export function useApi() {
         }
     }
 
+    // Get context stats (token usage) for a conversation
+    const getContextStats = async (conversationId) => {
+        try {
+            const res = await fetchWithTimeout(`${API_BASE}/conversations/${conversationId}/context-stats`)
+            if (!res.ok) return null
+            return res.json()
+        } catch (e) {
+            return null
+        }
+    }
+
+    // Compress conversation context
+    const compressConversation = async (conversationId) => {
+        const res = await fetchWithTimeout(`${API_BASE}/conversations/${conversationId}/compress`, {
+            method: 'POST'
+        })
+        if (!res.ok) throw new Error('Failed to compress conversation')
+        return res.json()
+    }
+
     // Get disk usage
     const getDiskUsage = async () => {
         try {
@@ -464,6 +484,8 @@ export function useApi() {
         getCustomSkills,
         createCustomSkill,
         updateCustomSkill,
-        deleteCustomSkill
+        deleteCustomSkill,
+        getContextStats,
+        compressConversation
     }
 }

@@ -145,6 +145,29 @@
                     </div>
                 </div>
 
+                <!-- Token meter + Compress button -->
+                <div v-if="contextStats && messages.length > 0" class="mb-2 flex items-center gap-2">
+                    <div class="flex-1 flex items-center gap-2">
+                        <div class="flex-1 h-1.5 bg-[var(--bg-surface)] rounded-full overflow-hidden">
+                            <div
+                                class="h-full rounded-full transition-all duration-500"
+                                :class="contextBarColor"
+                                :style="{ width: Math.min(contextStats.usage_percent * 100, 100) + '%' }"
+                            ></div>
+                        </div>
+                        <span class="text-[10px] text-[var(--text-muted)] whitespace-nowrap font-mono">
+                            {{ formatTokens(contextStats.tokens) }} / {{ formatTokens(contextStats.max_tokens) }}
+                        </span>
+                    </div>
+                    <button
+                        @click="handleCompress"
+                        :disabled="isCompressing || isLoading"
+                        class="px-2 py-0.5 text-[10px] rounded-md font-medium transition-all bg-[var(--bg-surface)] text-[var(--text-muted)] hover:text-[var(--text-secondary)] hover:bg-[var(--bg-elevated)] border border-[var(--border-subtle)] disabled:opacity-40 disabled:cursor-not-allowed"
+                    >
+                        {{ isCompressing ? $t('chat.compressing') : $t('chat.compress') }}
+                    </button>
+                </div>
+
                 <!-- Input container with glow -->
                 <div
                     class="relative"
@@ -410,6 +433,49 @@ const {
 
 const { playNotificationSound } = useSettingsState()
 
+// Token meter state
+const contextStats = ref(null)
+const isCompressing = ref(false)
+
+const contextBarColor = computed(() => {
+    if (!contextStats.value) return 'bg-blue-500'
+    const pct = contextStats.value.usage_percent
+    if (pct >= 0.9) return 'bg-red-500'
+    if (pct >= 0.7) return 'bg-amber-500'
+    return 'bg-blue-500'
+})
+
+const formatTokens = (n) => {
+    if (n >= 1000000) return (n / 1000000).toFixed(1) + 'M'
+    if (n >= 1000) return Math.round(n / 1000) + 'K'
+    return String(n)
+}
+
+const loadContextStats = async () => {
+    if (!conversationId.value) {
+        contextStats.value = null
+        return
+    }
+    const stats = await api.getContextStats(conversationId.value)
+    if (stats) contextStats.value = stats
+}
+
+const handleCompress = async () => {
+    if (!conversationId.value) return
+    isCompressing.value = true
+    try {
+        const result = await api.compressConversation(conversationId.value)
+        if (result.compressed) {
+            contextStats.value = result.after
+            await reloadMessages({ targetConversationId: conversationId.value })
+        }
+    } catch (e) {
+        console.error('Compression failed:', e)
+    } finally {
+        isCompressing.value = false
+    }
+}
+
 // Template refs
 const virtualMessageList = ref(null)
 const inputBox = ref(null)
@@ -656,6 +722,8 @@ const pollJobUntilDone = async (jobId, targetConversationId = null) => {
 // Pass targetConversationId to ensure we only update if still on the same conversation
 const reloadMessages = async (options = {}) => {
     await reloadMessagesFromState(api, options)
+    // Refresh token stats after messages reload
+    loadContextStats()
 }
 
 // Send message
@@ -1356,12 +1424,28 @@ const checkPendingOAuthInStorage = () => {
     }
 }
 
+// Watch activities for token_stats updates (real-time during agent work)
+watch(activities, (newActivities) => {
+    if (!newActivities?.length) return
+    // Find the latest token_stats activity
+    for (let i = newActivities.length - 1; i >= 0; i--) {
+        if (newActivities[i].type === 'token_stats' && newActivities[i].detail) {
+            try {
+                contextStats.value = JSON.parse(newActivities[i].detail)
+            } catch {}
+            break
+        }
+    }
+}, { deep: true })
+
 // Lifecycle
 onMounted(() => {
     window.addEventListener('message', handleOAuthComplete)
     window.addEventListener('storage', handleStorageEvent)
     // Check if OAuth completed while we were away
     checkPendingOAuthInStorage()
+    // Load initial context stats
+    loadContextStats()
 })
 
 onUnmounted(() => {

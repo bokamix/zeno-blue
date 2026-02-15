@@ -371,27 +371,23 @@ def health():
 
 @app.get("/setup/status")
 async def setup_status():
-    """Check if initial setup is complete (API key configured)."""
-    has_key = bool(settings.anthropic_api_key or settings.openai_api_key)
+    """Check if initial setup is complete (OpenRouter API key configured)."""
+    has_key = bool(settings.openrouter_api_key)
     return {
         "configured": has_key,
-        "provider": settings.model_provider if has_key else None,
     }
 
 
 @app.post("/setup")
 async def setup_config(payload: dict):
     """
-    First-run configuration. Saves API key to local config.
-    Expects: {"provider": "anthropic", "api_key": "sk-ant-..."}
+    First-run configuration. Saves OpenRouter API key to local config.
+    Expects: {"api_key": "sk-or-..."}
     """
-    provider = payload.get("provider", "anthropic")
     api_key = payload.get("api_key", "").strip()
 
     if not api_key:
-        raise HTTPException(status_code=400, detail="API key is required")
-    if provider not in ("anthropic", "openai"):
-        raise HTTPException(status_code=400, detail="Provider must be 'anthropic' or 'openai'")
+        raise HTTPException(status_code=400, detail="OpenRouter API key is required")
 
     # Determine config file path
     config_dir = Path(os.environ.get("ZENO_CONFIG_DIR", Path.home() / ".zeno"))
@@ -403,43 +399,34 @@ async def setup_config(payload: dict):
     if env_path.exists():
         with open(env_path) as f:
             for line in f:
-                # Skip existing provider/key lines (we'll rewrite them)
                 stripped = line.strip()
-                if stripped.startswith(("MODEL_PROVIDER=", "ANTHROPIC_API_KEY=", "OPENAI_API_KEY=")):
+                if stripped.startswith("OPENROUTER_API_KEY="):
                     continue
                 env_lines.append(line.rstrip("\n"))
 
-    env_lines.append(f"MODEL_PROVIDER={provider}")
-    if provider == "anthropic":
-        env_lines.append(f"ANTHROPIC_API_KEY={api_key}")
-    else:
-        env_lines.append(f"OPENAI_API_KEY={api_key}")
+    env_lines.append(f"OPENROUTER_API_KEY={api_key}")
 
     with open(env_path, "w") as f:
         f.write("\n".join(env_lines) + "\n")
 
     # Reload settings in-process
-    if provider == "anthropic":
-        settings.anthropic_api_key = api_key
-    else:
-        settings.openai_api_key = api_key
-    settings.model_provider = provider
+    settings.openrouter_api_key = api_key
 
-    # Handle optional password
+    # Password is required
     password = payload.get("password", "").strip()
-    if password:
-        # Add ZENO_PASSWORD to .env
-        # Re-read env_lines to include what we just wrote
-        with open(env_path) as f:
-            current_lines = [line.rstrip("\n") for line in f if not line.strip().startswith("ZENO_PASSWORD=")]
-        current_lines.append(f"ZENO_PASSWORD={password}")
-        with open(env_path, "w") as f:
-            f.write("\n".join(current_lines) + "\n")
-        settings.auth_password = password
-        log(f"[Setup] Access password configured")
+    if not password:
+        raise HTTPException(status_code=400, detail="Password is required")
 
-    log(f"[Setup] Configured {provider} provider, saved to {env_path}")
-    return {"status": "ok", "provider": provider}
+    with open(env_path) as f:
+        current_lines = [line.rstrip("\n") for line in f if not line.strip().startswith("ZENO_PASSWORD=")]
+    current_lines.append(f"ZENO_PASSWORD={password}")
+    with open(env_path, "w") as f:
+        f.write("\n".join(current_lines) + "\n")
+    settings.auth_password = password
+    log(f"[Setup] Access password configured")
+
+    log(f"[Setup] Configured OpenRouter, saved to {env_path}")
+    return {"status": "ok"}
 
 
 # --- Auth Endpoints ---
@@ -849,6 +836,81 @@ async def mark_conversation_unread(conversation_id: str, payload: dict):
     if result.rowcount == 0:
         raise HTTPException(status_code=404, detail="Conversation not found")
     return {"ok": True, "conversation_id": conversation_id, "read_at": new_read_at}
+
+
+@app.get("/conversations/{conversation_id}/context-stats")
+async def get_conversation_context_stats(conversation_id: str):
+    """Get token usage stats for a conversation."""
+    from user_container.agent.context_manager import get_context_stats
+
+    history = db.get_conversation_history(conversation_id, compress_old=False)
+    if not history:
+        raise HTTPException(status_code=404, detail="Conversation not found or empty")
+
+    return get_context_stats(history)
+
+
+@app.post("/conversations/{conversation_id}/compress")
+async def compress_conversation(conversation_id: str):
+    """
+    Manually compress conversation context.
+    User-triggered — reduces token usage by summarizing old messages.
+    """
+    from user_container.agent.context_manager import ContextManager, get_context_stats
+
+    # Get conversation history
+    history = db.get_conversation_history(conversation_id, compress_old=False)
+    if not history:
+        raise HTTPException(status_code=404, detail="Conversation not found or empty")
+
+    # Get stats before compression
+    before_stats = get_context_stats(history)
+
+    # Force compress
+    cm = ContextManager()
+    compressed, was_compressed = cm.compress(history, force=True)
+
+    if not was_compressed:
+        return {
+            "compressed": False,
+            "reason": "Not enough messages to compress",
+            **before_stats
+        }
+
+    # Save compressed history: delete old messages, insert compressed ones
+    # Strategy: clear all messages and re-insert the compressed set
+    db.execute("DELETE FROM messages WHERE conversation_id = ?", (conversation_id,))
+    for msg in compressed:
+        role = msg.get("role", "user")
+        content = msg.get("content", "")
+        tool_calls = msg.get("tool_calls")
+        tool_call_id = msg.get("tool_call_id")
+        tool_name = msg.get("name")
+        thinking = msg.get("thinking")
+        thinking_signature = msg.get("thinking_signature")
+
+        import json as _json
+        db.execute(
+            """INSERT INTO messages (conversation_id, role, content, tool_calls, tool_call_id, tool_name, thinking, thinking_signature)
+               VALUES (?, ?, ?, ?, ?, ?, ?, ?)""",
+            (
+                conversation_id,
+                role,
+                content,
+                _json.dumps(tool_calls) if tool_calls else None,
+                tool_call_id,
+                tool_name,
+                thinking,
+                thinking_signature,
+            )
+        )
+
+    after_stats = get_context_stats(compressed)
+    return {
+        "compressed": True,
+        "before": before_stats,
+        "after": after_stats,
+    }
 
 
 @app.get("/conversations/archived")
@@ -1992,17 +2054,11 @@ async def get_settings():
     """
     all_settings = db.get_all_settings()
 
-    # Apply defaults for known settings
     result = {
-        "model_provider": all_settings.get("model_provider", "anthropic"),
+        "openrouter_model": all_settings.get("openrouter_model", settings.openrouter_model),
+        "openrouter_cheap_model": all_settings.get("openrouter_cheap_model", settings.openrouter_cheap_model),
         "custom_system_prompt": all_settings.get("custom_system_prompt", ""),
     }
-
-    # Include custom provider settings when provider is "custom"
-    if result["model_provider"] == "custom":
-        result["custom_provider_model"] = all_settings.get("custom_provider_model", "")
-        result["custom_provider_cheap_model"] = all_settings.get("custom_provider_cheap_model", "")
-        result["custom_provider_base_url"] = all_settings.get("custom_provider_base_url", "")
 
     return result
 
@@ -2012,19 +2068,16 @@ async def update_settings(payload: dict):
     """
     Update user settings.
 
-    Expects: {"model_provider": "openai"} (or other valid settings)
+    Expects: {"openrouter_model": "anthropic/claude-sonnet-4-5-20250929"} (or other valid settings)
     Returns: {"status": "ok", "settings": {...}}
     """
-    # Validate model_provider if provided
-    if "model_provider" in payload:
-        provider = payload["model_provider"]
-        if provider not in ("anthropic", "openai", "custom"):
-            raise HTTPException(
-                status_code=400,
-                detail=f"Invalid model_provider: {provider}. Must be 'anthropic', 'openai', or 'custom'."
-            )
-        db.set_setting("model_provider", provider)
-        log(f"[Settings] Updated model_provider to {provider}")
+    # Save OpenRouter model settings if provided
+    for key in ("openrouter_model", "openrouter_cheap_model"):
+        if key in payload:
+            value = payload[key].strip() if isinstance(payload[key], str) else ""
+            if value:
+                db.set_setting(key, value)
+                log(f"[Settings] Updated {key} to {value}")
 
     # Save custom system prompt if provided
     if "custom_system_prompt" in payload:
@@ -2034,33 +2087,21 @@ async def update_settings(payload: dict):
         db.set_setting("custom_system_prompt", prompt)
         log(f"[Settings] Updated custom_system_prompt ({len(prompt)} chars)")
 
-    # Save custom provider settings if provided
-    for key in ("custom_provider_model", "custom_provider_cheap_model", "custom_provider_base_url"):
-        if key in payload:
-            value = payload[key].strip() if isinstance(payload[key], str) else ""
-            db.set_setting(key, value)
-
     # Return updated settings
-    current_provider = db.get_setting("model_provider", "anthropic")
     result = {
         "status": "ok",
         "settings": {
-            "model_provider": current_provider,
+            "openrouter_model": db.get_setting("openrouter_model") or settings.openrouter_model,
+            "openrouter_cheap_model": db.get_setting("openrouter_cheap_model") or settings.openrouter_cheap_model,
             "custom_system_prompt": db.get_setting("custom_system_prompt", ""),
         }
     }
-    if current_provider == "custom":
-        result["settings"]["custom_provider_model"] = db.get_setting("custom_provider_model", "")
-        result["settings"]["custom_provider_cheap_model"] = db.get_setting("custom_provider_cheap_model", "")
-        result["settings"]["custom_provider_base_url"] = db.get_setting("custom_provider_base_url", "")
     return result
 
 
 ALLOWED_API_KEYS = {
-    "anthropic_api_key": "ANTHROPIC_API_KEY",
-    "openai_api_key": "OPENAI_API_KEY",
+    "openrouter_api_key": "OPENROUTER_API_KEY",
     "serper_api_key": "SERPER_API_KEY",
-    "custom_provider_api_key": "CUSTOM_PROVIDER_API_KEY",
 }
 
 
@@ -2128,35 +2169,41 @@ async def update_api_keys(payload: dict):
     return {"status": "ok"}
 
 
-@app.get("/settings/validate-provider")
-async def validate_provider(provider: str):
-    """
-    Validate that API key is configured for the specified provider.
+# --- OpenRouter Models ---
 
-    Query param: ?provider=anthropic or ?provider=openai
-    Returns: {"valid": true/false, "error": "message if invalid"}
-    """
-    from user_container.config import settings as app_settings
+_openrouter_models_cache = {"data": None, "fetched_at": 0}
 
-    if provider not in ("anthropic", "openai", "custom"):
-        raise HTTPException(
-            status_code=400,
-            detail=f"Invalid provider: {provider}. Must be 'anthropic', 'openai', or 'custom'."
-        )
+@app.get("/settings/openrouter-models")
+async def get_openrouter_models():
+    """Fetch available models from OpenRouter (with tool calling support)."""
+    cache = _openrouter_models_cache
+    if cache["data"] and time.time() - cache["fetched_at"] < 300:  # 5 min cache
+        return {"models": cache["data"]}
 
-    if provider == "anthropic":
-        if not app_settings.anthropic_api_key:
-            return {"valid": False, "error": "Anthropic API key is not configured"}
-    elif provider == "openai":
-        if not app_settings.openai_api_key:
-            return {"valid": False, "error": "OpenAI API key is not configured"}
-    elif provider == "custom":
-        # Custom provider needs a model configured (API key is optional for local providers)
-        custom_model = db.get_setting("custom_provider_model") or app_settings.custom_provider_model
-        if not custom_model:
-            return {"valid": False, "error": "Custom provider model is not configured. Set it in settings first."}
+    try:
+        async with httpx.AsyncClient() as client:
+            resp = await client.get("https://openrouter.ai/api/v1/models", timeout=10)
+            data = resp.json().get("data", [])
+    except Exception as e:
+        log(f"[OpenRouter] Failed to fetch models: {e}")
+        if cache["data"]:
+            return {"models": cache["data"]}
+        return {"models": []}
 
-    return {"valid": True}
+    models = []
+    for m in data:
+        params = m.get("supported_parameters", [])
+        if "tools" in params:
+            models.append({
+                "id": m["id"],
+                "name": m.get("name", m["id"]),
+                "context_length": m.get("context_length"),
+            })
+
+    models.sort(key=lambda x: x["name"])
+    cache["data"] = models
+    cache["fetched_at"] = time.time()
+    return {"models": models}
 
 
 # --- ZENO API Keys (for external access) ---

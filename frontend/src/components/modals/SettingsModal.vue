@@ -176,73 +176,46 @@
                             </button>
                         </div>
 
-                        <!-- Model Provider Select -->
+                        <!-- AI Models -->
                         <div class="flex items-center justify-between py-2">
                             <div class="flex items-center gap-3">
-                                <div class="p-1.5 rounded-lg" :class="modelProvider === 'anthropic' ? 'bg-orange-500/20' : modelProvider === 'custom' ? 'bg-violet-500/20' : 'bg-emerald-500/20'">
-                                    <Cpu class="w-3.5 h-3.5" :class="modelProvider === 'anthropic' ? 'text-orange-400' : modelProvider === 'custom' ? 'text-violet-400' : 'text-emerald-400'" />
+                                <div class="p-1.5 rounded-lg bg-pink-500/20">
+                                    <Cpu class="w-3.5 h-3.5 text-pink-400" />
                                 </div>
-                                <span class="text-sm text-[var(--text-secondary)]">{{ $t('modals.settings.modelProvider') }}</span>
+                                <span class="text-sm text-[var(--text-secondary)]">{{ $t('modals.settings.aiModels') }}</span>
                             </div>
-                            <select
-                                :value="modelProvider"
-                                @change="handleModelProviderChange($event.target.value)"
-                                :disabled="modelProviderLoading"
-                                class="px-3 py-1.5 text-xs rounded-lg font-medium transition-all bg-[var(--bg-elevated)] text-[var(--text-secondary)] hover:bg-[var(--bg-surface)] border border-[var(--border-subtle)] outline-none cursor-pointer disabled:opacity-50 disabled:cursor-wait"
-                            >
-                                <option value="anthropic" class="bg-[var(--bg-elevated)] text-[var(--text-primary)]">Anthropic (Claude)</option>
-                                <option value="openai" class="bg-[var(--bg-elevated)] text-[var(--text-primary)]">OpenAI (GPT)</option>
-                                <option value="custom" class="bg-[var(--bg-elevated)] text-[var(--text-primary)]">{{ $t('modals.settings.customProvider') }}</option>
-                            </select>
                         </div>
-                        <!-- Model Provider Error -->
-                        <p v-if="modelProviderError" class="text-xs text-red-400 mt-1 ml-9">{{ modelProviderError }}</p>
 
-                        <!-- Custom Provider Settings (shown when "custom" is selected) -->
-                        <div v-if="modelProvider === 'custom'" class="ml-9 mt-2 space-y-2 p-3 rounded-xl bg-[var(--bg-surface)]">
-                            <p class="text-[10px] text-zinc-500 mb-2">{{ $t('modals.settings.customProviderHelp') }}</p>
+                        <div class="ml-9 mt-2 space-y-3 p-3 rounded-xl bg-[var(--bg-surface)]">
+                            <p class="text-[10px] text-zinc-500">{{ $t('modals.settings.openrouterHelp') }}</p>
 
-                            <!-- Model ID -->
+                            <!-- Main Model -->
                             <div>
-                                <label class="text-[10px] text-zinc-500 mb-1 block">{{ $t('modals.settings.customProviderModel') }} *</label>
-                                <input
-                                    v-model="customModel"
-                                    type="text"
-                                    :placeholder="$t('modals.settings.customProviderModelPlaceholder')"
-                                    class="w-full px-3 py-1.5 text-xs rounded-lg bg-[var(--bg-elevated)] text-[var(--text-primary)] border border-[var(--border-subtle)] outline-none focus:border-violet-500/50 font-mono"
-                                />
+                                <label class="text-[10px] text-zinc-500 mb-1 block">{{ $t('modals.settings.mainModel') }}</label>
+                                <select
+                                    v-model="selectedMainModel"
+                                    @change="handleSaveModels"
+                                    :disabled="modelsLoading"
+                                    class="w-full px-3 py-1.5 text-xs rounded-lg bg-[var(--bg-elevated)] text-[var(--text-primary)] border border-[var(--border-subtle)] outline-none cursor-pointer disabled:opacity-50"
+                                >
+                                    <option v-if="modelsLoading" value="">{{ $t('modals.settings.loadingModels') }}</option>
+                                    <option v-for="m in availableModels" :key="m.id" :value="m.id">{{ m.name }}</option>
+                                </select>
                             </div>
 
-                            <!-- Base URL -->
+                            <!-- Fast Model -->
                             <div>
-                                <label class="text-[10px] text-zinc-500 mb-1 block">{{ $t('modals.settings.customProviderBaseUrl') }}</label>
-                                <input
-                                    v-model="customBaseUrl"
-                                    type="text"
-                                    :placeholder="$t('modals.settings.customProviderBaseUrlPlaceholder')"
-                                    class="w-full px-3 py-1.5 text-xs rounded-lg bg-[var(--bg-elevated)] text-[var(--text-primary)] border border-[var(--border-subtle)] outline-none focus:border-violet-500/50 font-mono"
-                                />
+                                <label class="text-[10px] text-zinc-500 mb-1 block">{{ $t('modals.settings.fastModel') }}</label>
+                                <select
+                                    v-model="selectedFastModel"
+                                    @change="handleSaveModels"
+                                    :disabled="modelsLoading"
+                                    class="w-full px-3 py-1.5 text-xs rounded-lg bg-[var(--bg-elevated)] text-[var(--text-primary)] border border-[var(--border-subtle)] outline-none cursor-pointer disabled:opacity-50"
+                                >
+                                    <option v-if="modelsLoading" value="">{{ $t('modals.settings.loadingModels') }}</option>
+                                    <option v-for="m in availableModels" :key="m.id" :value="m.id">{{ m.name }}</option>
+                                </select>
                             </div>
-
-                            <!-- Cheap Model -->
-                            <div>
-                                <label class="text-[10px] text-zinc-500 mb-1 block">{{ $t('modals.settings.customProviderCheapModel') }}</label>
-                                <input
-                                    v-model="customCheapModel"
-                                    type="text"
-                                    :placeholder="$t('modals.settings.customProviderCheapModelPlaceholder')"
-                                    class="w-full px-3 py-1.5 text-xs rounded-lg bg-[var(--bg-elevated)] text-[var(--text-primary)] border border-[var(--border-subtle)] outline-none focus:border-violet-500/50 font-mono"
-                                />
-                            </div>
-
-                            <!-- Save Button -->
-                            <button
-                                @click="handleSaveCustomProvider"
-                                :disabled="!customModel.trim() || savingCustomProvider"
-                                class="w-full px-3 py-1.5 text-xs rounded-lg font-medium transition-all bg-violet-500/20 text-violet-400 hover:bg-violet-500/30 disabled:opacity-50 disabled:cursor-not-allowed"
-                            >
-                                {{ savingCustomProvider ? $t('common.saving') : $t('common.save') }}
-                            </button>
                         </div>
                     </div>
                 </div>
@@ -329,8 +302,8 @@
                     </div>
                 </div>
 
-                <!-- ZENO API Keys Section (visible when auth enabled) -->
-                <div v-if="authEnabled" class="border-b border-[var(--border-subtle)]">
+                <!-- ZENO API Keys Section -->
+                <div class="border-b border-[var(--border-subtle)]">
                     <button
                         @click="zenoApiKeysExpanded = !zenoApiKeysExpanded; if (zenoApiKeysExpanded) loadZenoApiKeys()"
                         class="w-full flex items-center justify-between py-3 text-left"
@@ -511,12 +484,8 @@ const {
     sidebarPosition,
     currentLanguage,
     soundEnabled,
-    modelProvider,
-    modelProviderLoading,
-    modelProviderError,
     apiKeys,
     apiKeysLoading,
-    customProviderSettings,
     customSystemPrompt,
     customSystemPromptSaving,
     saveCustomPrompt,
@@ -524,41 +493,42 @@ const {
     toggleSidebarPosition,
     toggleLanguage,
     toggleSound,
-    setModelProvider,
-    saveCustomProvider,
-    validateApiKey,
     loadApiKeys,
-    saveApiKey
+    saveApiKey,
+    saveOpenRouterModels
 } = useSettingsState()
 
-// Handle model provider change with validation
-const handleModelProviderChange = async (provider) => {
-    if (provider === 'custom') {
-        // For custom, just set the provider - user will configure model separately
-        setModelProvider(provider)
-        return
-    }
-    const isValid = await validateApiKey(provider)
-    if (isValid) {
-        setModelProvider(provider)
+// AI Models state
+const availableModels = ref([])
+const selectedMainModel = ref('')
+const selectedFastModel = ref('')
+const modelsLoading = ref(false)
+
+const loadOpenRouterModels = async () => {
+    modelsLoading.value = true
+    try {
+        const [modelsRes, settingsRes] = await Promise.all([
+            fetch('/settings/openrouter-models'),
+            fetch('/settings')
+        ])
+        if (modelsRes.ok) {
+            const data = await modelsRes.json()
+            availableModels.value = data.models || []
+        }
+        if (settingsRes.ok) {
+            const data = await settingsRes.json()
+            selectedMainModel.value = data.openrouter_model || ''
+            selectedFastModel.value = data.openrouter_cheap_model || ''
+        }
+    } catch (e) {
+        console.error('Failed to load models', e)
+    } finally {
+        modelsLoading.value = false
     }
 }
 
-// Custom provider state
-const customModel = ref(customProviderSettings.value.model || '')
-const customBaseUrl = ref(customProviderSettings.value.baseUrl || '')
-const customCheapModel = ref(customProviderSettings.value.cheapModel || '')
-const savingCustomProvider = ref(false)
-
-const handleSaveCustomProvider = async () => {
-    if (!customModel.value.trim()) return
-    savingCustomProvider.value = true
-    await saveCustomProvider({
-        model: customModel.value.trim(),
-        baseUrl: customBaseUrl.value.trim(),
-        cheapModel: customCheapModel.value.trim(),
-    })
-    savingCustomProvider.value = false
+const handleSaveModels = async () => {
+    await saveOpenRouterModels(selectedMainModel.value, selectedFastModel.value)
 }
 
 // Custom instructions state
@@ -584,9 +554,7 @@ const apiKeySaveStatus = ref(null) // 'success' | 'error' | null
 const showKeyValue = ref(false)
 
 const API_KEY_DEFS = [
-    { name: 'anthropic_api_key', label: 'anthropicApiKey', iconBg: 'bg-orange-500/20', iconText: 'text-orange-400' },
-    { name: 'openai_api_key', label: 'openaiApiKey', iconBg: 'bg-emerald-500/20', iconText: 'text-emerald-400' },
-    { name: 'custom_provider_api_key', label: 'customProviderApiKey', iconBg: 'bg-violet-500/20', iconText: 'text-violet-400' },
+    { name: 'openrouter_api_key', label: 'openrouterApiKey', iconBg: 'bg-pink-500/20', iconText: 'text-pink-400' },
     { name: 'serper_api_key', label: 'serperApiKey', iconBg: 'bg-cyan-500/20', iconText: 'text-cyan-400' },
 ]
 
@@ -620,22 +588,11 @@ const handleSaveKey = async (keyName) => {
     }
 }
 // ZENO API Keys state
-const authEnabled = ref(false)
 const zenoApiKeysExpanded = ref(false)
 const zenoApiKeys = ref([])
 const newlyGeneratedKey = ref(null)
 const generatingKey = ref(false)
 const copied = ref(false)
-
-const checkAuthEnabled = async () => {
-    try {
-        const res = await fetch('/api/auth/status')
-        if (res.ok) {
-            const data = await res.json()
-            authEnabled.value = data.auth_enabled
-        }
-    } catch {}
-}
 
 const loadZenoApiKeys = async () => {
     try {
@@ -707,18 +664,9 @@ watch(customSystemPrompt, (newVal) => {
     localCustomPrompt.value = newVal || ''
 })
 
-// Sync custom provider fields when settings load from API
-watch(customProviderSettings, (newVal) => {
-    if (newVal) {
-        customModel.value = newVal.model || ''
-        customBaseUrl.value = newVal.baseUrl || ''
-        customCheapModel.value = newVal.cheapModel || ''
-    }
-}, { deep: true })
-
 onMounted(async () => {
     diskUsage.value = await getDiskUsage()
-    checkAuthEnabled()
+    loadOpenRouterModels()
 })
 
 </script>

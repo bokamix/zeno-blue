@@ -21,25 +21,10 @@ class Settings(BaseModel):
     app_port_min: int = int(os.getenv("APP_PORT_MIN", "3100"))
     app_port_max: int = int(os.getenv("APP_PORT_MAX", "3199"))
 
-    # LLM Provider Selection
-    model_provider: str = os.getenv("MODEL_PROVIDER", "anthropic")  # "anthropic" or "openai"
-
-    # OpenAI Configuration
-    openai_api_key: Optional[str] = os.getenv("OPENAI_API_KEY")
-    openai_model: str = os.getenv("OPENAI_MODEL", "gpt-5.2")
-    openai_cheap_model: str = os.getenv("OPENAI_CHEAP_MODEL", "gpt-5-mini")
-    openai_reasoning_effort: str = os.getenv("OPENAI_REASONING_EFFORT", "auto")  # "auto", "none", "low", "medium", "high"
-
-    # Anthropic Configuration
-    anthropic_api_key: Optional[str] = os.getenv("ANTHROPIC_API_KEY")
-    anthropic_model: str = os.getenv("ANTHROPIC_MODEL", "claude-sonnet-4-5-20250929")
-    anthropic_cheap_model: str = os.getenv("ANTHROPIC_CHEAP_MODEL", "claude-haiku-4-5-20251001")
-
-    # Custom Provider (LiteLLM - supports Ollama, Azure, OpenRouter, LM Studio, etc.)
-    custom_provider_model: Optional[str] = os.getenv("CUSTOM_PROVIDER_MODEL")           # e.g. "ollama/llama3"
-    custom_provider_cheap_model: Optional[str] = os.getenv("CUSTOM_PROVIDER_CHEAP_MODEL")  # e.g. "ollama/llama3"
-    custom_provider_base_url: Optional[str] = os.getenv("CUSTOM_PROVIDER_BASE_URL")     # e.g. "http://localhost:11434"
-    custom_provider_api_key: Optional[str] = os.getenv("CUSTOM_PROVIDER_API_KEY")       # optional for local providers
+    # LLM Configuration (via OpenRouter)
+    openrouter_api_key: Optional[str] = os.getenv("OPENROUTER_API_KEY")
+    openrouter_model: str = os.getenv("OPENROUTER_MODEL", "anthropic/claude-sonnet-4-5-20250929")
+    openrouter_cheap_model: str = os.getenv("OPENROUTER_CHEAP_MODEL", "anthropic/claude-haiku-4-5-20251001")
 
     # Groq Configuration (fast routing)
     groq_api_key: Optional[str] = os.getenv("GROQ_API_KEY")

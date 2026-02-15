@@ -1,15 +1,13 @@
 """
-LLM Client - Unified interface for multiple LLM providers via LiteLLM.
+LLM Client - Unified interface for LLM providers via LiteLLM + OpenRouter.
 
-Supports all providers through LiteLLM:
-- Anthropic (Claude)
-- OpenAI (GPT)
-- Groq, Ollama, Azure, OpenRouter, and any OpenAI-compatible endpoint
+All models are accessed through OpenRouter (200+ models with one API key).
+Groq is optionally used for fast routing decisions.
 
 Usage:
     client = LLMClient.default()  # Main model from config
     client = LLMClient.cheap()    # Cheap model for routing/compression
-    client = LLMClient.custom("ollama/llama3", base_url="http://localhost:11434")
+    client = LLMClient.custom("openrouter/model", api_key="...")
 
     response = client.chat(messages, tools)
 """
@@ -30,31 +28,6 @@ from user_container.observability import log_generation
 class JobCancelledException(Exception):
     """Raised when a job is cancelled during LLM call (streaming)."""
     pass
-
-
-def get_effective_model_provider() -> str:
-    """
-    Get the effective model provider, checking database setting first.
-
-    Priority:
-    1. Database setting (user_settings.model_provider)
-    2. Environment variable (MODEL_PROVIDER)
-    3. Default ("anthropic")
-
-    Returns:
-        Provider name: "anthropic", "openai", or "custom"
-    """
-    try:
-        from user_container.db.db import DB
-        db = DB(settings.db_path)
-        db_provider = db.get_setting("model_provider")
-        if db_provider:
-            return db_provider.lower()
-    except Exception:
-        # Database not available or error - fall back to config
-        pass
-
-    return settings.model_provider.lower()
 
 
 # Retry configuration for rate limits
@@ -733,93 +706,34 @@ class LLMClient:
     @classmethod
     def default(cls) -> "LLMClient":
         """
-        Create client with default (main) model from config.
+        Create client with default (main) model via OpenRouter.
 
-        Provider selection priority:
-        1. Database setting (user_settings.model_provider)
-        2. MODEL_PROVIDER env var
-        3. Default ("anthropic")
-
-        Models:
-        - "anthropic" -> Claude (ANTHROPIC_MODEL)
-        - "openai" -> GPT (OPENAI_MODEL)
-        - "custom" -> Custom model via LiteLLM
+        Settings priority: Database -> Environment -> Default.
         """
-        provider_name = get_effective_model_provider()
-
-        if provider_name == "custom":
-            custom = cls._get_custom_settings()
-            if not custom["model"]:
-                raise ValueError("Custom provider model not configured. Set it in Settings.")
-            provider = LiteLLMProvider(
-                model=custom["model"],
-                api_key=custom["api_key"],
-                base_url=custom["base_url"],
-                provider_name="custom"
-            )
-        elif provider_name == "anthropic":
-            if not settings.anthropic_api_key:
-                raise ValueError("ANTHROPIC_API_KEY not set")
-            provider = LiteLLMProvider(
-                model=settings.anthropic_model,
-                api_key=settings.anthropic_api_key,
-                provider_name="anthropic"
-            )
-        elif provider_name == "openai":
-            if not settings.openai_api_key:
-                raise ValueError("OPENAI_API_KEY not set")
-            provider = LiteLLMProvider(
-                model=settings.openai_model,
-                api_key=settings.openai_api_key,
-                provider_name="openai"
-            )
-        else:
-            raise ValueError(f"Unknown MODEL_PROVIDER: {provider_name}")
-
+        or_settings = cls._get_openrouter_settings()
+        if not or_settings["api_key"]:
+            raise ValueError("OPENROUTER_API_KEY not set. Configure it in Settings.")
+        provider = LiteLLMProvider(
+            model=f"openrouter/{or_settings['model']}",
+            api_key=or_settings["api_key"],
+            provider_name="openrouter"
+        )
         return cls(provider)
 
     @classmethod
     def cheap(cls) -> "LLMClient":
         """
-        Create client with cheap model for routing/compression.
-
-        Models:
-        - anthropic -> ANTHROPIC_CHEAP_MODEL (default: claude-haiku-4-5-20251001)
-        - openai -> OPENAI_CHEAP_MODEL (default: gpt-5-mini)
-        - custom -> custom_provider_cheap_model (falls back to custom_provider_model)
+        Create client with cheap model for routing/compression via OpenRouter.
         """
-        provider_name = get_effective_model_provider()
-
-        if provider_name == "custom":
-            custom = cls._get_custom_settings()
-            model = custom["cheap_model"] or custom["model"]
-            if not model:
-                raise ValueError("Custom provider model not configured. Set it in Settings.")
-            provider = LiteLLMProvider(
-                model=model,
-                api_key=custom["api_key"],
-                base_url=custom["base_url"],
-                provider_name="custom"
-            )
-        elif provider_name == "anthropic":
-            if not settings.anthropic_api_key:
-                raise ValueError("ANTHROPIC_API_KEY not set")
-            provider = LiteLLMProvider(
-                model=settings.anthropic_cheap_model,
-                api_key=settings.anthropic_api_key,
-                provider_name="anthropic"
-            )
-        elif provider_name == "openai":
-            if not settings.openai_api_key:
-                raise ValueError("OPENAI_API_KEY not set")
-            provider = LiteLLMProvider(
-                model=settings.openai_cheap_model,
-                api_key=settings.openai_api_key,
-                provider_name="openai"
-            )
-        else:
-            raise ValueError(f"Unknown MODEL_PROVIDER: {provider_name}")
-
+        or_settings = cls._get_openrouter_settings()
+        if not or_settings["api_key"]:
+            raise ValueError("OPENROUTER_API_KEY not set. Configure it in Settings.")
+        model = or_settings["cheap_model"] or or_settings["model"]
+        provider = LiteLLMProvider(
+            model=f"openrouter/{model}",
+            api_key=or_settings["api_key"],
+            provider_name="openrouter"
+        )
         return cls(provider)
 
     @classmethod
@@ -854,41 +768,11 @@ class LLMClient:
         return cls.cheap()  # fallback
 
     @classmethod
-    def with_model(cls, provider: str, model: str) -> "LLMClient":
-        """
-        Create client with specific provider and model.
-
-        Args:
-            provider: "anthropic", "openai", or "custom"
-            model: Model name (e.g., "claude-sonnet-4-20250514", "gpt-4o")
-        """
-        if provider == "anthropic":
-            if not settings.anthropic_api_key:
-                raise ValueError("ANTHROPIC_API_KEY not set")
-            llm_provider = LiteLLMProvider(
-                model=model,
-                api_key=settings.anthropic_api_key,
-                provider_name="anthropic"
-            )
-        elif provider == "openai":
-            if not settings.openai_api_key:
-                raise ValueError("OPENAI_API_KEY not set")
-            llm_provider = LiteLLMProvider(
-                model=model,
-                api_key=settings.openai_api_key,
-                provider_name="openai"
-            )
-        else:
-            raise ValueError(f"Unknown provider: {provider}")
-
-        return cls(llm_provider)
-
-    @classmethod
     def custom(cls, model: str, api_key: Optional[str] = None, base_url: Optional[str] = None) -> "LLMClient":
         """Create client with custom model via LiteLLM.
 
         Args:
-            model: LiteLLM model identifier (e.g., "ollama/llama3", "azure/gpt-4")
+            model: LiteLLM model identifier (e.g., "openrouter/anthropic/claude-sonnet-4-5-20250929")
             api_key: Optional API key for the provider
             base_url: Optional base URL for the API endpoint
         """
@@ -901,26 +785,23 @@ class LLMClient:
         return cls(provider)
 
     @classmethod
-    def _get_custom_settings(cls) -> dict:
-        """Load custom provider settings from DB (with config fallback)."""
-        model = settings.custom_provider_model
-        cheap_model = settings.custom_provider_cheap_model
-        base_url = settings.custom_provider_base_url
-        api_key = settings.custom_provider_api_key
+    def _get_openrouter_settings(cls) -> dict:
+        """Load OpenRouter settings from DB (with config/env fallback)."""
+        model = settings.openrouter_model
+        cheap_model = settings.openrouter_cheap_model
+        api_key = settings.openrouter_api_key
 
         try:
             from user_container.db.db import DB
             db = DB(settings.db_path)
-            model = db.get_setting("custom_provider_model") or model
-            cheap_model = db.get_setting("custom_provider_cheap_model") or cheap_model
-            base_url = db.get_setting("custom_provider_base_url") or base_url
-            api_key = db.get_setting("custom_provider_api_key") or api_key
+            model = db.get_setting("openrouter_model") or model
+            cheap_model = db.get_setting("openrouter_cheap_model") or cheap_model
+            api_key = db.get_setting("openrouter_api_key") or api_key
         except Exception:
             pass
 
         return {
             "model": model,
             "cheap_model": cheap_model,
-            "base_url": base_url,
             "api_key": api_key,
         }
