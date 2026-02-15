@@ -766,6 +766,7 @@ class Agent:
                 allowed_calls = []
                 blocked_map = {}  # tool_call_id -> blocked error result
                 pre_check_total = loop_state["tool_counts"]["_total"]
+                pre_check_per_tool = defaultdict(int)  # Track per-tool counts within this batch
 
                 for call in response["tool_calls"]:
                     if isinstance(call, dict):
@@ -776,7 +777,7 @@ class Agent:
                         call_id = call.id
 
                     tool_limit = TOOL_LIMITS.get(cname, 50)
-                    current_count = loop_state["tool_counts"][cname]
+                    current_count = loop_state["tool_counts"][cname] + pre_check_per_tool[cname]
                     total_limit = TOOL_LIMITS["_total"]
 
                     if current_count >= tool_limit:
@@ -799,6 +800,7 @@ class Agent:
                         }
                     else:
                         allowed_calls.append(call)
+                        pre_check_per_tool[cname] += 1
                         pre_check_total += 1
 
                 # Execute only allowed tool calls
@@ -843,10 +845,32 @@ class Agent:
                                 f"Stopped: model ignored {consecutive_all_blocked} consecutive blocked tool responses",
                                 is_error=True
                             )
-                        fallback_msg = (
-                            "I was working on your request but got stuck in a loop of tool calls. "
-                            "Here's what I gathered so far — please try rephrasing your request if the result is incomplete."
-                        )
+
+                        # Attempt one final LLM call with NO tools to force synthesis
+                        fallback_msg = None
+                        try:
+                            synthesis_instruction = (
+                                "ALL your tools have been disabled. You CANNOT make any more tool calls.\n"
+                                "Based on the information you've already gathered, provide a comprehensive "
+                                "response to the user's original request NOW."
+                            )
+                            self._save_message(conversation_id, "user", content=synthesis_instruction, internal=True)
+                            messages = self._build_message_history(conversation_id, system_prompt)
+                            log_debug("[Agent] Attempting final synthesis call with no tools")
+                            if job_id:
+                                self.db.add_job_activity(job_id, "thinking_stream", "Synthesizing findings...")
+                            synthesis_response = self.llm.chat(messages, tools=[], thinking_budget=0)
+                            if synthesis_response and synthesis_response.content:
+                                fallback_msg = self._strip_thinking(synthesis_response.content)
+                        except Exception as e:
+                            log_debug(f"[Agent] Final synthesis call failed: {e}")
+
+                        if not fallback_msg:
+                            fallback_msg = (
+                                "I was working on your request but got stuck in a loop of tool calls. "
+                                "Here's what I gathered so far — please try rephrasing your request if the result is incomplete."
+                            )
+
                         self._save_message(conversation_id, "assistant", content=fallback_msg)
                         elapsed_time = time.time() - start_time
                         end_trace(
@@ -1157,11 +1181,31 @@ Your next message should include text for the user, not just tool calls."""
                             is_error=True
                         )
 
-                    # Graceful fallback: save a response to the user instead of crashing
-                    fallback_msg = (
-                        "I was working on your request but got stuck in a loop of tool calls. "
-                        "Here's what I gathered so far — please try rephrasing your request if the result is incomplete."
-                    )
+                    # Attempt one final LLM call with NO tools to force synthesis
+                    fallback_msg = None
+                    try:
+                        synthesis_instruction = (
+                            "ALL your tools have been disabled. You CANNOT make any more tool calls.\n"
+                            "Based on the information you've already gathered, provide a comprehensive "
+                            "response to the user's original request NOW."
+                        )
+                        self._save_message(conversation_id, "user", content=synthesis_instruction, internal=True)
+                        messages = self._build_message_history(conversation_id, system_prompt)
+                        log_debug("[Agent] Attempting final synthesis call with no tools")
+                        if job_id:
+                            self.db.add_job_activity(job_id, "thinking_stream", "Synthesizing findings...")
+                        synthesis_response = self.llm.chat(messages, tools=[], thinking_budget=0)
+                        if synthesis_response and synthesis_response.content:
+                            fallback_msg = self._strip_thinking(synthesis_response.content)
+                    except Exception as e:
+                        log_debug(f"[Agent] Final synthesis call failed: {e}")
+
+                    if not fallback_msg:
+                        fallback_msg = (
+                            "I was working on your request but got stuck in a loop of tool calls. "
+                            "Here's what I gathered so far — please try rephrasing your request if the result is incomplete."
+                        )
+
                     self._save_message(conversation_id, "assistant", content=fallback_msg)
 
                     elapsed_time = time.time() - start_time
