@@ -99,6 +99,47 @@ cat > "$ZENO_BIN/zeno" << 'LAUNCHER'
 #!/bin/bash
 ZENO_APP="$HOME/.zeno/app"
 
+# Auto-sync from git repo in Codespaces / dev environments
+_auto_sync() {
+    # Find the git repo (Codespaces clone or any local checkout)
+    local repo=""
+    for candidate in "/workspaces/zeno-blue" "/workspaces/toolsmith-ai"; do
+        if [ -d "$candidate/.git" ]; then
+            repo="$candidate"
+            break
+        fi
+    done
+    [ -z "$repo" ] && return
+
+    # Pull latest changes
+    (cd "$repo" && git pull --ff-only 2>/dev/null) || true
+
+    # Sync app code (exclude user data dirs)
+    rsync -a --delete \
+        --exclude 'frontend/node_modules' \
+        --exclude 'frontend/dist' \
+        --exclude 'workspace/' \
+        --exclude 'data/' \
+        --exclude '.env' \
+        "$repo/" "$ZENO_APP/"
+
+    # Rebuild frontend if source changed
+    local dist="$ZENO_APP/frontend/dist/index.html"
+    local needs_build=0
+    if [ ! -f "$dist" ]; then
+        needs_build=1
+    else
+        # Check if any frontend source file is newer than dist
+        local newer=$(find "$ZENO_APP/frontend/src" "$ZENO_APP/frontend/package.json" -newer "$dist" 2>/dev/null | head -1)
+        [ -n "$newer" ] && needs_build=1
+    fi
+
+    if [ "$needs_build" = "1" ] && command -v npm &>/dev/null; then
+        echo "  🔨 Rebuilding frontend..."
+        (cd "$ZENO_APP/frontend" && npm install --silent 2>/dev/null && npm run build --silent 2>/dev/null)
+    fi
+}
+
 case "${1:-}" in
     update)
         echo ""
@@ -135,6 +176,7 @@ case "${1:-}" in
         exec bash "$ZENO_APP/scripts/serve.sh" "${@:2}"
         ;;
     *)
+        _auto_sync
         exec uv run --python 3.12 "$ZENO_APP/zeno.py" "$@"
         ;;
 esac

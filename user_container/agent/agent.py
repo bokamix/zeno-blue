@@ -9,6 +9,7 @@ This module provides the main Agent class that:
 
 import hashlib
 import json
+import os
 import random
 import re
 import time
@@ -436,7 +437,7 @@ class Agent:
 
         # Research artifact settings (Faza 3)
         INFO_TOOLS = ["web_search", "web_fetch"]
-        RESEARCH_DIR = "/workspace/.research"
+        RESEARCH_DIR = os.path.join(settings.workspace_dir, ".research")
         RESEARCH_THRESHOLD = 3  # Start saving to file after N calls
 
         # For scheduled jobs: track message count at start to filter old history
@@ -1654,10 +1655,9 @@ Your next message should include text for the user, not just tool calls."""
         findings: str
     ) -> str:
         """Append findings to research file and return the file path."""
-        import os
         from datetime import datetime
 
-        research_dir = "/workspace/.research"
+        research_dir = os.path.join(settings.workspace_dir, ".research")
         os.makedirs(research_dir, exist_ok=True)
 
         # Use conversation ID prefix for unique file per conversation
