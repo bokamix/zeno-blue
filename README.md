@@ -9,9 +9,9 @@ Your personal AI agent. Runs locally as a native desktop app - no cloud, no Dock
 curl -fsSL https://raw.githubusercontent.com/bokamix/zeno-blue/main/install.sh | bash
 ```
 
-**Windows (PowerShell)**
-```powershell
-irm https://raw.githubusercontent.com/bokamix/zeno-blue/main/install.ps1 | iex
+**Windows**
+```cmd
+powershell -c "irm https://raw.githubusercontent.com/bokamix/zeno-blue/main/install.ps1 | iex"
 ```
 
 Then run:
