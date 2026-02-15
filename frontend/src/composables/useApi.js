@@ -1,7 +1,12 @@
 const API_BASE = ''
 
 // Handle 401 - unregister SW and reload to show login form
+let reloadingForAuth = false
 const handleUnauthorized = async () => {
+    // Prevent multiple concurrent reloads from parallel 401 responses
+    if (reloadingForAuth) return
+    reloadingForAuth = true
+
     // Unregister service worker so login form can be shown
     if ('serviceWorker' in navigator) {
         const registrations = await navigator.serviceWorker.getRegistrations()

@@ -760,8 +760,74 @@ class Agent:
                         detail=f"Executing {tool_count} tool(s) to complete the task"
                     )
 
-                # Execute tools and continue loop
-                results = self._execute_tool_calls(response["tool_calls"], job_id=job_id)
+                # === HARD TOOL LIMIT ENFORCEMENT (pre-execution) ===
+                # Block tool calls that exceed per-tool or total limits
+                # This prevents infinite loops where the LLM ignores soft limit prompts
+                allowed_calls = []
+                blocked_map = {}  # tool_call_id -> blocked error result
+                pre_check_total = loop_state["tool_counts"]["_total"]
+
+                for call in response["tool_calls"]:
+                    if isinstance(call, dict):
+                        cname = call["function"]["name"]
+                        call_id = call["id"]
+                    else:
+                        cname = call.function.name
+                        call_id = call.id
+
+                    tool_limit = TOOL_LIMITS.get(cname, 50)
+                    current_count = loop_state["tool_counts"][cname]
+                    total_limit = TOOL_LIMITS["_total"]
+
+                    if current_count >= tool_limit:
+                        log_debug(f"[Agent] HARD BLOCK: {cname} at {current_count}/{tool_limit}")
+                        blocked_map[call_id] = {
+                            "tool_call_id": call_id,
+                            "content": (
+                                f"Error: {cname} limit reached ({current_count}/{tool_limit}). "
+                                "This tool is BLOCKED. You MUST respond to the user now with your findings."
+                            )
+                        }
+                    elif pre_check_total >= total_limit:
+                        log_debug(f"[Agent] HARD BLOCK (total): {cname}, total={pre_check_total}/{total_limit}")
+                        blocked_map[call_id] = {
+                            "tool_call_id": call_id,
+                            "content": (
+                                f"Error: Total tool limit reached ({pre_check_total}/{total_limit}). "
+                                "ALL tools are BLOCKED. You MUST respond to the user now."
+                            )
+                        }
+                    else:
+                        allowed_calls.append(call)
+                        pre_check_total += 1
+
+                # Execute only allowed tool calls
+                if allowed_calls:
+                    executed_results = self._execute_tool_calls(allowed_calls, job_id=job_id)
+                else:
+                    executed_results = []
+
+                # Build results in same order as response["tool_calls"]
+                # so that results[idx] matches response["tool_calls"][idx]
+                # Use tool_call_id for matching since _execute_tool_calls may reorder
+                exec_by_id = {}
+                for r in executed_results:
+                    exec_by_id[r["tool_call_id"]] = r
+
+                results = []
+                for call in response["tool_calls"]:
+                    call_id = call["id"] if isinstance(call, dict) else call.id
+                    if call_id in blocked_map:
+                        results.append(blocked_map[call_id])
+                    elif call_id in exec_by_id:
+                        results.append(exec_by_id[call_id])
+
+                # If ALL calls were blocked, inject synthesis prompt
+                if not allowed_calls and blocked_map:
+                    log_debug(f"[Agent] ALL tool calls blocked - forcing synthesis")
+                    if job_id:
+                        self.db.add_job_activity(job_id, "tool_limit", "All tool calls blocked by hard limit")
+                    self._save_message(conversation_id, "user", content=get_total_limit_prompt(), internal=True)
 
                 # Check if cancelled during tool execution - don't save partial results
                 # (would break tool_use/tool_result pairs)

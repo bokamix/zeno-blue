@@ -325,7 +325,6 @@ const checkSetup = async () => {
     } catch {
         // Server not available - don't show setup
     }
-    setupChecked.value = true
 }
 
 const checkAuth = async () => {
@@ -1194,13 +1193,13 @@ onMounted(async () => {
     window.addEventListener('offline', handleOffline)
     window.addEventListener('online', handleOnline)
 
-    // Check if first-run setup is needed
+    // Check if first-run setup is needed, then auth
+    // IMPORTANT: setupChecked must be set AFTER both checks complete
+    // to prevent main app from rendering and making API calls before auth check
     await checkSetup()
-    if (needsSetup.value) return
-
-    // Check if auth is required
     await checkAuth()
-    if (needsLogin.value) return
+    setupChecked.value = true
+    if (needsSetup.value || needsLogin.value) return
 
     // Initialize LogRocket (fire and forget)
     initLogRocket()
