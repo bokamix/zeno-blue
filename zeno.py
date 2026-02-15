@@ -128,13 +128,35 @@ def _ensure_python_deps():
 
 
 def _ensure_frontend():
-    """Build frontend if dist/ doesn't exist."""
+    """Build frontend if dist/ is missing or outdated vs source files."""
     dist = ROOT / "frontend" / "dist"
-    if dist.exists() and any(dist.iterdir()):
+    frontend = ROOT / "frontend"
+
+    if not (frontend / "package.json").exists():
         return
 
-    frontend = ROOT / "frontend"
-    if not (frontend / "package.json").exists():
+    needs_build = False
+    if not dist.exists() or not any(dist.iterdir()):
+        needs_build = True
+    else:
+        # Rebuild if any source file is newer than dist/index.html
+        dist_index = dist / "index.html"
+        if dist_index.exists():
+            dist_mtime = dist_index.stat().st_mtime
+            src_dir = frontend / "src"
+            if src_dir.exists():
+                for f in src_dir.rglob("*"):
+                    if f.is_file() and f.stat().st_mtime > dist_mtime:
+                        needs_build = True
+                        break
+            # Also check package.json for dependency changes
+            pkg = frontend / "package.json"
+            if pkg.stat().st_mtime > dist_mtime:
+                needs_build = True
+        else:
+            needs_build = True
+
+    if not needs_build:
         return
 
     npm = shutil.which("npm")
