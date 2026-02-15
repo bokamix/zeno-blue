@@ -1109,19 +1109,29 @@ Your next message should include text for the user, not just tool calls."""
                     if job_id:
                         self.db.add_job_activity(
                             job_id, "loop_hard_stop",
-                            f"ABORTED: {consecutive_tool_only_responses} consecutive tool calls without text response",
+                            f"Stopped after {consecutive_tool_only_responses} tool calls without text response",
                             is_error=True
                         )
+
+                    # Graceful fallback: save a response to the user instead of crashing
+                    fallback_msg = (
+                        "I was working on your request but got stuck in a loop of tool calls. "
+                        "Here's what I gathered so far — please try rephrasing your request if the result is incomplete."
+                    )
+                    self._save_message(conversation_id, "assistant", content=fallback_msg)
+
+                    elapsed_time = time.time() - start_time
                     end_trace(
-                        output="Agent stuck: consecutive tool calls without text",
-                        status="error",
-                        metadata={"consecutive_tool_only": consecutive_tool_only_responses},
-                        tags=["status:error", "reason:tool_only_loop"],
+                        output=fallback_msg,
+                        status="success",
+                        metadata={"consecutive_tool_only": consecutive_tool_only_responses, "graceful_stop": True},
+                        tags=["status:success", "reason:tool_only_loop_recovered"],
                     )
                     return {
-                        "status": "error",
-                        "error": f"Agent stuck: {consecutive_tool_only_responses} consecutive tool calls without producing a response. Please try a simpler request.",
-                        "steps": step_count
+                        "status": "success",
+                        "summary": fallback_msg,
+                        "steps": step_count,
+                        "elapsed_seconds": round(elapsed_time, 2)
                     }
                 # === END PERSISTENT LOOP DETECTION ===
 
