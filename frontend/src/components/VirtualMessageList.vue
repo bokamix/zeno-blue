@@ -42,6 +42,7 @@
                     @open-file="$emit('open-file', $event)"
                     @mark-unread="$emit('mark-unread', $event)"
                     @edit="$emit('edit', $event)"
+                    @suggestion-select="$emit('suggestion-select', $event)"
                 />
             </div>
         </div>
@@ -64,7 +65,7 @@ const props = defineProps({
     readAt: { type: String, default: null }
 })
 
-const emit = defineEmits(['fork', 'open-file', 'scroll', 'update:isAtBottom', 'mark-unread', 'edit'])
+const emit = defineEmits(['fork', 'open-file', 'scroll', 'update:isAtBottom', 'mark-unread', 'edit', 'suggestion-select'])
 
 // Compute index of first unread message (only assistant messages count as "unread")
 const firstUnreadIndex = computed(() => {

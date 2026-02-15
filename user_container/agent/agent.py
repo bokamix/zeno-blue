@@ -310,6 +310,13 @@ class Agent:
                 f"depth={routing_decision.depth} ({depth_names.get(routing_decision.depth, '?')})"
             )
 
+            # Generate related questions in background (for all depths)
+            threading.Thread(
+                target=self._generate_suggestions_async,
+                args=(job_id, user_message),
+                daemon=True
+            ).start()
+
             # Emit quick acknowledgment as thinking_stream for immediate user feedback
             if routing_decision.depth > 0:
                 ack_messages = {
@@ -322,13 +329,6 @@ class Agent:
                     ack_messages.get(routing_decision.depth, "Processing..."),
                     detail=ack_messages.get(routing_decision.depth)
                 )
-
-                # Generate related questions in background (Perplexity-style)
-                threading.Thread(
-                    target=self._generate_suggestions_async,
-                    args=(job_id, user_message),
-                    daemon=True
-                ).start()
 
                 # Generate and emit fake progress steps in background
                 threading.Thread(

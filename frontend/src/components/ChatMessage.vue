@@ -142,13 +142,34 @@
                     <MailOpen class="w-3.5 h-3.5" />
                 </button>
             </div>
+
+            <!-- Follow-up suggestions (persisted with message) -->
+            <div v-if="messageSuggestions.length > 0" class="mt-4 pt-3 border-t border-[var(--border-subtle)]/30">
+                <div class="flex flex-col gap-1">
+                    <button
+                        v-for="(suggestion, idx) in messageSuggestions"
+                        :key="idx"
+                        @click="$emit('suggestion-select', suggestion)"
+                        class="flex items-start gap-2.5 px-2 py-2
+                               text-sm text-[var(--text-secondary)]
+                               hover:text-[var(--text-primary)]
+                               hover:bg-[var(--bg-surface)]
+                               rounded-lg
+                               transition-all duration-200
+                               text-left"
+                    >
+                        <CornerDownRight class="w-4 h-4 text-[var(--text-muted)] flex-shrink-0 mt-0.5" />
+                        <span>{{ suggestion }}</span>
+                    </button>
+                </div>
+            </div>
         </div>
     </div>
 </template>
 
 <script setup>
 import { ref, computed } from 'vue'
-import { Sparkles, GitFork, Copy, Check, MailOpen, Pencil, HelpCircle } from 'lucide-vue-next'
+import { Sparkles, GitFork, Copy, Check, MailOpen, Pencil, HelpCircle, CornerDownRight } from 'lucide-vue-next'
 import { useI18n } from 'vue-i18n'
 import { useMarkdownRenderer, isImageFile, getFileName } from '../composables/useMarkdownRenderer'
 import { marked } from 'marked'
@@ -168,7 +189,7 @@ const props = defineProps({
     }
 })
 
-defineEmits(['fork', 'open-file', 'mark-unread', 'edit'])
+defineEmits(['fork', 'open-file', 'mark-unread', 'edit', 'suggestion-select'])
 
 // Detect if this is a question message (ask_user)
 const isQuestionMessage = computed(() => {
@@ -178,6 +199,11 @@ const isQuestionMessage = computed(() => {
 // Get question options from metadata
 const questionOptions = computed(() => {
     return props.message.metadata?.options || []
+})
+
+// Get follow-up suggestions from metadata
+const messageSuggestions = computed(() => {
+    return props.message.metadata?.suggestions || []
 })
 
 // Use markdown renderer composable (with getter for reactivity)

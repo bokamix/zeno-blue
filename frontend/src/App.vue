@@ -576,7 +576,8 @@ const loadConversation = async (convId) => {
             dbId: m.id,
             role: m.role,
             text: m.content,
-            created_at: m.created_at
+            created_at: m.created_at,
+            metadata: m.metadata || null
         }))
 
         // Clear loader now that messages are loaded

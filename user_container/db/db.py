@@ -1535,6 +1535,27 @@ class DB:
         )
         return row["last_id"] if row else None
 
+    def save_suggestions_to_last_assistant_message(self, conversation_id: str, suggestions: list) -> None:
+        """Save follow-up suggestions to the last assistant message's metadata."""
+        import json
+        row = self.fetchone(
+            "SELECT id, metadata FROM messages WHERE conversation_id = ? AND role = 'assistant' AND internal = 0 ORDER BY id DESC LIMIT 1",
+            (conversation_id,)
+        )
+        if not row:
+            return
+        existing = {}
+        if row["metadata"]:
+            try:
+                existing = json.loads(row["metadata"])
+            except (json.JSONDecodeError, TypeError):
+                pass
+        existing["suggestions"] = suggestions
+        self.execute(
+            "UPDATE messages SET metadata = ? WHERE id = ?",
+            (json.dumps(existing), row["id"])
+        )
+
     # --- Custom Skills Methods ---
 
     def get_custom_skills(self) -> List[Dict[str, Any]]:

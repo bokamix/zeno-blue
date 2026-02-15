@@ -333,6 +333,16 @@ def _run_agent_job(job_id: str, job_data: dict) -> str:
         skip_history=job_data.get("skip_history", False),
     )
 
+    # Persist suggestions to the last assistant message metadata
+    try:
+        job_queue = get_job_queue()
+        suggestions = job_queue.get_suggestions(job_id)
+        if suggestions:
+            conv_id = job_data["conversation_id"]
+            db.save_suggestions_to_last_assistant_message(conv_id, suggestions)
+    except Exception as e:
+        log(f"[Worker] Failed to persist suggestions for job {job_id}: {e}")
+
     if result.get("status") == "success":
         return result.get("summary", "Task completed")
     elif result.get("status") == "cancelled":

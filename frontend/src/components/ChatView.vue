@@ -37,6 +37,7 @@
                     @scroll="handleChatScroll"
                     @mark-unread="handleMarkUnread"
                     @edit="handleEditMessage"
+                    @suggestion-select="handlePostResponseSelect"
                 >
                     <template #footer>
                         <!-- Activity Stream (shows what agent is doing) -->
@@ -66,12 +67,6 @@
                             @start-oauth="startOAuth"
                         />
 
-                        <!-- Post-response suggestions (after bot finishes) -->
-                        <PostResponseSuggestions
-                            v-if="showPostResponseSuggestions"
-                            :suggestions="postResponseSuggestions"
-                            @select="handlePostResponseSelect"
-                        />
                     </template>
                 </VirtualMessageList>
             </div>
