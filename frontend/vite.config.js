@@ -10,12 +10,13 @@ export default defineConfig({
       registerType: 'autoUpdate',
       workbox: {
         // Exclude large viewer chunks from precaching (they're lazy-loaded anyway)
-        globPatterns: ['**/*.{js,css,html,ico,png,svg,woff2}'],
+        globPatterns: ['**/*.{js,css,ico,png,svg,woff2}'],
         globIgnores: ['**/pdf-viewer*.js', '**/xlsx-viewer*.js', '**/docx-viewer*.js'],
         maximumFileSizeToCacheInBytes: 3 * 1024 * 1024, // 3MB limit
-        // Serve cached index.html for navigation requests when offline
-        navigateFallback: '/index.html',
-        navigateFallbackDenylist: [/^\/api/, /^\/chat/, /^\/jobs/, /^\/conversations/, /^\/artifacts/, /^\/health/, /^\/oauth/, /^\/auth/],
+        // Deny all routes from precache NavigationRoute so navigation
+        // is handled only by the NetworkFirst runtime caching below.
+        // This prevents serving stale index.html from precache on deploy.
+        navigateFallbackDenylist: [/./],
         runtimeCaching: [
           {
             // Navigation requests (HTML pages) - serve from cache quickly when offline
