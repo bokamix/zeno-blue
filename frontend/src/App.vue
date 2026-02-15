@@ -515,7 +515,6 @@ const newChat = () => {
 
     messages.value = []
     conversationId.value = null
-    localStorage.removeItem('conversationId')
     pendingQuestion.value = null
     pendingOAuth.value = null
     isLoading.value = false
@@ -561,7 +560,6 @@ const loadConversation = async (convId) => {
 
     // Load saved input for this conversation (if any)
     loadInputForConversation(convId)
-    localStorage.setItem('conversationId', convId)
     window.history.pushState({}, '', `/c/${convId}`)
     messages.value = [] // Clear messages while loading
     isLoading.value = true // Prevent EmptyState from showing

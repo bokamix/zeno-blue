@@ -10,7 +10,7 @@ const getConversationFromUrl = () => {
 const messages = ref([])
 const inputText = ref('')
 const isLoading = ref(false)
-const conversationId = ref(getConversationFromUrl() || localStorage.getItem('conversationId') || null)
+const conversationId = ref(getConversationFromUrl() || null)
 const conversations = ref([])
 const archivedConversations = ref([])
 const pendingQuestion = ref(null)
@@ -60,14 +60,9 @@ export function useChatState() {
         readAt.value = null
     }
 
-    // Update conversation ID and persist to localStorage
+    // Update conversation ID
     const setConversationId = (convId) => {
         conversationId.value = convId
-        if (convId) {
-            localStorage.setItem('conversationId', convId)
-        } else {
-            localStorage.removeItem('conversationId')
-        }
     }
 
     // Add message to current chat

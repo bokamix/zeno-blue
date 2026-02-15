@@ -810,7 +810,6 @@ const sendMessage = async () => {
             })
 
             conversationId.value = convId
-            localStorage.setItem('conversationId', convId)
             window.history.pushState({}, '', `/c/${convId}`)
         } else {
             // Optimistic update for existing conversation: update timestamp to move to top
