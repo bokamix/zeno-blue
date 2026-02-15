@@ -114,7 +114,9 @@
     },
     "costTooltip": "Total cost of this conversation",
     "automationStarted": "Automation started in background",
-    "editMessage": "Edit message"
+    "editMessage": "Edit message",
+    "forceRespond": "Respond now",
+    "stopExecution": "Stop execution"
   },
   "modals": {
     "scheduledJobs": {

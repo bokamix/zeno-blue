@@ -1073,6 +1073,24 @@ class DB:
 
         return activities
 
+    def count_conversation_delegates(self, conversation_id: str) -> int:
+        """Count delegate_start activities across all jobs for a conversation.
+
+        Uses JOIN between job_activities and jobs to count delegate_task invocations
+        for the entire conversation (across all jobs).
+        """
+        row = self.fetchone(
+            """
+            SELECT COUNT(*) as count
+            FROM job_activities ja
+            JOIN jobs j ON ja.job_id = j.id
+            WHERE j.conversation_id = ?
+              AND ja.type = 'delegate_start'
+            """,
+            (conversation_id,)
+        )
+        return row["count"] if row else 0
+
     # --- Scheduled Job Methods (A.7 Job Scheduler) ---
 
     def save_scheduled_job(self, job_data: Dict[str, Any]) -> None:

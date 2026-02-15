@@ -174,6 +174,16 @@ class Agent:
                 self._cancel_check_error_logged = True
             return False
 
+    def _is_force_respond(self) -> bool:
+        """Check if user requested force respond (soft interrupt)."""
+        if not self._current_job_id:
+            return False
+        try:
+            job_queue = get_job_queue()
+            return job_queue.is_force_respond(self._current_job_id)
+        except Exception:
+            return False
+
     def _handle_cancellation(self, step_count: int, start_time: float = None) -> Dict[str, Any]:
         """Handle job cancellation and return appropriate response."""
         elapsed_time = time.time() - start_time if start_time else 0
@@ -445,6 +455,26 @@ class Agent:
             # Check if job was cancelled by user (checkpoint 1: start of step)
             if self._is_cancelled():
                 return self._handle_cancellation(step_count, start_time)
+
+            # Check if user requested "respond now" (soft interrupt)
+            if self._is_force_respond():
+                log_debug("[Agent] Force respond requested by user")
+                if job_id:
+                    self.db.add_job_activity(job_id, "force_respond", "User requested immediate response")
+                # Inject message forcing agent to respond directly
+                force_prompt = (
+                    "⚡ RESPOND NOW - The user has requested an immediate response.\n\n"
+                    "You MUST respond directly to the user with whatever you have so far. "
+                    "Do NOT call any more tools or delegate any more tasks. "
+                    "Summarize your progress and provide the best answer you can with current information."
+                )
+                self._save_message(conversation_id, "user", content=force_prompt, internal=True)
+                # Clear the flag so it doesn't trigger again
+                try:
+                    job_queue = get_job_queue()
+                    job_queue.clear_force_respond(self._current_job_id)
+                except Exception:
+                    pass
 
             # Emit step activity
             if job_id:
@@ -768,6 +798,26 @@ class Agent:
                                 f"Total tool limit reached: {total_count_now}"
                             )
                         self._save_message(conversation_id, "user", content=get_total_limit_prompt(), internal=True)
+
+                    # === DELEGATE BUDGET CHECK ===
+                    # After delegate_task execution, check if budget is exhausted
+                    if call_tool_name == "delegate_task":
+                        conv_delegate_count = self.db.count_conversation_delegates(conversation_id)
+                        max_delegates = settings.conversation_max_delegates
+                        if conv_delegate_count >= max_delegates:
+                            budget_prompt = (
+                                "⚠️ DELEGATE BUDGET EXHAUSTED\n\n"
+                                f"You have used {conv_delegate_count}/{max_delegates} delegates in this conversation.\n"
+                                "You can NO LONGER use delegate_task. You MUST complete any remaining work yourself "
+                                "and respond directly to the user."
+                            )
+                            self._save_message(conversation_id, "user", content=budget_prompt, internal=True)
+                            log_debug(f"[Agent] Delegate budget exhausted: {conv_delegate_count}/{max_delegates}")
+                            if job_id:
+                                self.db.add_job_activity(
+                                    job_id, "delegate_limit",
+                                    f"Delegate budget exhausted ({conv_delegate_count}/{max_delegates})"
+                                )
 
                     # === TOOL RESULT CACHING (Faza 2) ===
                     # Build cache key and check for duplicates
@@ -1300,7 +1350,26 @@ Your next message should include text for the user, not just tool calls."""
 
         delegate_task calls run in parallel via ThreadPoolExecutor.
         Other tools run sequentially.
+
+        Respects:
+        - force_respond flag: blocks ALL tool calls, returns error results
+        - conversation delegate limit: blocks excess delegate_task calls
         """
+        # If force_respond is active, block ALL tool calls
+        if self._is_force_respond():
+            log_debug("[Agent] Force respond active - blocking all tool calls")
+            if job_id:
+                self.db.add_job_activity(job_id, "force_respond", f"Blocked {len(tool_calls)} tool call(s) - user wants response")
+            results = []
+            for call in tool_calls:
+                call_id = call["id"] if isinstance(call, dict) else call.id
+                tool_name = call["function"]["name"] if isinstance(call, dict) else call.function.name
+                results.append({
+                    "tool_call_id": call_id,
+                    "content": f"Error: Tool '{tool_name}' blocked - user requested immediate response. You MUST respond with text now."
+                })
+            return results
+
         # Separate delegate_task from other calls
         delegate_calls = []
         other_calls = []
@@ -1325,18 +1394,69 @@ Your next message should include text for the user, not just tool calls."""
 
         # Execute delegate_task calls in parallel (if not cancelled)
         if delegate_calls and not self._is_cancelled():
-            log_debug(f"[Agent] Running {len(delegate_calls)} delegate_task(s) in parallel")
-            with ThreadPoolExecutor(max_workers=len(delegate_calls)) as executor:
-                # Submit all delegate tasks
-                future_to_call = {
-                    executor.submit(self._execute_single_tool, call, job_id): call
-                    for call in delegate_calls
-                }
+            # Check conversation delegate limit
+            conv_id = get_conversation_id()
+            if conv_id:
+                current_count = self.db.count_conversation_delegates(conv_id)
+                max_delegates = settings.conversation_max_delegates
+                remaining = max(0, max_delegates - current_count)
 
-                # Collect results as they complete
-                for future in as_completed(future_to_call):
-                    result = future.result()
-                    results.append(result)
+                if remaining == 0:
+                    # All delegates exhausted - return error for all
+                    log_debug(f"[Agent] Delegate limit reached ({current_count}/{max_delegates}) - blocking all delegate calls")
+                    if job_id:
+                        self.db.add_job_activity(
+                            job_id, "delegate_limit",
+                            f"Delegate budget exhausted ({current_count}/{max_delegates}) - blocked {len(delegate_calls)} delegate(s)",
+                            is_error=True
+                        )
+                    for call in delegate_calls:
+                        call_id = call["id"] if isinstance(call, dict) else call.id
+                        results.append({
+                            "tool_call_id": call_id,
+                            "content": (
+                                f"Error: Delegate budget exhausted ({current_count}/{max_delegates} used). "
+                                "You MUST complete the task yourself without delegating. "
+                                "Respond directly to the user with what you have."
+                            )
+                        })
+                    delegate_calls = []
+
+                elif remaining < len(delegate_calls):
+                    # Partial - execute some, block rest
+                    allowed = delegate_calls[:remaining]
+                    blocked = delegate_calls[remaining:]
+                    log_debug(f"[Agent] Delegate limit: allowing {len(allowed)}, blocking {len(blocked)} ({current_count+remaining}/{max_delegates})")
+                    if job_id:
+                        self.db.add_job_activity(
+                            job_id, "delegate_limit",
+                            f"Delegate budget partial ({current_count}/{max_delegates}) - running {len(allowed)}, blocked {len(blocked)}"
+                        )
+                    # Block excess calls
+                    for call in blocked:
+                        call_id = call["id"] if isinstance(call, dict) else call.id
+                        results.append({
+                            "tool_call_id": call_id,
+                            "content": (
+                                f"Error: Delegate budget nearly exhausted ({current_count+remaining}/{max_delegates}). "
+                                "This delegate was not executed. Complete remaining work yourself."
+                            )
+                        })
+                    delegate_calls = allowed
+
+            if delegate_calls:
+                log_debug(f"[Agent] Running {len(delegate_calls)} delegate_task(s) in parallel")
+                with ThreadPoolExecutor(max_workers=len(delegate_calls)) as executor:
+                    # Submit all delegate tasks
+                    future_to_call = {
+                        executor.submit(self._execute_single_tool, call, job_id): call
+                        for call in delegate_calls
+                    }
+
+                    # Collect results as they complete
+                    for future in as_completed(future_to_call):
+                        result = future.result()
+                        results.append(result)
 
         return results
 

@@ -114,7 +114,9 @@
     },
     "costTooltip": "Całkowity koszt tej konwersacji",
     "automationStarted": "Automatyzacja uruchomiona w tle",
-    "editMessage": "Edytuj wiadomość"
+    "editMessage": "Edytuj wiadomość",
+    "forceRespond": "Odpowiedz teraz",
+    "stopExecution": "Zatrzymaj wykonanie"
   },
   "modals": {
     "scheduledJobs": {

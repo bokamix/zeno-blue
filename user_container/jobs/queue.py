@@ -179,6 +179,25 @@ class JobQueue:
         cache = self._job_cache.get(job_id, {})
         return cache.get("is_cancelled", False)
 
+    # --- Force Respond ---
+
+    def force_respond(self, job_id: str):
+        """Set force_respond flag - agent will stop tools and respond to user."""
+        cache = self._job_cache.get(job_id, {})
+        cache["is_force_respond"] = True
+        self._job_cache[job_id] = cache
+
+    def is_force_respond(self, job_id: str) -> bool:
+        """Check if force_respond flag is set."""
+        cache = self._job_cache.get(job_id, {})
+        return cache.get("is_force_respond", False)
+
+    def clear_force_respond(self, job_id: str):
+        """Clear force_respond flag after it's been processed."""
+        cache = self._job_cache.get(job_id, {})
+        cache["is_force_respond"] = False
+        self._job_cache[job_id] = cache
+
     # --- Suggestions ---
 
     def set_suggestions(self, job_id: str, suggestions: list):

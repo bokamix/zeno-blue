@@ -106,6 +106,15 @@ export function useApi() {
         return res.json()
     }
 
+    const forceRespond = async (jobId) => {
+        const res = await fetch(`${API_BASE}/jobs/${jobId}/force-respond`, {
+            method: 'POST'
+        })
+
+        if (!res.ok) throw new Error('Failed to force respond')
+        return res.json()
+    }
+
     const getConversations = async () => {
         const res = await fetchWithTimeout(`${API_BASE}/conversations`)
         if (res.status === 401) {
@@ -426,6 +435,7 @@ export function useApi() {
         pollJob,
         submitAnswer,
         cancelJob,
+        forceRespond,
         getConversations,
         getConversationMessages,
         deleteMessagesFrom,

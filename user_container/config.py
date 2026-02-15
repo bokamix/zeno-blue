@@ -52,6 +52,7 @@ class Settings(BaseModel):
     subtask_max_steps: int = int(os.getenv("SUBTASK_MAX_STEPS", "50"))  # Max steps per subtask in orchestrated execution
     skill_ttl: int = int(os.getenv("SKILL_TTL", "5"))  # How many steps a skill stays active
     reflection_interval: int = int(os.getenv("REFLECTION_INTERVAL", "7"))  # Reflect every N steps (0 = disabled)
+    conversation_max_delegates: int = int(os.getenv("CONVERSATION_MAX_DELEGATES", "25"))  # Max delegate_task calls per conversation
 
     # Context compression settings
     context_max_tokens: int = int(os.getenv("CONTEXT_MAX_TOKENS", "200000"))  # Model's context limit (Claude Sonnet/Haiku support 200k)

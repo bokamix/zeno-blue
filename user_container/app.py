@@ -694,8 +694,11 @@ async def rename_conversation(conversation_id: str, data: dict):
 
 @app.get("/conversations/{conversation_id}/cost")
 async def get_conversation_cost(conversation_id: str):
-    """Get the total cost for a conversation."""
-    return db.get_conversation_cost(conversation_id)
+    """Get the total cost for a conversation, including delegate usage."""
+    cost = db.get_conversation_cost(conversation_id)
+    cost["delegate_count"] = db.count_conversation_delegates(conversation_id)
+    cost["delegate_limit"] = settings.conversation_max_delegates
+    return cost
 
 
 @app.post("/conversations/{conversation_id}/archive")
@@ -1678,6 +1681,38 @@ async def cancel_job(job_id: str):
     log(f"[API] Job {job_id} marked for cancellation")
 
     return {"status": "cancelling"}
+
+
+@app.post("/jobs/{job_id}/force-respond")
+async def force_respond_job(job_id: str):
+    """
+    Request agent to stop tools and respond immediately.
+
+    Unlike cancel, this preserves all work done so far. The agent will
+    finish current tool execution, then respond with whatever it has.
+
+    Returns: {"status": "forcing"}
+    """
+    job_queue = get_job_queue()
+
+    # Verify job exists
+    job_data = job_queue.get_job(job_id)
+    if not job_data:
+        raise HTTPException(status_code=404, detail="Job not found")
+
+    current_status = job_data.get("status")
+    if current_status not in ("running", "waiting_for_input"):
+        raise HTTPException(
+            status_code=400,
+            detail=f"Job is not running (status: {current_status})"
+        )
+
+    # Set force_respond flag - agent will check this
+    job_queue.force_respond(job_id)
+
+    log(f"[API] Job {job_id} marked for force respond")
+
+    return {"status": "forcing"}
 
 
 # --- Scheduled Jobs Endpoints (A.7) ---

@@ -211,22 +211,39 @@
                             >
                         </label>
 
-                        <!-- Send / Stop button -->
-                        <button
-                            v-if="isLoading && currentJobId"
-                            @click="stopExecution"
-                            :disabled="isCancelling"
-                            class="absolute right-3 bottom-3 p-2.5 rounded-xl
-                                   bg-gradient-to-r from-red-500 to-orange-500 text-white
-                                   shadow-lg shadow-red-500/25
-                                   hover:scale-110 hover:shadow-red-500/40
-                                   disabled:opacity-50 disabled:scale-100
-                                   transition-all duration-200"
-                            :title="$t('chat.stopExecution')"
-                        >
-                            <div v-if="isCancelling" class="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-                            <Square v-else class="w-4 h-4 fill-current" />
-                        </button>
+                        <!-- Send / Stop / Force Respond buttons -->
+                        <div v-if="isLoading && currentJobId" class="absolute right-3 bottom-3 flex items-center gap-1.5">
+                            <!-- Force Respond button -->
+                            <button
+                                @click="forceRespond"
+                                :disabled="isForcing || isCancelling"
+                                class="p-2.5 rounded-xl
+                                       bg-gradient-to-r from-amber-500 to-yellow-500 text-white
+                                       shadow-lg shadow-amber-500/25
+                                       hover:scale-110 hover:shadow-amber-500/40
+                                       disabled:opacity-50 disabled:scale-100
+                                       transition-all duration-200"
+                                :title="$t('chat.forceRespond')"
+                            >
+                                <div v-if="isForcing" class="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                                <MessageSquareReply v-else class="w-4 h-4" />
+                            </button>
+                            <!-- Stop button -->
+                            <button
+                                @click="stopExecution"
+                                :disabled="isCancelling"
+                                class="p-2.5 rounded-xl
+                                       bg-gradient-to-r from-red-500 to-orange-500 text-white
+                                       shadow-lg shadow-red-500/25
+                                       hover:scale-110 hover:shadow-red-500/40
+                                       disabled:opacity-50 disabled:scale-100
+                                       transition-all duration-200"
+                                :title="$t('chat.stopExecution')"
+                            >
+                                <div v-if="isCancelling" class="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                                <Square v-else class="w-4 h-4 fill-current" />
+                            </button>
+                        </div>
                         <button
                             v-else
                             @click="sendMessage"
@@ -307,7 +324,7 @@
 
 <script setup>
 import { ref, computed, nextTick, onMounted, onUnmounted, watch } from 'vue'
-import { Plus, Send, FileIcon, ChevronDown, Upload, Square, Clock } from 'lucide-vue-next'
+import { Plus, Send, FileIcon, ChevronDown, Upload, Square, Clock, MessageSquareReply } from 'lucide-vue-next'
 import { useI18n } from 'vue-i18n'
 import { useApi } from '../composables/useApi'
 
@@ -520,6 +537,20 @@ const handleKeydown = (e) => {
     if (e.key === 'Enter' && !e.shiftKey && !isMobile()) {
         e.preventDefault()
         sendMessage()
+    }
+}
+
+// Force respond - soft interrupt, agent responds with what it has
+const isForcing = ref(false)
+const forceRespond = async () => {
+    if (!currentJobId.value || isForcing.value) return
+
+    isForcing.value = true
+    try {
+        await api.forceRespond(currentJobId.value)
+    } catch (e) {
+        console.error('Force respond failed:', e)
+        isForcing.value = false
     }
 }
 
@@ -816,6 +847,7 @@ const sendMessage = async () => {
     } finally {
         currentJobId.value = null
         isCancelling.value = false
+        isForcing.value = false
         if (!pendingQuestion.value && !pendingOAuth.value) {
             isLoading.value = false
         }
