@@ -6,6 +6,25 @@
     <title>ZENO.blue</title>
     <link rel="icon" type="image/svg+xml" href="/favicon.svg">
 
+    <!-- SW cleanup: unregister stale service workers in regular browser before assets load -->
+    <script>
+    if ('serviceWorker' in navigator
+        && !window.matchMedia('(display-mode: standalone)').matches
+        && !window.navigator.standalone) {
+        navigator.serviceWorker.getRegistrations().then(function(rs) {
+            if (rs.length > 0) {
+                Promise.all(rs.map(function(r) { return r.unregister(); })).then(function() {
+                    return caches.keys();
+                }).then(function(ks) {
+                    return Promise.all(ks.map(function(k) { return caches.delete(k); }));
+                }).then(function() {
+                    location.reload();
+                });
+            }
+        });
+    }
+    </script>
+
     <!-- PWA -->
     <link rel="manifest" href="/manifest.json">
     <meta name="theme-color" content="#2563eb">
