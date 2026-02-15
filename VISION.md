@@ -187,3 +187,6 @@ The `install.sh` script handles:
 
 
 Niech da się exportować ustawienia projektu (pliki synchronizowane przez s3 lub firebase)
+
+
+zeno.blue trzymsa klucze bazy itd
