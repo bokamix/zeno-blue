@@ -88,6 +88,7 @@ from user_container.tools.schedule import (
     make_list_scheduled_jobs_tool, LIST_SCHEDULED_JOBS_SCHEMA,
     make_update_scheduled_job_tool, UPDATE_SCHEDULED_JOB_SCHEMA,
 )
+from user_container.tools.skill_management import make_manage_skill_tool, MANAGE_SKILL_SCHEMA
 
 
 class Agent:
@@ -252,6 +253,13 @@ class Agent:
                 name="list_scheduled_jobs",
                 handler=make_list_scheduled_jobs_tool(self.db),
                 schema=LIST_SCHEDULED_JOBS_SCHEMA
+            )
+
+            # Skill management - create/update/delete/list custom skills
+            registry.register(
+                name="manage_skill",
+                handler=make_manage_skill_tool(self.db, self.skill_loader, settings.skills_dir),
+                schema=MANAGE_SKILL_SCHEMA
             )
 
         # delegate_task ONLY in main registry (prevents recursion in DelegateExecutor)

@@ -54,7 +54,7 @@ class SkillLoader:
                     name=row["name"],
                     description=row.get("description") or "",
                     instructions=row["instructions"],
-                    path="custom"
+                    path=os.path.join(self.skills_dir, "_custom", skill_name)
                 )
                 self._skills_cache[skill_name] = skill
                 return skill

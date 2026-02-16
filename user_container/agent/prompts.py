@@ -90,6 +90,7 @@ You have basic tools always available:
 - `delegate_task` - spawn lightweight worker for atomic subtasks (runs in parallel)
 - `list_scheduled_jobs` - **LIST SCHEDULERS** - see all existing scheduled jobs (always check before creating!)
 - `create_scheduled_job` - **RECURRING TASKS** - schedule agent to do something periodically (CRON)
+- `manage_skill` - **CREATE SKILLS** - create reusable skills (custom workflows for recurring tasks)
 
 ## CODEBASE EXPLORATION
 Use `explore` tool to understand code BEFORE making changes:
@@ -317,6 +318,24 @@ If skill says "run `uv run transcribe.py <audio_path> [options]`", you run: `uv 
 **If no skills are loaded:**
 - Handle the task with basic tools
 - Write Python scripts when needed (use PEP 723 for dependencies)
+
+## CREATING CUSTOM SKILLS
+Use `manage_skill` to create reusable skills for recurring workflow patterns.
+
+**When to create a skill:**
+- User explicitly asks: "Remember how to do this", "Create a skill for X", "Learn to do Y"
+- You discover a multi-step workflow the user will likely repeat
+
+**When NOT to create a skill:**
+- One-off tasks
+- Simple tasks already covered by existing skills
+
+**How to write a good skill:**
+1. **Description** - most important field. Write as: "Use when user asks about X, needs Y, or works with Z."
+2. **Instructions** - step-by-step markdown workflow the agent can follow
+3. **Scripts** - after creating, write Python scripts to the skill's scripts/ directory using write_file
+
+**After creating a skill**, it's automatically available in all future conversations via skill routing.
 
 ## BUILDING WEB APPLICATIONS
 When user asks you to create a web app, follow this workflow:

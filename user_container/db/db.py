@@ -587,6 +587,10 @@ class DB:
         if tool_name == "delegate_task":
             return "[Subtask completed]"
 
+        # Skill management
+        if tool_name == "manage_skill":
+            return "[Skill managed]"
+
         # Default: truncate to ~100 chars
         if len(content) > 100:
             return content[:80] + "..."
