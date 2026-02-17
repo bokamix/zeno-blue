@@ -1,40 +1,48 @@
 import subprocess
 import os
-import pwd
-import resource
 from dataclasses import dataclass
 from typing import Optional, Dict, Any, List
 from datetime import datetime
+
+from user_container.platform import IS_POSIX, IS_WINDOWS, HAS_SANDBOX_USER, HAS_RESOURCE_LIMITS
 
 
 def _demote_to_sandbox():
     """
     Switch to sandbox user before exec.
     This prevents user-generated code from accessing sensitive files like /app/secrets.json.
+    No-op when sandbox user doesn't exist (native macOS/Windows).
     """
+    if not HAS_SANDBOX_USER:
+        return
     try:
+        import pwd
         pw = pwd.getpwnam('sandbox')
         os.setgid(pw.pw_gid)
         os.setuid(pw.pw_uid)
-    except KeyError:
-        # sandbox user doesn't exist (dev environment without Docker)
-        print("Warning: sandbox user not found - running without privilege drop (dev environment)")
+    except (KeyError, OSError, PermissionError, ImportError):
+        pass
 
 
 def _setup_process_limits(demote: bool = True):
     """
     Set resource limits for child processes to prevent DoS attacks.
     Called via preexec_fn before subprocess execution.
+    No-op when resource module is unavailable (Windows).
 
     Args:
         demote: If True, switch to sandbox user (for user commands).
                 If False, stay as root (for skills that need secrets.json).
     """
-    # First demote user if requested (must be done before resource limits)
     if demote:
         _demote_to_sandbox()
 
+    if not HAS_RESOURCE_LIMITS:
+        return
+
     try:
+        import resource
+
         # For user commands (demote=True): apply strict limits
         # For skills (demote=False): skip memory limit (Chromium needs more)
         if demote:
@@ -53,7 +61,7 @@ def _setup_process_limits(demote: bool = True):
         # Max 60 seconds CPU time (skip for skills - browser ops can take longer)
         if demote:
             resource.setrlimit(resource.RLIMIT_CPU, (60, 60))
-    except (ValueError, resource.error):
+    except (ValueError, OSError):
         # Some limits may not be available on all systems
         pass
 
@@ -89,8 +97,20 @@ class Runner:
         if not cmd:
             raise ValueError("Empty command")
 
-        def preexec():
-            _setup_process_limits(demote=demote)
+        extra_kwargs: Dict[str, Any] = {}
+
+        if IS_POSIX:
+            def preexec():
+                try:
+                    _setup_process_limits(demote=demote)
+                except Exception:
+                    pass  # Best effort - don't block command execution on native/dev
+
+            extra_kwargs["preexec_fn"] = preexec
+        elif IS_WINDOWS:
+            # CREATE_NEW_PROCESS_GROUP allows clean termination on Windows
+            CREATE_NEW_PROCESS_GROUP = 0x00000200
+            extra_kwargs["creationflags"] = CREATE_NEW_PROCESS_GROUP
 
         started = datetime.utcnow().isoformat() + "Z"
         proc = subprocess.run(
@@ -100,7 +120,7 @@ class Runner:
             capture_output=True,
             text=True,
             timeout=timeout_s,
-            preexec_fn=preexec,  # Apply resource limits + optional user demotion
+            **extra_kwargs,
         )
         finished = datetime.utcnow().isoformat() + "Z"
         return RunResult(

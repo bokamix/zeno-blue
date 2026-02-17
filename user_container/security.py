@@ -5,6 +5,8 @@ import os
 from pathlib import Path
 from typing import Dict, Optional, Set
 
+from user_container.platform import HAS_SANDBOX_USER
+
 
 # SINGLE SOURCE OF TRUTH: Safe env vars that user processes can have
 # Everything NOT in this list is considered sensitive and goes to secrets.json
@@ -28,14 +30,17 @@ def get_safe_env() -> Dict[str, str]:
     Get a filtered environment dict safe for user code.
     Uses whitelist approach - only explicitly allowed variables.
 
-    Note: HOME is overridden to /home/sandbox because:
+    Note: HOME is overridden to /home/sandbox in Docker because:
     - Main process runs as root with HOME=/root
     - User commands are demoted to sandbox user (uid 1000)
     - Tools like uv need writable HOME for cache (~/.cache/uv)
+    On native (macOS/Windows), HOME is preserved from the environment.
     """
     env = {k: v for k, v in os.environ.items() if k in SAFE_ENV_WHITELIST}
-    # Override HOME for sandbox user - they can't write to /root
-    env['HOME'] = '/home/sandbox'
+    if HAS_SANDBOX_USER:
+        # Override HOME for sandbox user - they can't write to /root
+        env['HOME'] = '/home/sandbox'
+    # Otherwise keep HOME from os.environ (already in SAFE_ENV_WHITELIST)
     return env
 
 

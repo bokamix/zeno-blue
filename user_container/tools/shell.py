@@ -10,6 +10,7 @@ from user_container.db.db import DB
 from user_container.runner.runner import Runner
 from user_container.tools.registry import ToolSchema, make_parameters
 from user_container.security import get_safe_env
+from user_container.platform import get_shell_command
 
 
 # Truncation config
@@ -27,10 +28,13 @@ BLOCKED_PATH_PATTERNS = [
     '/.env',
 ]
 
-# Whitelist for /app/ - only skills directory is allowed
+# Whitelist for app directory - only skills directory is allowed
+# Dynamic: derived from settings.skills_dir so it works in Docker (/app/) and native (~/.zeno/app/)
 APP_WHITELIST_PREFIXES = [
-    '/app/user_container/skills/',
+    os.path.realpath(settings.skills_dir) + "/",
 ]
+# App root prefix for path security checks (e.g., /app/ in Docker)
+_APP_ROOT = os.path.realpath(os.path.dirname(os.path.dirname(settings.skills_dir))) + "/"
 
 
 def _is_app_path_allowed(path: str) -> bool:
@@ -175,7 +179,7 @@ def is_clean_skill_command(cmd: str, cwd: str = "") -> bool:
     Metacharacters in quoted arguments (after script path) are allowed,
     since they are not interpreted by shell when properly quoted.
     """
-    REAL_SKILLS_PATH = "/app/user_container/skills/"
+    REAL_SKILLS_PATH = os.path.realpath(settings.skills_dir) + "/"
 
     # Parse command with shlex to handle quotes properly
     # This will raise ValueError if quotes are unbalanced (escape attempt)
@@ -258,20 +262,22 @@ def validate_command(cmd: str, cwd: str) -> None:
         if pattern in cmd or pattern in cwd:
             raise PermissionError(f"Access to {pattern} is not allowed")
 
-    # Check /app/ paths - only skills directory is allowed
-    # Extract all /app/ paths from command using regex
-    import re
-    app_paths = re.findall(r'/app/[^\s\'";&|]*', cmd)
+    # Check app directory paths - only skills directory is allowed
+    # Extract paths that start with the app root (e.g., /app/ in Docker, native path otherwise)
+    app_root = _APP_ROOT
+    escaped_root = re.escape(app_root)
+    app_paths = re.findall(escaped_root + r'[^\s\'";&|]*', cmd)
+    skills_prefix = os.path.realpath(settings.skills_dir) + "/"
     for path in app_paths:
         if not _is_app_path_allowed(path):
             raise PermissionError(
-                f"Access to {path} is not allowed - only /app/user_container/skills/ is accessible"
+                f"Access to {path} is not allowed - only {skills_prefix} is accessible"
             )
 
     # Also check cwd
-    if cwd and cwd.startswith('/app/') and not _is_app_path_allowed(cwd):
+    if cwd and cwd.startswith(app_root) and not _is_app_path_allowed(cwd):
         raise PermissionError(
-            f"Working directory {cwd} is not allowed - only /app/user_container/skills/ is accessible"
+            f"Working directory {cwd} is not allowed - only {skills_prefix} is accessible"
         )
 
     # Normalize command to prevent whitespace/encoding bypass tricks
@@ -351,7 +357,7 @@ def make_shell_tool(runner: Runner, db: DB):
 
         # If string, wrap in bash -c to support pipes, &&, || etc.
         if isinstance(raw_cmd, str):
-            cmd = ["/bin/bash", "-c", raw_cmd.strip()]
+            cmd = get_shell_command(raw_cmd.strip())
         elif isinstance(raw_cmd, list):
             cmd = raw_cmd
         else:

@@ -1,15 +1,19 @@
 """Internal API - skill execution for apps."""
 import subprocess
 import json
+import os
 import re
 from pathlib import Path
 from typing import Dict, Any, List, Set
 
+from user_container.config import settings
 from user_container.db.db import DB
 from user_container.usage.skill_tracker import track_skill_usage
 
 SKILL_BLACKLIST: Set[str] = {"app-deploy", "frontend-design", "web-app-builder"}
-SKILLS_DIR = Path("/app/user_container/skills")
+SKILLS_DIR = Path(settings.skills_dir)
+# App root for cwd when executing skills
+_APP_ROOT = str(Path(settings.skills_dir).parent.parent)
 
 
 def get_allowed_skills() -> Set[str]:
@@ -70,7 +74,7 @@ def execute_skill(
     if skill not in get_allowed_skills():
         return {"status": "error", "error": f"Skill '{skill}' not allowed"}
 
-    script_path = Path(f"/app/user_container/skills/{skill}/scripts/{script}.py")
+    script_path = SKILLS_DIR / skill / "scripts" / f"{script}.py"
     if not script_path.exists():
         return {"status": "error", "error": f"Script '{script}' not found"}
 
@@ -86,7 +90,7 @@ def execute_skill(
             capture_output=True,
             text=True,
             timeout=120,
-            cwd="/app"
+            cwd=_APP_ROOT
         )
     except subprocess.TimeoutExpired:
         return {"status": "error", "error": "Skill execution timeout"}

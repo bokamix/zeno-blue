@@ -12,20 +12,24 @@ from user_container.tools.registry import ToolSchema, make_parameters
 MAX_FILE_LINES = 500  # lines per read
 MAX_DIR_ENTRIES = 100  # entries per list
 
-# Security: Whitelist for /app/ - only these patterns are allowed
-# Everything else in /app/ is blocked (agent code, prompts, configs, secrets)
+# Security: Whitelist for app directory - only these patterns are allowed
+# Everything else in the app directory is blocked (agent code, prompts, configs, secrets)
+# Dynamic: derived from settings.skills_dir so it works in Docker and native
 import fnmatch
 
+_SKILLS_DIR_REAL = os.path.realpath(settings.skills_dir)
 ALLOWED_APP_PATTERNS = [
     # Markdown documentation in skills
-    '/app/user_container/skills/*/*.md',
-    '/app/user_container/skills/*/*/*.md',
-    '/app/user_container/skills/*/*/*/*.md',
+    f'{_SKILLS_DIR_REAL}/*/*.md',
+    f'{_SKILLS_DIR_REAL}/*/*/*.md',
+    f'{_SKILLS_DIR_REAL}/*/*/*/*.md',
     # Scripts in skills
-    '/app/user_container/skills/*/scripts/*',
-    '/app/user_container/skills/*/*/scripts/*',
-    '/app/user_container/skills/*/scripts/*/*',  # nested in scripts
+    f'{_SKILLS_DIR_REAL}/*/scripts/*',
+    f'{_SKILLS_DIR_REAL}/*/*/scripts/*',
+    f'{_SKILLS_DIR_REAL}/*/scripts/*/*',  # nested in scripts
 ]
+# App root prefix for security checks
+_APP_ROOT = os.path.realpath(os.path.dirname(os.path.dirname(settings.skills_dir))) + "/"
 
 
 def _is_allowed_app_path(abs_path: str) -> bool:
@@ -244,16 +248,16 @@ def read_file(args: Dict[str, Any]) -> Dict[str, Any]:
     offset = int(args.get("offset") or 0)
     limit = int(args.get("limit") or MAX_FILE_LINES)
 
-    # Allow reading /app/ paths - WHITELIST ONLY (skills documentation)
-    if path.startswith("/app/"):
+    # Allow reading app directory paths - WHITELIST ONLY (skills documentation)
+    if path.startswith(_APP_ROOT) or path.startswith(_SKILLS_DIR_REAL):
         abs_path = os.path.realpath(path)
-        # Security: ensure it stays within /app after symlink resolution
-        if not abs_path.startswith("/app/"):
+        # Security: ensure it stays within app root after symlink resolution
+        if not abs_path.startswith(_APP_ROOT):
             raise PermissionError("Path escape blocked")
         # Security: only allow whitelisted paths (SKILL.md files)
         if not _is_allowed_app_path(abs_path):
             raise PermissionError(
-                f"Access denied: {path} - only skill documentation (SKILL.md) can be read from /app/"
+                f"Access denied: {path} - only skill documentation (SKILL.md) can be read from app directory"
             )
     else:
         abs_path = _safe_join(settings.workspace_dir, path)

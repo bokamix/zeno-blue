@@ -1,6 +1,7 @@
 # ZENO Windows installer
 # powershell -c "irm https://raw.githubusercontent.com/bokamix/zeno-blue/main/install.ps1 | iex"
 $ErrorActionPreference = "Stop"
+[Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
 
 $ZENO_HOME = "$env:USERPROFILE\.zeno"
 $ZENO_APP = "$ZENO_HOME\app"

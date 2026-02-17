@@ -8,12 +8,14 @@ from dataclasses import dataclass
 from typing import Dict, Optional, List, Any
 
 # We assume this is run in an environment where user_container package is available
+from user_container.config import settings
 from user_container.db.db import DB
 from user_container.security import get_safe_env
 from user_container.runner.runner import _demote_to_sandbox
+from user_container.platform import IS_POSIX, get_kill_signal, find_pids_on_port
 
-# Directory for app logs
-LOGS_DIR = "/workspace/logs"
+# Directory for app logs - dynamic from settings
+LOGS_DIR = os.path.join(settings.workspace_dir, "logs")
 
 @dataclass
 class ProcInfo:
@@ -70,14 +72,16 @@ class Supervisor:
         log_path = os.path.join(LOGS_DIR, f"{proc_id}.log")
         log_file = open(log_path, "a", encoding="utf-8", buffering=1)  # Line buffered
 
-        p = subprocess.Popen(
-            final_cmd,
+        popen_kwargs: Dict[str, Any] = dict(
             cwd=cwd,
             stdout=log_file,
             stderr=subprocess.STDOUT,
             env=app_env,
-            preexec_fn=_demote_to_sandbox,
         )
+        if IS_POSIX:
+            popen_kwargs["preexec_fn"] = _demote_to_sandbox
+
+        p = subprocess.Popen(final_cmd, **popen_kwargs)
         info = ProcInfo(pid=p.pid, cmd=cmd, cwd=cwd, port=port, name=name) # Store original cmd with placeholder
         self._procs[proc_id] = p
         self._meta[proc_id] = info
@@ -93,7 +97,7 @@ class Supervisor:
             p.wait(timeout=3)
         except Exception:
             try:
-                os.kill(p.pid, signal.SIGKILL)
+                os.kill(p.pid, get_kill_signal())
             except Exception:
                 pass
         finally:
@@ -136,23 +140,13 @@ class Supervisor:
         return dict(self._meta)
 
     def _kill_process_on_port(self, port: int):
-        """
-        Kill any process listening on the given port.
-        """
-        try:
-            # Find PID using lsof
-            pid_bytes = subprocess.check_output(["lsof", "-t", f"-i:{port}"], stderr=subprocess.DEVNULL)
-            pids = pid_bytes.decode().strip().split('\n')
-            for pid_str in pids:
-                if pid_str:
-                    pid = int(pid_str)
-                    try:
-                        os.kill(pid, signal.SIGKILL)
-                    except ProcessLookupError:
-                        pass
-        except Exception:
-            # lsof missing or no process found
-            pass
+        """Kill any process listening on the given port. Cross-platform."""
+        kill_sig = get_kill_signal()
+        for pid in find_pids_on_port(port):
+            try:
+                os.kill(pid, kill_sig)
+            except ProcessLookupError:
+                pass
 
     def start_monitoring(self, interval: int = 5):
         if self._monitor_thread is not None:
