@@ -1,7 +1,8 @@
+import json
 import os
 import re
 from typing import List, Optional, Dict
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 
 @dataclass
 class Skill:
@@ -9,6 +10,8 @@ class Skill:
     description: str
     instructions: str
     path: str
+    required_secrets: List[str] = field(default_factory=list)
+    secrets_status: Dict[str, bool] = field(default_factory=dict)
 
 class SkillLoader:
     """
@@ -50,11 +53,24 @@ class SkillLoader:
         if self.db:
             row = self.db.get_custom_skill(skill_name)
             if row:
+                required_secrets = []
+                secrets_status = {}
+                req_raw = row.get("required_secrets")
+                if req_raw:
+                    try:
+                        required_secrets = json.loads(req_raw)
+                    except (json.JSONDecodeError, TypeError):
+                        pass
+                if required_secrets:
+                    secrets_status = self.db.get_skill_secrets_status(skill_name)
+
                 skill = Skill(
                     name=row["name"],
                     description=row.get("description") or "",
                     instructions=row["instructions"],
-                    path=os.path.join(self.skills_dir, "_custom", skill_name)
+                    path=os.path.join(self.skills_dir, "_custom", skill_name),
+                    required_secrets=required_secrets,
+                    secrets_status=secrets_status,
                 )
                 self._skills_cache[skill_name] = skill
                 return skill
@@ -119,12 +135,34 @@ class SkillLoader:
                 # We inject the absolute path so the model knows where scripts are
                 blocks.append(f"## SKILL: {skill.name.upper()}")
                 blocks.append(f"Location: {skill.path}")
+                secrets_block = self._build_secrets_block(skill)
+                if secrets_block:
+                    blocks.append(secrets_block)
                 blocks.append(skill.instructions)
                 blocks.append("\n" + "-"*30 + "\n")
             except Exception as e:
                 blocks.append(f"!! Error loading skill '{name}': {e}")
 
         return "\n".join(blocks)
+
+    def _build_secrets_block(self, skill: Skill) -> str:
+        """Build a prompt block describing secret/env var status for a skill."""
+        if not skill.required_secrets:
+            return ""
+
+        all_configured = all(name in skill.secrets_status for name in skill.required_secrets)
+
+        lines = ["\n### Environment Variables"]
+        if all_configured:
+            lines.append("These are automatically available when running this skill's scripts. Do NOT ask the user for these values.")
+        else:
+            lines.append("This skill requires the following environment variables. Variables marked NOT CONFIGURED must be set by the user in Settings > Skills before the skill can work.")
+
+        for name in skill.required_secrets:
+            status = "configured" if name in skill.secrets_status else "NOT CONFIGURED"
+            lines.append(f"- {name}: {status}")
+
+        return "\n".join(lines)
 
     def _parse_markdown(self, content: str) -> tuple[Optional[str], Optional[str], str]:
         """
