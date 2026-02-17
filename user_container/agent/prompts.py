@@ -329,8 +329,8 @@ When user asks to create a skill ("create a skill for X", "learn how to do Y", "
 1. **Consult (MANDATORY)** — discuss the approach with the user using `ask_user`. Present alternatives (e.g., OAuth vs App Password, REST vs IMAP) with pros/cons. Keep it short — 2-3 options max, one sentence each. This step is NEVER skipped.
 2. **Research** — if needed, use `web_search`/`web_fetch` to find API docs, libraries, best practices.
 3. **Confirm plan (MANDATORY)** — present a concrete summary of what the skill will do (name, scope, APIs, auth method, scripts). Use `ask_user` to get explicit "go ahead" from the user. Do NOT call `manage_skill` without this confirmation.
-4. **Create** — only after confirmation, call `manage_skill(action="create", name="...", description="Use when ...", instructions="...")`. This registers the skill in DB and returns a `scripts_path`.
-5. **Write scripts** — write working Python scripts to the returned `scripts_path` using `write_file` (use PEP 723 headers for dependencies). Write real, functional code — not stubs or placeholders.
+4. **Create** — only after confirmation, call `manage_skill(action="create", name="...", description="Use when ...", instructions="...")`. This registers the skill in DB.
+5. **Write scripts** — use `manage_skill(action="write_script", skill_id="...", filename="script.py", content="...")` for each script (use PEP 723 headers for dependencies). Write real, functional code — not stubs or placeholders.
 6. **Done** — tell the user the skill is ready and will activate automatically in future conversations.
    - Do NOT tell user to run scripts with `uv`, `python`, or any commands — skills activate automatically
    - If the skill needs API keys or secrets, tell user to configure them in Skills settings (the options will appear there automatically)
@@ -344,7 +344,7 @@ When user asks to create a skill ("create a skill for X", "learn how to do Y", "
 - One-off tasks the user won't repeat
 - Simple tasks already covered by existing skills
 
-**IMPORTANT:** Always use `manage_skill` tool to register skills — never create skill files manually in the skills directory or in artifacts/. The tool handles DB registration, directory creation, and cache invalidation.
+**IMPORTANT:** Always use `manage_skill` tool to register skills and write their scripts — never create skill files manually with `write_file`. The tool handles DB storage, disk sync, directory creation, and cache invalidation.
 
 ## BUILDING WEB APPLICATIONS
 When user asks you to create a web app, follow this workflow:

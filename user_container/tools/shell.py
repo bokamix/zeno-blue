@@ -11,6 +11,7 @@ from user_container.runner.runner import Runner
 from user_container.tools.registry import ToolSchema, make_parameters
 from user_container.security import get_safe_env
 from user_container.platform import get_shell_command
+from user_container.tools.skill_management import _ensure_scripts_on_disk
 
 
 # Truncation config
@@ -381,6 +382,8 @@ def make_shell_tool(runner: Runner, db: DB):
         if is_skill:
             skill_id = _extract_skill_id(cmd_str, cwd)
             if skill_id:
+                # Sync scripts from DB to disk if missing (safety net)
+                _ensure_scripts_on_disk(skill_id, db, settings.skills_dir)
                 secrets = db.get_skill_secrets(skill_id)
                 if secrets:
                     env = {**env, **secrets}

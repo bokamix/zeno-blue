@@ -19,7 +19,7 @@ if TYPE_CHECKING:
 
 MANAGE_SKILL_SCHEMA = ToolSchema(
     name="manage_skill",
-    description="""Create, update, delete, or list custom skills (reusable workflows).
+    description="""Create, update, delete, list custom skills, or write scripts for them.
 
 Use ONLY when you have a confirmed plan and the user has explicitly agreed to create/update/delete a skill.
 Do NOT call this tool to answer questions about skills — just respond in text.
@@ -30,22 +30,23 @@ Before calling action="create", you MUST have already:
 3. Received explicit user confirmation to proceed
 
 Actions:
-- "create": Register a new skill in DB. Returns scripts_path — write Python scripts there using write_file.
+- "create": Register a new skill in DB.
+- "write_script": Write a Python script for a skill (stores in DB + writes to disk). Use this instead of write_file for skill scripts.
 - "update": Update an existing skill (requires skill_id + fields to change)
 - "delete": Delete a custom skill (requires skill_id)
 - "list": List all custom skills
 
-Always use this tool to register skills — never create skill files manually.""",
+Always use this tool to register skills and write their scripts — never create skill files manually.""",
     parameters=make_parameters(
         {
             "action": {
                 "type": "string",
-                "enum": ["create", "update", "delete", "list"],
-                "description": "Action to perform: create, update, delete, or list"
+                "enum": ["create", "update", "delete", "list", "write_script"],
+                "description": "Action to perform: create, update, delete, list, or write_script"
             },
             "skill_id": {
                 "type": "string",
-                "description": "Skill ID (required for update/delete, auto-generated for create)"
+                "description": "Skill ID (required for update/delete/write_script, auto-generated for create)"
             },
             "name": {
                 "type": "string",
@@ -63,6 +64,14 @@ Always use this tool to register skills — never create skill files manually.""
                 "type": ["array", "null"],
                 "items": {"type": "string"},
                 "description": "List of environment variable names the skill needs (e.g., ['GMAIL_APP_PASSWORD']). User configures values in Settings."
+            },
+            "filename": {
+                "type": "string",
+                "description": "Script filename for write_script action (e.g., 'main.py'). Must be a .py file."
+            },
+            "content": {
+                "type": "string",
+                "description": "Script content for write_script action. Full Python source code."
             }
         },
         required=["action"]
@@ -102,6 +111,8 @@ def make_manage_skill_tool(
 
         if action == "create":
             return _create_skill(args, db, skill_loader, skills_dir)
+        elif action == "write_script":
+            return _write_script(args, db, skill_loader, skills_dir)
         elif action == "update":
             return _update_skill(args, db, skill_loader, skills_dir)
         elif action == "delete":
@@ -109,7 +120,7 @@ def make_manage_skill_tool(
         elif action == "list":
             return _list_skills(db)
         else:
-            return {"status": "error", "error": f"Unknown action: {action}. Use create, update, delete, or list."}
+            return {"status": "error", "error": f"Unknown action: {action}. Use create, write_script, update, delete, or list."}
 
     return manage_skill
 
@@ -161,17 +172,83 @@ def _create_skill(
         # Clear skill loader cache so new skill is discoverable
         skill_loader.clear_cache()
 
-        scripts_path = os.path.join(skills_dir, "_custom", skill_id, "scripts")
-
         return {
             "status": "success",
             "skill_id": skill_id,
             "name": name,
-            "scripts_path": scripts_path,
-            "message": f"Skill '{name}' created (id: {skill_id}). Scripts directory: {scripts_path}. You can now write Python scripts there using write_file."
+            "message": f"Skill '{name}' created (id: {skill_id}). Use manage_skill(action='write_script', skill_id='{skill_id}', filename='script.py', content='...') to add scripts."
         }
     except Exception as e:
         return {"status": "error", "error": f"Failed to create skill: {str(e)}"}
+
+
+def _ensure_scripts_on_disk(skill_id: str, db: "DB", skills_dir: str) -> None:
+    """Sync scripts from DB to disk if missing. Best-effort, silent on errors."""
+    try:
+        scripts = db.get_skill_scripts(skill_id)
+        if not scripts:
+            return
+        scripts_path = os.path.join(skills_dir, "_custom", skill_id, "scripts")
+        os.makedirs(scripts_path, exist_ok=True)
+        for s in scripts:
+            fp = os.path.join(scripts_path, s["filename"])
+            if not os.path.exists(fp):
+                with open(fp, "w", encoding="utf-8") as f:
+                    f.write(s["content"])
+    except Exception:
+        pass
+
+
+def _write_script(
+    args: Dict[str, Any],
+    db: "DB",
+    skill_loader: "SkillLoader",
+    skills_dir: str
+) -> Dict[str, Any]:
+    skill_id = args.get("skill_id")
+    filename = args.get("filename")
+    content = args.get("content")
+
+    if not skill_id:
+        return {"status": "error", "error": "Missing required field: skill_id"}
+    if not filename:
+        return {"status": "error", "error": "Missing required field: filename"}
+    if not content:
+        return {"status": "error", "error": "Missing required field: content"}
+
+    # Validate filename: only safe .py filenames, no paths or hidden files
+    if not re.match(r'^[a-zA-Z0-9_-]+\.py$', filename):
+        return {"status": "error", "error": f"Invalid filename: '{filename}'. Must match [a-zA-Z0-9_-]+.py (no paths, no hidden files)."}
+
+    # Size limit
+    if len(content) > 1_000_000:
+        return {"status": "error", "error": "Script content exceeds 1MB limit."}
+
+    # Verify skill exists
+    existing = db.get_custom_skill(skill_id)
+    if not existing:
+        return {"status": "error", "error": f"Custom skill '{skill_id}' not found. Create it first with action='create'."}
+
+    try:
+        # Store in DB (source of truth)
+        db.save_skill_script(skill_id, filename, content)
+
+        # Write to disk
+        scripts_path = os.path.join(skills_dir, "_custom", skill_id, "scripts")
+        os.makedirs(scripts_path, exist_ok=True)
+        file_path = os.path.join(scripts_path, filename)
+        with open(file_path, "w", encoding="utf-8") as f:
+            f.write(content)
+
+        return {
+            "status": "success",
+            "skill_id": skill_id,
+            "filename": filename,
+            "path": file_path,
+            "message": f"Script '{filename}' written for skill '{skill_id}'."
+        }
+    except Exception as e:
+        return {"status": "error", "error": f"Failed to write script: {str(e)}"}
 
 
 def _update_skill(

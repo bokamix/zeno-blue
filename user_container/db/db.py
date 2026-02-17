@@ -349,6 +349,17 @@ class DB:
                 cur.execute("ALTER TABLE custom_skills ADD COLUMN required_secrets TEXT")
             except Exception:
                 pass
+            # Skill scripts (source of truth for custom skill scripts — bypasses sandbox)
+            cur.execute("""
+              CREATE TABLE IF NOT EXISTS skill_scripts (
+                skill_id TEXT NOT NULL,
+                filename TEXT NOT NULL,
+                content TEXT NOT NULL,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                PRIMARY KEY (skill_id, filename)
+              )
+            """)
             conn.commit()
             conn.close()
 
@@ -1630,6 +1641,7 @@ class DB:
     def delete_custom_skill(self, skill_id: str) -> bool:
         """Delete a custom skill. Returns True if found and deleted."""
         self.delete_skill_secrets(skill_id)
+        self.delete_skill_scripts(skill_id)
         result = self.execute("DELETE FROM custom_skills WHERE id = ?", (skill_id,))
         return result.rowcount > 0
 
@@ -1667,3 +1679,29 @@ class DB:
         """Delete all secrets for a skill (cleanup on skill delete)."""
         prefix = f"skill_secret:{skill_id}:%"
         self.execute("DELETE FROM user_settings WHERE key LIKE ?", (prefix,))
+
+    # --- Skill Scripts Methods ---
+
+    def save_skill_script(self, skill_id: str, filename: str, content: str) -> None:
+        """Save or update a script for a skill (upsert)."""
+        self.execute(
+            """
+            INSERT INTO skill_scripts (skill_id, filename, content, created_at, updated_at)
+            VALUES (?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+            ON CONFLICT(skill_id, filename) DO UPDATE SET
+                content = excluded.content,
+                updated_at = CURRENT_TIMESTAMP
+            """,
+            (skill_id, filename, content)
+        )
+
+    def get_skill_scripts(self, skill_id: str) -> List[Dict[str, Any]]:
+        """Get all scripts for a skill. Returns [{filename, content}]."""
+        return self.fetchall(
+            "SELECT filename, content FROM skill_scripts WHERE skill_id = ?",
+            (skill_id,)
+        )
+
+    def delete_skill_scripts(self, skill_id: str) -> None:
+        """Delete all scripts for a skill (cleanup on skill delete)."""
+        self.execute("DELETE FROM skill_scripts WHERE skill_id = ?", (skill_id,))
