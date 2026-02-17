@@ -340,7 +340,6 @@ class Agent:
             if routing_decision.depth > 0:
                 ack_messages = {
                     1: "Working on this for you...",
-                    2: "This is a complex task. Let me think through it carefully..."
                 }
                 self.db.add_job_activity(
                     job_id,
@@ -365,7 +364,6 @@ class Agent:
         depth_tags = {
             0: ["depth:direct", "task:simple"],
             1: ["depth:standard", "task:multi-step"],
-            2: ["depth:complex", "task:large-scope"],
         }
         thinking_tag = f"thinking:{'enabled' if thinking_budget else 'disabled'}"
         model_tag = f"model:{self.llm.model}" if self.llm else "model:unknown"
@@ -1481,10 +1479,7 @@ Your next message should include text for the user, not just tool calls."""
         """Return thinking budget tokens based on task complexity (Anthropic)."""
         if depth == 0:
             return None  # no extended thinking
-        elif depth == 1:
-            return 5000  # standard thinking
-        else:  # depth == 2
-            return 15000  # deep thinking for complex tasks
+        return 5000  # all non-simple tasks get standard thinking
 
     def _get_reasoning_effort(self, depth: int) -> Optional[str]:
         """Return reasoning effort level based on task complexity (OpenAI GPT-5.2+).
@@ -1492,14 +1487,10 @@ Your next message should include text for the user, not just tool calls."""
         Mapping:
         - depth 0: "none" (no reasoning, fastest)
         - depth 1: "medium" (standard reasoning)
-        - depth 2: "high" (deep reasoning for complex tasks)
         """
         if depth == 0:
             return "none"
-        elif depth == 1:
-            return "medium"
-        else:  # depth == 2
-            return "high"
+        return "medium"  # all non-simple tasks get standard reasoning
 
     def _call_llm(
         self,

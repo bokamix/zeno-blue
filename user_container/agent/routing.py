@@ -1,10 +1,9 @@
 """
 Routing Agent - analyzes user intent and decides execution strategy.
 
-Classifies requests into three depth levels:
+Classifies requests into two depth levels:
 - 0 (direct): Simple questions, quick answers
 - 1 (standard): Multi-step tasks, sequential execution with planning
-- 2 (complex): Very complex tasks requiring deep analysis (extended thinking)
 """
 
 from dataclasses import dataclass
@@ -19,15 +18,14 @@ ROUTING_PROMPT = """Analyze this user request and classify its complexity.
 
 ## DEPTH LEVELS:
 - 0: Simple/conversational - quick answers, reading files, basic info
-- 1: Standard tasks - create/modify files, multi-step work, requires planning
-- 2: Complex projects - large scope, multiple deliverables, deep analysis
+- 1: Standard tasks - anything requiring tools, multi-step work, analysis, creation
 
 User request: {user_message}
 
 Recent context:
 {recent_context}
 
-Respond with a single digit: 0, 1, or 2"""
+Respond with a single digit: 0 or 1"""
 
 
 @dataclass
@@ -37,21 +35,20 @@ class RoutingDecision:
     Depth determines execution complexity and token budget:
     - 0: Quick responses (8k token budget)
     - 1: Standard tasks (15k token budget)
-    - 2: Complex projects (30k token budget)
     """
-    depth: Literal[0, 1, 2]
+    depth: Literal[0, 1]
     reasoning: str
 
     @classmethod
     def parse(cls, response: str) -> "RoutingDecision":
-        """Parse response (single digit 0/1/2) into RoutingDecision."""
+        """Parse response (single digit 0/1) into RoutingDecision."""
         try:
             clean = response.strip()
 
-            # Find depth digit (0, 1, or 2)
+            # Find depth digit (0 or 1)
             depth = 1  # default
             for char in clean:
-                if char in "012":
+                if char in "01":
                     depth = int(char)
                     break
 

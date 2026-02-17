@@ -90,7 +90,7 @@ class SkillLoader:
                 skill_id = row["id"]
                 if skill_id not in seen:
                     skills.append({
-                        "name": row["name"],
+                        "name": skill_id,
                         "description": row.get("description") or ""
                     })
                     seen.add(skill_id)
