@@ -21,7 +21,13 @@ MANAGE_SKILL_SCHEMA = ToolSchema(
     name="manage_skill",
     description="""Create, update, delete, or list custom skills (reusable workflows).
 
-Use when user asks to create a skill, learn something, or remember a workflow.
+Use ONLY when you have a confirmed plan and the user has explicitly agreed to create/update/delete a skill.
+Do NOT call this tool to answer questions about skills — just respond in text.
+
+Before calling action="create", you MUST have already:
+1. Discussed the approach with the user (APIs, auth method, scope)
+2. Presented a concrete plan
+3. Received explicit user confirmation to proceed
 
 Actions:
 - "create": Register a new skill in DB. Returns scripts_path — write Python scripts there using write_file.
