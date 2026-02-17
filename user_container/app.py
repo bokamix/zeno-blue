@@ -2293,15 +2293,23 @@ async def delete_zeno_api_key(key_id: str):
 async def list_custom_skills():
     """List all custom skills."""
     rows = db.get_custom_skills()
-    return [
-        {
+    result = []
+    for r in rows:
+        entry = {
             "id": r["id"],
             "name": r["name"],
             "description": r.get("description") or "",
             "instructions": r["instructions"],
+            "required_secrets": [],
         }
-        for r in rows
-    ]
+        req_secrets_raw = r.get("required_secrets")
+        if req_secrets_raw:
+            try:
+                entry["required_secrets"] = json.loads(req_secrets_raw)
+            except (json.JSONDecodeError, TypeError):
+                pass
+        result.append(entry)
+    return result
 
 
 @app.post("/custom-skills")
@@ -2310,14 +2318,18 @@ async def create_custom_skill(payload: dict):
     name = (payload.get("name") or "").strip()
     description = (payload.get("description") or "").strip()
     instructions = (payload.get("instructions") or "").strip()
+    required_secrets = payload.get("required_secrets")
 
     if not name:
         raise HTTPException(status_code=400, detail="Skill name is required")
     if not instructions:
         raise HTTPException(status_code=400, detail="Skill instructions are required")
 
+    # Serialize required_secrets list to JSON string for DB
+    secrets_json = json.dumps(required_secrets) if required_secrets else None
+
     skill_id = uuid.uuid4().hex[:12]
-    db.create_custom_skill(skill_id, name, description, instructions)
+    db.create_custom_skill(skill_id, name, description, instructions, secrets_json)
     skill_loader.clear_cache(skill_id)
     log(f"[CustomSkills] Created skill '{skill_id}'")
 
@@ -2330,13 +2342,21 @@ async def update_custom_skill(skill_id: str, payload: dict):
     name = (payload.get("name") or "").strip()
     description = (payload.get("description") or "").strip()
     instructions = (payload.get("instructions") or "").strip()
+    required_secrets = payload.get("required_secrets")
 
     if not name:
         raise HTTPException(status_code=400, detail="Skill name is required")
     if not instructions:
         raise HTTPException(status_code=400, detail="Skill instructions are required")
 
-    if not db.update_custom_skill(skill_id, name, description, instructions):
+    # Serialize required_secrets list to JSON string for DB (keep existing if not provided)
+    if required_secrets is not None:
+        secrets_json = json.dumps(required_secrets) if required_secrets else None
+    else:
+        existing = db.get_custom_skill(skill_id)
+        secrets_json = existing.get("required_secrets") if existing else None
+
+    if not db.update_custom_skill(skill_id, name, description, instructions, secrets_json):
         raise HTTPException(status_code=404, detail=f"Skill '{skill_id}' not found")
 
     skill_loader.clear_cache(skill_id)
@@ -2354,6 +2374,69 @@ async def delete_custom_skill(skill_id: str):
     skill_loader.clear_cache(skill_id)
     log(f"[CustomSkills] Deleted skill '{skill_id}'")
 
+    return {"status": "ok"}
+
+
+# --- Skill Secrets ---
+
+@app.get("/custom-skills/{skill_id}/secrets")
+async def get_skill_secrets(skill_id: str):
+    """Get secret status for a skill. Never returns actual values."""
+    skill = db.get_custom_skill(skill_id)
+    if not skill:
+        raise HTTPException(status_code=404, detail=f"Skill '{skill_id}' not found")
+
+    # Parse required secrets from skill definition
+    required = []
+    req_raw = skill.get("required_secrets")
+    if req_raw:
+        try:
+            required = json.loads(req_raw)
+        except (json.JSONDecodeError, TypeError):
+            pass
+
+    # Check which are configured (without revealing values)
+    configured = db.get_skill_secrets_status(skill_id)
+
+    return [
+        {"key": name, "is_set": name in configured, "required": True}
+        for name in required
+    ]
+
+
+@app.put("/custom-skills/{skill_id}/secrets")
+async def set_skill_secret(skill_id: str, payload: dict):
+    """Set a secret value for a skill."""
+    skill = db.get_custom_skill(skill_id)
+    if not skill:
+        raise HTTPException(status_code=404, detail=f"Skill '{skill_id}' not found")
+
+    key = (payload.get("key") or "").strip()
+    value = (payload.get("value") or "").strip()
+
+    if not key:
+        raise HTTPException(status_code=400, detail="Secret key is required")
+    if not value:
+        raise HTTPException(status_code=400, detail="Secret value is required")
+
+    db.set_skill_secret(skill_id, key, value)
+    log(f"[CustomSkills] Set secret '{key}' for skill '{skill_id}'")
+
+    return {"status": "ok", "key": key, "is_set": True}
+
+
+@app.delete("/custom-skills/{skill_id}/secrets/{key}")
+async def delete_skill_secret(skill_id: str, key: str):
+    """Delete a single secret for a skill."""
+    skill = db.get_custom_skill(skill_id)
+    if not skill:
+        raise HTTPException(status_code=404, detail=f"Skill '{skill_id}' not found")
+
+    deleted = db.delete_skill_secret(skill_id, key)
+    if not deleted:
+        raise HTTPException(status_code=404, detail=f"Secret '{key}' not found")
+
+    log(f"[CustomSkills] Deleted secret '{key}' for skill '{skill_id}'")
     return {"status": "ok"}
 
 

@@ -328,7 +328,9 @@ When user asks to create a skill ("create a skill for X", "learn how to do Y", "
 2. **Research** — if needed, use `web_search`/`web_fetch` to find API docs, libraries, best practices.
 3. **Create** — call `manage_skill(action="create", name="...", description="Use when ...", instructions="...")`. This registers the skill in DB and returns a `scripts_path`.
 4. **Write scripts** — write working Python scripts to the returned `scripts_path` using `write_file` (use PEP 723 headers for dependencies). Write real, functional code — not stubs or placeholders.
-5. **Confirm** — tell the user the skill is ready. Brief summary of what it can do.
+5. **Confirm** — tell the user the skill is ready and will activate automatically in future conversations.
+   - Do NOT tell user to run scripts with `uv`, `python`, or any commands — skills activate automatically
+   - If the skill needs API keys or secrets, tell user to configure them in Skills settings (the options will appear there automatically)
 
 **Writing good skills:**
 - **Description** (most important): "Use when user asks about X, needs Y, or works with Z." — this is how the router finds the skill

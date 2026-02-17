@@ -52,6 +52,11 @@ Always use this tool to register skills — never create skill files manually.""
             "instructions": {
                 "type": "string",
                 "description": "Detailed markdown workflow instructions (required for create)"
+            },
+            "required_secrets": {
+                "type": ["array", "null"],
+                "items": {"type": "string"},
+                "description": "List of environment variable names the skill needs (e.g., ['GMAIL_APP_PASSWORD']). User configures values in Settings."
             }
         },
         required=["action"]
@@ -109,9 +114,12 @@ def _create_skill(
     skill_loader: "SkillLoader",
     skills_dir: str
 ) -> Dict[str, Any]:
+    import json as json_mod
+
     name = args.get("name")
     description = args.get("description")
     instructions = args.get("instructions")
+    required_secrets = args.get("required_secrets")
 
     if not name:
         return {"status": "error", "error": "Missing required field: name"}
@@ -134,8 +142,11 @@ def _create_skill(
     if existing:
         return {"status": "error", "error": f"Custom skill '{skill_id}' already exists. Use action='update' to modify it."}
 
+    # Serialize required_secrets to JSON string
+    secrets_json = json_mod.dumps(required_secrets) if required_secrets else None
+
     try:
-        db.create_custom_skill(skill_id, name, description, instructions)
+        db.create_custom_skill(skill_id, name, description, instructions, secrets_json)
 
         # Create filesystem directory for scripts
         custom_dir = os.path.join(skills_dir, "_custom", skill_id, "scripts")
@@ -163,6 +174,8 @@ def _update_skill(
     skill_loader: "SkillLoader",
     skills_dir: str
 ) -> Dict[str, Any]:
+    import json as json_mod
+
     skill_id = args.get("skill_id")
     if not skill_id:
         return {"status": "error", "error": "Missing required field: skill_id"}
@@ -176,8 +189,15 @@ def _update_skill(
     description = args.get("description") or existing.get("description", "")
     instructions = args.get("instructions") or existing["instructions"]
 
+    # Handle required_secrets: if provided use it, otherwise keep existing
+    required_secrets = args.get("required_secrets")
+    if required_secrets is not None:
+        secrets_json = json_mod.dumps(required_secrets) if required_secrets else None
+    else:
+        secrets_json = existing.get("required_secrets")
+
     try:
-        db.update_custom_skill(skill_id, name, description, instructions)
+        db.update_custom_skill(skill_id, name, description, instructions, secrets_json)
         skill_loader.clear_cache(skill_id)
 
         return {
@@ -199,6 +219,7 @@ def _delete_skill(
     if not skill_id:
         return {"status": "error", "error": "Missing required field: skill_id"}
 
+    # delete_custom_skill already calls delete_skill_secrets internally
     deleted = db.delete_custom_skill(skill_id)
     if not deleted:
         return {"status": "error", "error": f"Custom skill '{skill_id}' not found."}
@@ -217,6 +238,8 @@ def _delete_skill(
 
 
 def _list_skills(db: "DB") -> Dict[str, Any]:
+    import json as json_mod
+
     try:
         skills = db.get_custom_skills()
         if not skills:
@@ -226,10 +249,21 @@ def _list_skills(db: "DB") -> Dict[str, Any]:
                 "message": "No custom skills found."
             }
 
-        formatted = [
-            {"id": s["id"], "name": s["name"], "description": s.get("description", "")}
-            for s in skills
-        ]
+        formatted = []
+        for s in skills:
+            entry = {"id": s["id"], "name": s["name"], "description": s.get("description", "")}
+            # Parse required_secrets and check configured status
+            req_secrets_raw = s.get("required_secrets")
+            if req_secrets_raw:
+                try:
+                    req_secrets = json_mod.loads(req_secrets_raw)
+                except (json_mod.JSONDecodeError, TypeError):
+                    req_secrets = []
+                if req_secrets:
+                    configured = db.get_skill_secrets_status(s["id"])
+                    entry["required_secrets"] = req_secrets
+                    entry["secrets_configured"] = all(name in configured for name in req_secrets)
+            formatted.append(entry)
 
         return {
             "status": "success",

@@ -220,6 +220,22 @@ def is_clean_skill_command(cmd: str, cwd: str = "") -> bool:
     return resolved.startswith(REAL_SKILLS_PATH)
 
 
+def _extract_skill_id(cmd: str, cwd: str = "") -> str | None:
+    """Extract the custom skill ID from a skill command path.
+
+    Looks for pattern _custom/{skill_id}/scripts/ in the resolved script path.
+    Returns skill_id or None if not a custom skill command.
+    """
+    script_path = extract_script_path(cmd)
+    if not script_path:
+        return None
+    resolved = resolve_script_path(script_path, cwd or settings.workspace_dir)
+    if not resolved:
+        return None
+    match = re.search(r'_custom/([^/]+)/scripts/', resolved)
+    return match.group(1) if match else None
+
+
 def get_env_for_command(cmd: str, cwd: str = "") -> dict:
     """Return appropriate env vars based on command type.
 
@@ -355,18 +371,13 @@ def make_shell_tool(runner: Runner, db: DB):
         is_skill = is_clean_skill_command(cmd_str, cwd)
         demote_to_sandbox = not is_skill
 
-        # DEBUG: log skill detection
-        import logging
-        logging.warning(f"SHELL DEBUG: cmd={cmd_str[:100]}...")
-        logging.warning(f"SHELL DEBUG: is_skill={is_skill}, demote={demote_to_sandbox}")
-        if not is_skill:
-            # Check why it's not a skill
-            has_metachar = SHELL_METACHARACTERS.search(cmd_str)
-            script_path = extract_script_path(cmd_str)
-            logging.warning(f"SHELL DEBUG: has_metachar={has_metachar}, script_path={script_path}")
-            if script_path:
-                resolved = resolve_script_path(script_path, cwd or settings.workspace_dir)
-                logging.warning(f"SHELL DEBUG: resolved={resolved}")
+        # Inject per-skill secrets as env vars when running skill commands
+        if is_skill:
+            skill_id = _extract_skill_id(cmd_str, cwd)
+            if skill_id:
+                secrets = db.get_skill_secrets(skill_id)
+                if secrets:
+                    env = {**env, **secrets}
 
         res = runner.run(cmd=cmd, cwd=cwd, timeout_s=timeout_s, env=env, demote=demote_to_sandbox)
 

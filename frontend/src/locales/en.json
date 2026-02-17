@@ -261,7 +261,15 @@
       "descriptionLabel": "Description",
       "descriptionPlaceholder": "e.g., Summarizes email threads into bullet points",
       "instructionsLabel": "Instructions (Markdown)",
-      "instructionsPlaceholder": "Write detailed instructions for the agent...\n\nYou can use markdown formatting."
+      "instructionsPlaceholder": "Write detailed instructions for the agent...\n\nYou can use markdown formatting.",
+      "secrets": "Secrets",
+      "secretConfigured": "Configured",
+      "secretNotConfigured": "Not configured",
+      "secretPlaceholder": "Enter value...",
+      "secretSave": "Save",
+      "secretSaved": "Saved",
+      "secretRemove": "Remove",
+      "secretsHint": "These environment variables are required by the skill's scripts. Values are stored securely and never shown to the AI."
     },
     "cancelConfirm": {
       "title": "Stop execution?",

@@ -339,10 +339,16 @@ class DB:
                 name TEXT NOT NULL,
                 description TEXT DEFAULT '',
                 instructions TEXT NOT NULL,
+                required_secrets TEXT,
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                 updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
               )
             """)
+            # Migration: add required_secrets column if it doesn't exist
+            try:
+                cur.execute("ALTER TABLE custom_skills ADD COLUMN required_secrets TEXT")
+            except Exception:
+                pass
             conn.commit()
             conn.close()
 
@@ -1605,23 +1611,59 @@ class DB:
         """Get a custom skill by ID."""
         return self.fetchone("SELECT * FROM custom_skills WHERE id = ?", (skill_id,))
 
-    def create_custom_skill(self, skill_id: str, name: str, description: str, instructions: str) -> None:
+    def create_custom_skill(self, skill_id: str, name: str, description: str, instructions: str, required_secrets: str = None) -> None:
         """Create a new custom skill."""
         now = self.now()
         self.execute(
-            "INSERT INTO custom_skills (id, name, description, instructions, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?)",
-            (skill_id, name, description, instructions, now, now)
+            "INSERT INTO custom_skills (id, name, description, instructions, required_secrets, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?)",
+            (skill_id, name, description, instructions, required_secrets, now, now)
         )
 
-    def update_custom_skill(self, skill_id: str, name: str, description: str, instructions: str) -> bool:
+    def update_custom_skill(self, skill_id: str, name: str, description: str, instructions: str, required_secrets: str = None) -> bool:
         """Update an existing custom skill. Returns True if found and updated."""
         result = self.execute(
-            "UPDATE custom_skills SET name = ?, description = ?, instructions = ?, updated_at = ? WHERE id = ?",
-            (name, description, instructions, self.now(), skill_id)
+            "UPDATE custom_skills SET name = ?, description = ?, instructions = ?, required_secrets = ?, updated_at = ? WHERE id = ?",
+            (name, description, instructions, required_secrets, self.now(), skill_id)
         )
         return result.rowcount > 0
 
     def delete_custom_skill(self, skill_id: str) -> bool:
         """Delete a custom skill. Returns True if found and deleted."""
+        self.delete_skill_secrets(skill_id)
         result = self.execute("DELETE FROM custom_skills WHERE id = ?", (skill_id,))
         return result.rowcount > 0
+
+    # --- Skill Secrets Methods ---
+
+    def get_skill_secrets(self, skill_id: str) -> Dict[str, str]:
+        """Get all configured secrets for a skill. Returns {name: value} dict."""
+        prefix = f"skill_secret:{skill_id}:"
+        rows = self.fetchall(
+            "SELECT key, value FROM user_settings WHERE key LIKE ?",
+            (prefix + "%",)
+        )
+        return {row["key"][len(prefix):]: row["value"] for row in rows}
+
+    def get_skill_secrets_status(self, skill_id: str) -> Dict[str, bool]:
+        """Get which secrets are configured for a skill (without revealing values). Returns {name: is_set}."""
+        prefix = f"skill_secret:{skill_id}:"
+        rows = self.fetchall(
+            "SELECT key FROM user_settings WHERE key LIKE ?",
+            (prefix + "%",)
+        )
+        return {row["key"][len(prefix):]: True for row in rows}
+
+    def set_skill_secret(self, skill_id: str, key: str, value: str) -> None:
+        """Store a secret value for a skill."""
+        setting_key = f"skill_secret:{skill_id}:{key}"
+        self.set_setting(setting_key, value)
+
+    def delete_skill_secret(self, skill_id: str, key: str) -> bool:
+        """Delete a single secret for a skill."""
+        setting_key = f"skill_secret:{skill_id}:{key}"
+        return self.delete_setting(setting_key)
+
+    def delete_skill_secrets(self, skill_id: str) -> None:
+        """Delete all secrets for a skill (cleanup on skill delete)."""
+        prefix = f"skill_secret:{skill_id}:%"
+        self.execute("DELETE FROM user_settings WHERE key LIKE ?", (prefix,))

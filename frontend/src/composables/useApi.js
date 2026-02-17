@@ -412,6 +412,31 @@ export function useApi() {
         return res.json()
     }
 
+    // Skill Secrets
+    const getSkillSecrets = async (skillId) => {
+        const res = await fetchWithTimeout(`${API_BASE}/custom-skills/${encodeURIComponent(skillId)}/secrets`)
+        if (!res.ok) throw new Error('Failed to get skill secrets')
+        return res.json()
+    }
+
+    const setSkillSecret = async (skillId, key, value) => {
+        const res = await fetchWithTimeout(`${API_BASE}/custom-skills/${encodeURIComponent(skillId)}/secrets`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ key, value })
+        })
+        if (!res.ok) throw new Error('Failed to set skill secret')
+        return res.json()
+    }
+
+    const deleteSkillSecret = async (skillId, key) => {
+        const res = await fetchWithTimeout(`${API_BASE}/custom-skills/${encodeURIComponent(skillId)}/secrets/${encodeURIComponent(key)}`, {
+            method: 'DELETE'
+        })
+        if (!res.ok) throw new Error('Failed to delete skill secret')
+        return res.json()
+    }
+
     // Check if server is available (with short timeout for fast offline detection)
     const checkHealth = async (timeout = 2000) => {
         try {
@@ -490,6 +515,9 @@ export function useApi() {
         createCustomSkill,
         updateCustomSkill,
         deleteCustomSkill,
+        getSkillSecrets,
+        setSkillSecret,
+        deleteSkillSecret,
         getContextStats,
         compressConversation
     }

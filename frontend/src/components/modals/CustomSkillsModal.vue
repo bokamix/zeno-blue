@@ -138,6 +138,63 @@
                                     </div>
                                 </div>
                             </div>
+                            <!-- Secrets Section -->
+                            <div v-if="skill.required_secrets && skill.required_secrets.length > 0" class="mt-3 pt-3 border-t border-white/5">
+                                <div class="flex items-center gap-1.5 mb-2">
+                                    <KeyRound class="w-3 h-3 text-zinc-500" />
+                                    <span class="text-[10px] font-medium text-zinc-500 uppercase tracking-wider">{{ $t('modals.customSkills.secrets') }}</span>
+                                </div>
+                                <p class="text-[10px] text-zinc-600 mb-2">{{ $t('modals.customSkills.secretsHint') }}</p>
+                                <div class="space-y-2">
+                                    <div v-for="secretName in skill.required_secrets" :key="secretName" class="flex items-center gap-2">
+                                        <div class="flex-1 min-w-0">
+                                            <div class="flex items-center gap-2">
+                                                <code class="text-[11px] text-zinc-400 font-mono truncate">{{ secretName }}</code>
+                                                <span
+                                                    v-if="getSecretStatus(skill.id, secretName)"
+                                                    class="text-[9px] px-1.5 py-0.5 rounded-full bg-emerald-500/15 text-emerald-400 font-medium"
+                                                >{{ $t('modals.customSkills.secretConfigured') }}</span>
+                                                <span
+                                                    v-else
+                                                    class="text-[9px] px-1.5 py-0.5 rounded-full bg-amber-500/15 text-amber-400 font-medium"
+                                                >{{ $t('modals.customSkills.secretNotConfigured') }}</span>
+                                            </div>
+                                        </div>
+                                        <div class="flex items-center gap-1.5 flex-shrink-0">
+                                            <input
+                                                v-if="editingSecret === `${skill.id}:${secretName}`"
+                                                v-model="secretValue"
+                                                type="password"
+                                                :placeholder="$t('modals.customSkills.secretPlaceholder')"
+                                                class="w-36 px-2 py-1 text-[11px] rounded-lg bg-[var(--bg-elevated)] text-[var(--text-primary)] border border-[var(--border-subtle)] outline-none focus:border-amber-500/50"
+                                                @keydown.enter="saveSecret(skill.id, secretName)"
+                                                @keydown.escape="editingSecret = null"
+                                            />
+                                            <button
+                                                v-if="editingSecret === `${skill.id}:${secretName}`"
+                                                @click="saveSecret(skill.id, secretName)"
+                                                :disabled="!secretValue.trim() || savingSecret"
+                                                class="px-2 py-1 text-[10px] rounded-lg font-medium bg-amber-500/20 text-amber-400 hover:bg-amber-500/30 disabled:opacity-50 transition-all"
+                                            >{{ savingSecret ? $t('modals.customSkills.secretSaved') : $t('modals.customSkills.secretSave') }}</button>
+                                            <button
+                                                v-if="editingSecret !== `${skill.id}:${secretName}`"
+                                                @click="startEditSecret(skill.id, secretName)"
+                                                class="px-2 py-1 text-[10px] rounded-lg font-medium bg-white/10 text-zinc-300 hover:bg-white/20 transition-all"
+                                            >{{ getSecretStatus(skill.id, secretName) ? $t('modals.settings.apiKeyChange') : $t('modals.customSkills.secretSave') }}</button>
+                                            <button
+                                                v-if="getSecretStatus(skill.id, secretName) && editingSecret !== `${skill.id}:${secretName}`"
+                                                @click="removeSecret(skill.id, secretName)"
+                                                class="px-2 py-1 text-[10px] rounded-lg font-medium text-zinc-500 hover:text-red-400 hover:bg-red-500/10 transition-all"
+                                            >{{ $t('modals.customSkills.secretRemove') }}</button>
+                                            <button
+                                                v-if="editingSecret === `${skill.id}:${secretName}`"
+                                                @click="editingSecret = null"
+                                                class="px-2 py-1 text-[10px] rounded-lg font-medium bg-white/10 text-zinc-300 hover:bg-white/20 transition-all"
+                                            >{{ $t('common.cancel') }}</button>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -148,7 +205,7 @@
 
 <script setup>
 import { ref, onMounted } from 'vue'
-import { Sparkles, X, Pencil, Trash2 } from 'lucide-vue-next'
+import { Sparkles, X, Pencil, Trash2, KeyRound } from 'lucide-vue-next'
 import { useApi } from '../../composables/useApi'
 
 const emit = defineEmits(['close'])
@@ -165,14 +222,75 @@ const isEditing = ref(false)
 const editingSkillId = ref(null)
 const editForm = ref({ name: '', description: '', instructions: '' })
 
+// Secrets state
+const secretsStatus = ref({}) // { skillId: { secretName: true/false } }
+const editingSecret = ref(null) // "skillId:secretName"
+const secretValue = ref('')
+const savingSecret = ref(false)
+
 const loadSkills = async () => {
     loading.value = true
     try {
         skills.value = await api.getCustomSkills()
+        // Load secrets status for skills that have required_secrets
+        for (const skill of skills.value) {
+            if (skill.required_secrets && skill.required_secrets.length > 0) {
+                await loadSecretStatus(skill.id)
+            }
+        }
     } catch (e) {
         console.error('Failed to load custom skills', e)
     } finally {
         loading.value = false
+    }
+}
+
+const loadSecretStatus = async (skillId) => {
+    try {
+        const secrets = await api.getSkillSecrets(skillId)
+        const status = {}
+        for (const s of secrets) {
+            status[s.key] = s.is_set
+        }
+        secretsStatus.value[skillId] = status
+    } catch (e) {
+        console.error('Failed to load secrets status', e)
+    }
+}
+
+const getSecretStatus = (skillId, secretName) => {
+    return secretsStatus.value[skillId]?.[secretName] || false
+}
+
+const startEditSecret = (skillId, secretName) => {
+    editingSecret.value = `${skillId}:${secretName}`
+    secretValue.value = ''
+}
+
+const saveSecret = async (skillId, secretName) => {
+    if (!secretValue.value.trim()) return
+    savingSecret.value = true
+    try {
+        await api.setSkillSecret(skillId, secretName, secretValue.value.trim())
+        if (!secretsStatus.value[skillId]) secretsStatus.value[skillId] = {}
+        secretsStatus.value[skillId][secretName] = true
+        editingSecret.value = null
+        secretValue.value = ''
+    } catch (e) {
+        console.error('Failed to save secret', e)
+    } finally {
+        savingSecret.value = false
+    }
+}
+
+const removeSecret = async (skillId, secretName) => {
+    try {
+        await api.deleteSkillSecret(skillId, secretName)
+        if (secretsStatus.value[skillId]) {
+            secretsStatus.value[skillId][secretName] = false
+        }
+    } catch (e) {
+        console.error('Failed to remove secret', e)
     }
 }
 

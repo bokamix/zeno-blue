@@ -261,7 +261,15 @@
       "descriptionLabel": "Opis",
       "descriptionPlaceholder": "np. Podsumowuje wątki e-mail w punktach",
       "instructionsLabel": "Instrukcje (Markdown)",
-      "instructionsPlaceholder": "Napisz szczegółowe instrukcje dla agenta...\n\nMożesz użyć formatowania markdown."
+      "instructionsPlaceholder": "Napisz szczegółowe instrukcje dla agenta...\n\nMożesz użyć formatowania markdown.",
+      "secrets": "Sekrety",
+      "secretConfigured": "Skonfigurowany",
+      "secretNotConfigured": "Nie skonfigurowany",
+      "secretPlaceholder": "Wpisz wartość...",
+      "secretSave": "Zapisz",
+      "secretSaved": "Zapisano",
+      "secretRemove": "Usuń",
+      "secretsHint": "Te zmienne środowiskowe są wymagane przez skrypty umiejętności. Wartości są bezpiecznie przechowywane i nigdy nie są widoczne dla AI."
     },
     "cancelConfirm": {
       "title": "Zatrzymać wykonanie?",
