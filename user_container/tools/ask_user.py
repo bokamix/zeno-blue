@@ -1,7 +1,9 @@
-"""ask_user tool - Pause execution and ask user for input."""
+"""ask_user tool - Send a question to the user and stop execution.
 
-import json
-import time
+The question is saved as a visible message in chat (rendered as a yellow question bubble).
+The user responds with a normal message, which starts a new agent job.
+"""
+
 from typing import Any, Dict, List, Optional
 
 from user_container.tools.registry import ToolSchema, make_parameters
@@ -11,21 +13,20 @@ from user_container.logger import log
 
 ASK_USER_SCHEMA = ToolSchema(
     name="ask_user",
-    description="""Ask the user a question and wait for their response.
+    description="""Ask the user a question. The question appears in chat as a special message with clickable options.
+
+Execution STOPS after asking — the user responds in their own time, and you continue in the next turn.
 
 Use when you need:
 - Clarification about requirements
-- User preference or choice
-- Confirmation before proceeding
+- User preference or choice between approaches
+- Confirmation before destructive/irreversible actions
 - Missing information that only user can provide
 
-Execution PAUSES until user responds (timeout: 5 minutes).
-
 Example uses:
-- "Which format do you prefer: PDF or DOCX?"
-- "Should I proceed with deleting these files?"
-- "What email address should I use?"
-""",
+- "Which format do you prefer?" with options=["PDF", "DOCX", "Both"]
+- "Should I proceed with deleting these files?" with options=["Yes", "No"]
+- "What email address should I use?" (no options - free-form input)""",
     parameters=make_parameters({
         "question": {
             "type": "string",
@@ -34,14 +35,10 @@ Example uses:
         "options": {
             "type": ["array", "null"],
             "items": {"type": "string"},
-            "description": "Optional list of choices to present (e.g., ['PDF', 'DOCX', 'Both']). If not provided, user can type free-form answer.",
+            "description": "Optional list of choices to present as clickable buttons (e.g., ['PDF', 'DOCX', 'Both']). If not provided, user can type free-form answer.",
         },
-    }),
+    }, required=["question"]),
 )
-
-
-# Timeout for user response (5 minutes)
-ASK_USER_TIMEOUT_SECONDS = 300
 
 
 def make_ask_user_tool(job_id: str, job_queue, db=None):
@@ -50,7 +47,7 @@ def make_ask_user_tool(job_id: str, job_queue, db=None):
 
     Args:
         job_id: The job ID to associate with questions
-        job_queue: JobQueue instance for storing questions and waiting for responses
+        job_queue: JobQueue instance (used for headless mode only)
         db: Database instance for saving messages to conversation history
 
     Returns:
@@ -59,16 +56,15 @@ def make_ask_user_tool(job_id: str, job_queue, db=None):
 
     def ask_user(args: Dict[str, Any]) -> Dict[str, Any]:
         """
-        Ask user a question and wait for response.
+        Send a question to the user as a visible message.
 
         Flow:
         1. Save question as assistant message with metadata type="question"
-        2. Store question in job queue, set job status to 'waiting_for_input'
-        3. Wait for user_response (blocking via threading.Event)
-        4. Save user response as user message
-        5. Return response to agent
+        2. Return signal to stop execution
+        3. User sees question in chat, responds with normal message
+        4. Agent continues in next job with user's answer in history
 
-        Headless mode: auto-respond with ask_user_default without waiting.
+        Headless mode: auto-respond with ask_user_default without stopping.
         """
         question = args.get("question")
         if not question:
@@ -83,7 +79,7 @@ def make_ask_user_tool(job_id: str, job_queue, db=None):
         # Get conversation_id from context
         conversation_id = get_conversation_id()
 
-        # Check headless mode
+        # Check headless mode (scheduled jobs, etc.)
         job_data = job_queue.get_job(job_id)
         is_headless = job_data.get("headless", False) if job_data else False
 
@@ -108,13 +104,12 @@ def make_ask_user_tool(job_id: str, job_queue, db=None):
                 "auto": True,
             }
 
-        # 1. Save question as assistant message (visible in chat history)
+        # Save question as visible assistant message (rendered as yellow question bubble)
         if db and conversation_id:
             question_msg = {
                 "role": "assistant",
                 "content": question
             }
-            # Metadata marks this as a question for special rendering in frontend
             metadata = {
                 "type": "question",
                 "options": options
@@ -122,38 +117,12 @@ def make_ask_user_tool(job_id: str, job_queue, db=None):
             db.save_message_from_dict(conversation_id, question_msg, metadata=metadata)
             log(f"[ask_user] Saved question message to conversation {conversation_id}")
 
-        # 2. Store question and set status to waiting_for_input
-        job_queue.set_question(job_id, question, options)
-
-        # 3. Wait for user response (blocking - runs in worker thread)
-        response = job_queue.wait_for_response_sync(job_id, timeout=ASK_USER_TIMEOUT_SECONDS)
-
-        if response:
-            log(f"[ask_user] Got response: {response}")
-
-            # 4. Save user response as user message (visible in chat history)
-            if db and conversation_id:
-                response_msg = {
-                    "role": "user",
-                    "content": response
-                }
-                # Metadata marks this as answer to question
-                metadata = {"type": "question_response"}
-                db.save_message_from_dict(conversation_id, response_msg, metadata=metadata)
-                log(f"[ask_user] Saved response message to conversation {conversation_id}")
-
-            return {
-                "status": "success",
-                "question": question,
-                "response": response
-            }
-
-        # 5. Timeout - no response
-        log(f"[ask_user] Timeout after {ASK_USER_TIMEOUT_SECONDS}s")
+        # Return immediately - agent loop will detect stop_execution and end the job
         return {
-            "status": "timeout",
+            "status": "sent",
+            "stop_execution": True,
             "question": question,
-            "error": f"User did not respond within {ASK_USER_TIMEOUT_SECONDS // 60} minutes"
+            "message": "Question sent to user. Execution will stop now — user will respond in their next message."
         }
 
     return ask_user

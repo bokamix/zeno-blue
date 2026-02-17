@@ -13,13 +13,14 @@
                 </div>
                 <!-- Options if present -->
                 <div v-if="questionOptions?.length" class="flex flex-wrap gap-2 mt-3 pt-3 border-t border-amber-200 dark:border-amber-700">
-                    <span
+                    <button
                         v-for="option in questionOptions"
                         :key="option"
-                        class="question-option-tag px-3 py-1 text-xs font-medium rounded-full bg-amber-100 dark:bg-amber-800/50 text-amber-700 dark:text-amber-300"
+                        @click="$emit('suggestion-select', option)"
+                        class="question-option-tag px-3 py-1.5 text-xs font-medium rounded-full bg-amber-100 dark:bg-amber-800/50 text-amber-700 dark:text-amber-300 hover:bg-amber-200 dark:hover:bg-amber-700/50 transition-colors cursor-pointer"
                     >
                         {{ option }}
-                    </span>
+                    </button>
                 </div>
             </div>
 

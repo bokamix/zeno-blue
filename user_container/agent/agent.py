@@ -1257,6 +1257,33 @@ Your next message should include text for the user, not just tool calls."""
                 consecutive_truncations = 0
                 just_executed_tools = True  # Mark that we just ran tools
 
+                # Check if any tool signaled stop_execution (e.g., ask_user)
+                should_stop = False
+                for res in results:
+                    try:
+                        res_data = json.loads(res.get("content", "{}"))
+                        if res_data.get("stop_execution"):
+                            should_stop = True
+                            break
+                    except (json.JSONDecodeError, TypeError, AttributeError):
+                        pass
+
+                if should_stop:
+                    log_debug("[Agent] Tool requested stop_execution (ask_user) - ending job")
+                    if job_id:
+                        self.db.add_job_activity(job_id, "ask_user", "Question sent to user, stopping execution")
+                    end_trace(
+                        output="Question sent to user",
+                        status="success",
+                        metadata={"steps": step_count, "stopped_by": "ask_user"},
+                        tags=["status:success", "ask_user:stop"],
+                    )
+                    return {
+                        "status": "success",
+                        "summary": "",
+                        "steps": step_count,
+                    }
+
             elif is_thinking_only:
                 # Thinking-only response - save and continue loop (internal)
                 self._save_message(conversation_id, "assistant", content=content,

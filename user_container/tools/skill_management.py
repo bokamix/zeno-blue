@@ -21,17 +21,15 @@ MANAGE_SKILL_SCHEMA = ToolSchema(
     name="manage_skill",
     description="""Create, update, delete, or list custom skills (reusable workflows).
 
-Use when:
-- User asks: "Remember how to do this", "Create a skill for X", "Learn to do Y"
-- You discover a multi-step workflow the user will likely repeat
+Use when user asks to create a skill, learn something, or remember a workflow.
 
 Actions:
-- "create": Create a new skill (requires name, description, instructions)
+- "create": Register a new skill in DB. Returns scripts_path — write Python scripts there using write_file.
 - "update": Update an existing skill (requires skill_id + fields to change)
 - "delete": Delete a custom skill (requires skill_id)
-- "list": List all custom skills (no params needed)
+- "list": List all custom skills
 
-After creating a skill, you can write Python scripts to its scripts/ directory using write_file.""",
+Always use this tool to register skills — never create skill files manually.""",
     parameters=make_parameters(
         {
             "action": {
