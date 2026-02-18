@@ -626,7 +626,8 @@ class Agent:
             if job_id:
                 tool_info = f", {len(response.get('tool_calls', []))} tools" if has_tool_calls else ""
                 content_preview = (content[:60] + "...") if content and len(content) > 60 else (content or "[no content]")
-                self.db.add_job_activity(job_id, "llm_response", f"{content_preview}{tool_info}")
+                stop_info = f", stop={response.get('stop_reason')}" if response.get("stop_reason") else ""
+                self.db.add_job_activity(job_id, "llm_response", f"{content_preview}{tool_info}{stop_info}")
 
             # Check if this is thinking-only (no tool calls, content is only <thinking>)
             # Also treat as thinking-only if we have extended thinking but no content
@@ -1309,6 +1310,7 @@ Your next message should include text for the user, not just tool calls."""
                     else:
                         # Empty response without prior tools, or truncated - retry
                         consecutive_truncations += 1
+                        just_executed_tools = False  # Reset so retry doesn't hit false "Done."
                         log_debug(f"[Agent] Empty response detected (truncation #{consecutive_truncations}), continuing loop")
 
                         # Prevent infinite truncation loops
@@ -1531,7 +1533,8 @@ Your next message should include text for the user, not just tool calls."""
                 "tool_calls": response.tool_calls,
                 "thinking": response.thinking,  # Extended thinking (Anthropic only)
                 "thinking_signature": response.thinking_signature,  # Required for message history
-                "truncated": response.truncated  # True if response was truncated at max_tokens
+                "truncated": response.truncated,  # True if response was truncated at max_tokens
+                "stop_reason": response.stop_reason,
             }
         except JobCancelledException:
             # Re-raise to be caught by the main loop

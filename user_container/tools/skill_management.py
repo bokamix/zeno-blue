@@ -183,7 +183,7 @@ def _create_skill(
 
 
 def _ensure_scripts_on_disk(skill_id: str, db: "DB", skills_dir: str) -> None:
-    """Sync scripts from DB to disk if missing. Best-effort, silent on errors."""
+    """Sync scripts from DB (source of truth) to disk. Always overwrites."""
     try:
         scripts = db.get_skill_scripts(skill_id)
         if not scripts:
@@ -192,9 +192,8 @@ def _ensure_scripts_on_disk(skill_id: str, db: "DB", skills_dir: str) -> None:
         os.makedirs(scripts_path, exist_ok=True)
         for s in scripts:
             fp = os.path.join(scripts_path, s["filename"])
-            if not os.path.exists(fp):
-                with open(fp, "w", encoding="utf-8") as f:
-                    f.write(s["content"])
+            with open(fp, "w", encoding="utf-8") as f:
+                f.write(s["content"])
     except Exception:
         pass
 

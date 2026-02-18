@@ -160,9 +160,12 @@ class LiteLLMProvider(BaseLLMProvider):
             # Using 16384 buffer to prevent truncation when generating large tool call arguments
             kwargs["max_tokens"] = max(kwargs["max_tokens"], thinking_budget + 16384)
 
-        # OpenAI reasoning effort
+        # Reasoning effort (OpenAI, Gemini, etc.) — reasoning tokens eat into max_tokens
         if reasoning_effort and reasoning_effort != "none":
             kwargs["reasoning_effort"] = reasoning_effort
+            # Increase max_tokens to leave room for output alongside reasoning tokens
+            # Same buffer logic as Anthropic thinking: ensure at least 16K for output
+            kwargs["max_tokens"] = max(kwargs["max_tokens"], 8192 + 16384)
 
         # Retry loop for rate limits and thinking block errors
         thinking_retry_done = False
