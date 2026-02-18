@@ -135,6 +135,9 @@ class SkillLoader:
                 # We inject the absolute path so the model knows where scripts are
                 blocks.append(f"## SKILL: {skill.name.upper()}")
                 blocks.append(f"Location: {skill.path}")
+                blocks.append(f"Scripts: {skill.path}/scripts/")
+                blocks.append(f'Run: shell("uv run {skill.path}/scripts/<script_name>.py [args]")')
+                blocks.append("Credentials: Auto-injected as env vars. Do NOT source .env or pass credentials manually.")
                 secrets_block = self._build_secrets_block(skill)
                 if secrets_block:
                     blocks.append(secrets_block)

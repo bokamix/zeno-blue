@@ -54,12 +54,11 @@ def _setup_process_limits(demote: bool = True):
         file_limit = 500 * 1024 * 1024
         resource.setrlimit(resource.RLIMIT_FSIZE, (file_limit, file_limit))
 
-        # Max 300 child processes (prevents fork bombs)
-        # Note: Must match ulimits.nproc in docker-compose.yml
-        resource.setrlimit(resource.RLIMIT_NPROC, (300, 300))
-
-        # Max 60 seconds CPU time (skip for skills - browser ops can take longer)
+        # Max 60 seconds CPU time, 300 child processes (skip for skills -
+        # browser ops take longer, and on macOS native NPROC counts all user
+        # processes which causes "os error 35" when user has 300+ procs)
         if demote:
+            resource.setrlimit(resource.RLIMIT_NPROC, (300, 300))
             resource.setrlimit(resource.RLIMIT_CPU, (60, 60))
     except (ValueError, OSError):
         # Some limits may not be available on all systems

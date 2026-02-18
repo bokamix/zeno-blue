@@ -305,10 +305,8 @@ Use when you need EXACT details from earlier in the current conversation.
 Skills are specialized capabilities loaded dynamically based on your task.
 
 **Skills location:** `{skills_dir}`
-- Each skill has its own directory: `{skills_dir}/<skill_name>/`
-- Relative paths in skill docs (like `scripts/do_something.py`) resolve to: `{skills_dir}/<skill_name>/scripts/do_something.py`
-
-If skill says "run `uv run transcribe.py <audio_path> [options]`", you run: `uv run {skills_dir}/<skill_name>/scripts/transcribe.py <audio_path> [options]`
+- Each loaded skill shows its `Location:` and `Scripts:` paths — always use those exact paths.
+- If a skill says "run `scripts/do_something.py`", prepend the skill's `Scripts:` path.
 
 **If you see a LOADED SKILLS section below:**
 - These skills are loaded specifically for your current task
@@ -411,22 +409,16 @@ Run with: `shell("bun run script.ts")`
 **Key:** Bun automatically installs any package you `import` - no package.json or `npm install` needed. Just write standard ES module imports and Bun handles the rest.
 
 ## RUNNING SCRIPTS FROM SKILLS
-When running scripts from loaded skills:
-
-**Option 1 - Full path (recommended):**
+Each loaded skill shows its exact paths. Use them:
 ```
-shell("uv run {skills_dir}/<skill_name>/scripts/foo.py arg1 arg2")
+shell("uv run <skill's Scripts path>/<script>.py [args]")
 ```
 
-**Option 2 - Use cwd parameter:**
-```
-shell("uv run scripts/foo.py arg1 arg2", cwd="{skills_dir}/<skill_name>")
-```
-
-**IMPORTANT - Security rules:**
-- Do NOT use `cd ... &&` or any command chaining (|, &&, ;) when running skills
-- Skills must run as a single command to access API credentials
-- Run the skill command alone, then parse the JSON output in the next step
+**CRITICAL rules:**
+- Use the EXACT path from the skill's `Scripts:` field — do NOT construct paths yourself
+- API credentials are AUTO-INJECTED as environment variables — do NOT source .env, do NOT pass credentials manually
+- Do NOT use `bash -c`, `cd && ...`, or any command chaining (|, &&, ;) — this BREAKS credential injection
+- Run ONE command per shell call, then parse the output in the next step
 
 ## PLANNING
 For complex multi-step tasks, create a plan using `<plan>` tags:
