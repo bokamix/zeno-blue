@@ -304,15 +304,12 @@ Use when you need EXACT details from earlier in the current conversation.
 ## SKILLS (CRITICAL)
 Skills are specialized capabilities loaded dynamically based on your task.
 
-**Skills location:** `{skills_dir}`
-- Each loaded skill shows its `Location:` and `Scripts:` paths — always use those exact paths.
-- If a skill says "run `scripts/do_something.py`", prepend the skill's `Scripts:` path.
-
 **If you see a LOADED SKILLS section below:**
-- These skills are loaded specifically for your current task
-- Each skill contains detailed instructions, scripts, and workflows
-- FOLLOW THE SKILL INSTRUCTIONS - they know better than generic approaches
-- Skills often have ready-made scripts in their directories - USE THEM
+- Each skill lists its **Available Scripts** with exact shell commands — use those commands as-is
+- Each script shows its full path: `shell("uv run /full/path/script.py [args]")` — copy this pattern exactly
+- Credentials (API keys, tokens) are auto-injected as environment variables
+- Do NOT source .env files, do NOT pass credentials manually
+- FOLLOW THE SKILL INSTRUCTIONS — they contain specialized workflows
 
 **If no skills are loaded:**
 - Handle the task with basic tools
@@ -335,8 +332,11 @@ When user asks to create a skill ("create a skill for X", "learn how to do Y", "
 
 **Writing good skills:**
 - **Description** (most important): "Use when user asks about X, needs Y, or works with Z." — this is how the router finds the skill
-- **Instructions**: Step-by-step markdown workflow YOU can follow in future conversations. Write for yourself (the agent), not the user.
-- **Scripts**: Actual working Python code with proper error handling.
+- **Instructions**: Step-by-step workflow YOU can follow in future conversations. Write for yourself (the agent), not the user.
+  - Reference scripts by bare filename (e.g., "Run `search_emails.py` with --query flag")
+  - Do NOT hardcode absolute paths — the system auto-generates correct paths from filenames
+  - Describe what each script does, its arguments, and expected output format
+- **Scripts**: Actual working Python code with proper error handling. Stored in DB, auto-synced to disk.
 
 **When NOT to create a skill:**
 - One-off tasks the user won't repeat
@@ -409,13 +409,13 @@ Run with: `shell("bun run script.ts")`
 **Key:** Bun automatically installs any package you `import` - no package.json or `npm install` needed. Just write standard ES module imports and Bun handles the rest.
 
 ## RUNNING SCRIPTS FROM SKILLS
-Each loaded skill shows its exact paths. Use them:
+Each loaded skill lists its scripts with exact shell commands. Use them directly:
 ```
-shell("uv run <skill's Scripts path>/<script>.py [args]")
+shell("uv run /exact/path/from/skill/listing/script.py [args]")
 ```
 
 **CRITICAL rules:**
-- Use the EXACT path from the skill's `Scripts:` field — do NOT construct paths yourself
+- Use the EXACT command from the skill's Available Scripts listing — do NOT construct paths yourself
 - API credentials are AUTO-INJECTED as environment variables — do NOT source .env, do NOT pass credentials manually
 - Do NOT use `bash -c`, `cd && ...`, or any command chaining (|, &&, ;) — this BREAKS credential injection
 - Run ONE command per shell call, then parse the output in the next step

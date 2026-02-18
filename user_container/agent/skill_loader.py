@@ -10,6 +10,8 @@ class Skill:
     description: str
     instructions: str
     path: str
+    skill_id: str = ""
+    is_custom: bool = False
     required_secrets: List[str] = field(default_factory=list)
     secrets_status: Dict[str, bool] = field(default_factory=dict)
 
@@ -43,7 +45,9 @@ class SkillLoader:
                 name=final_name,
                 description=description or f"Skill loaded from {skill_name}",
                 instructions=instructions,
-                path=skill_path
+                path=skill_path,
+                skill_id=skill_name,
+                is_custom=False,
             )
 
             self._skills_cache[skill_name] = skill
@@ -69,6 +73,8 @@ class SkillLoader:
                     description=row.get("description") or "",
                     instructions=row["instructions"],
                     path=os.path.join(self.skills_dir, "_custom", skill_name),
+                    skill_id=skill_name,
+                    is_custom=True,
                     required_secrets=required_secrets,
                     secrets_status=secrets_status,
                 )
@@ -123,30 +129,62 @@ class SkillLoader:
     def get_skill_prompts(self, skill_names: List[str]) -> str:
         """
         Returns combined instructions for the system prompt.
+        Lists concrete scripts with full, copy-pasteable paths.
         """
         if not skill_names:
             return ""
 
-        blocks = ["\n# AVAILABLE SKILLS\n"]
+        blocks = ["\n# LOADED SKILLS\n"]
 
         for name in skill_names:
             try:
                 skill = self.load_skill(name)
-                # We inject the absolute path so the model knows where scripts are
                 blocks.append(f"## SKILL: {skill.name.upper()}")
-                blocks.append(f"Location: {skill.path}")
-                blocks.append(f"Scripts: {skill.path}/scripts/")
-                blocks.append(f'Run: shell("uv run {skill.path}/scripts/<script_name>.py [args]")')
-                blocks.append("Credentials: Auto-injected as env vars. Do NOT source .env or pass credentials manually.")
+
+                # Concrete list of scripts with full paths
+                scripts = self._get_scripts_listing(skill)
+                if scripts:
+                    blocks.append("\n### Available Scripts")
+                    for fname, full_path in scripts:
+                        blocks.append(f'- `{fname}`: `shell("uv run {full_path} [args]")`')
+
+                blocks.append("Credentials: Auto-injected as env vars. Do NOT pass credentials manually.")
                 secrets_block = self._build_secrets_block(skill)
                 if secrets_block:
                     blocks.append(secrets_block)
+                blocks.append("\n### Instructions")
                 blocks.append(skill.instructions)
                 blocks.append("\n" + "-"*30 + "\n")
             except Exception as e:
                 blocks.append(f"!! Error loading skill '{name}': {e}")
 
         return "\n".join(blocks)
+
+    def _get_scripts_listing(self, skill: Skill) -> List[tuple]:
+        """
+        Returns [(filename, full_path), ...] for a skill's scripts.
+        Custom skills: reads from DB (source of truth).
+        Built-in skills: scans filesystem.
+        """
+        scripts = []
+        scripts_dir = os.path.join(skill.path, "scripts")
+
+        if skill.is_custom and self.db:
+            # DB is source of truth for custom skills
+            rows = self.db.get_skill_scripts(skill.skill_id)
+            for row in rows:
+                fname = row["filename"]
+                full_path = os.path.join(scripts_dir, fname)
+                scripts.append((fname, full_path))
+        else:
+            # Filesystem scan for built-in skills
+            if os.path.isdir(scripts_dir):
+                for fname in sorted(os.listdir(scripts_dir)):
+                    if fname.endswith(".py") and not fname.startswith("_"):
+                        full_path = os.path.join(scripts_dir, fname)
+                        scripts.append((fname, full_path))
+
+        return scripts
 
     def _build_secrets_block(self, skill: Skill) -> str:
         """Build a prompt block describing secret/env var status for a skill."""

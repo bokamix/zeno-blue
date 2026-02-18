@@ -243,7 +243,7 @@ UsageTracker.get_instance(db)
 
 runner = Runner()
 supervisor = Supervisor(db=db)
-skill_loader = SkillLoader(db=db)
+skill_loader = SkillLoader(skills_dir=settings.skills_dir, db=db)
 
 # Initialize admin module with db
 admin_module.set_db(db)
