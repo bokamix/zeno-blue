@@ -262,12 +262,20 @@ async def on_startup():
     # Initialize in-process job queue (replaces Redis)
     init_job_queue(db)
 
+    # Clean up orphaned jobs from previous runs (stuck as "running" in SQLite)
+    orphaned = db.fetchall("SELECT id FROM jobs WHERE status = 'running'")
+    if orphaned:
+        count = len(orphaned)
+        db.execute("UPDATE jobs SET status = 'failed', error = 'Orphaned: server restarted', completed_at = ? WHERE status = 'running'", (db.now(),))
+        log(f"[Startup] Cleaned up {count} orphaned running jobs")
+
     # Store event loop reference for thread-safe enqueue from APScheduler
     job_queue = get_job_queue()
     job_queue.set_event_loop(asyncio.get_running_loop())
 
     # Start async worker loop (replaces multiprocessing workers)
     asyncio.create_task(_worker_loop())
+    log("[Startup] Worker loop task created")
 
     # Start job scheduler (A.7)
     scheduler = init_scheduler(db, job_queue)
@@ -290,9 +298,15 @@ async def _worker_loop():
     job_queue = get_job_queue()
     log("[Worker] Async worker loop started")
     while True:
-        job_id = await job_queue.dequeue(timeout=5)
-        if job_id:
-            asyncio.create_task(_execute_job(job_id))
+        try:
+            job_id = await job_queue.dequeue(timeout=5)
+            if job_id:
+                asyncio.create_task(_execute_job(job_id))
+        except Exception as e:
+            import traceback
+            log(f"[Worker] CRITICAL: Worker loop error: {e}")
+            log(f"[Worker] CRITICAL: Traceback: {traceback.format_exc()}")
+            await asyncio.sleep(1)
 
 
 async def _execute_job(job_id: str):
@@ -303,9 +317,12 @@ async def _execute_job(job_id: str):
         log(f"[Worker] Job {job_id} not found in queue")
         return
 
+    conversation_id = job_data.get("conversation_id", "?")
+    message_preview = (job_data.get("message") or "")[:80]
+    log(f"[Worker] Starting job {job_id} conv={conversation_id} msg={message_preview!r}")
+
     job_queue.set_status(job_id, status="running",
                          started_at=datetime.utcnow().isoformat())
-    log(f"[Worker] Processing job {job_id}")
 
     try:
         result = await asyncio.to_thread(
