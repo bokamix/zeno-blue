@@ -6,7 +6,7 @@ set -e
 ZENO_HOME="$HOME/.zeno"
 ZENO_APP="$ZENO_HOME/app"
 ZENO_BIN="$ZENO_HOME/bin"
-TARBALL_URL="https://github.com/bokamix/zeno-blue/releases/download/latest/zeno-release.tar.gz"
+TARBALL_API="https://api.github.com/repos/bokamix/zeno-blue/releases/latest"
 
 # --- Colors ---
 RED='\033[0;31m'
@@ -69,7 +69,13 @@ echo -e "  ${BOLD}Downloading ZENO...${NC}"
 tmpfile=$(mktemp)
 trap 'rm -f "$tmpfile"' EXIT
 
-curl -fsSL "$TARBALL_URL" -o "$tmpfile"
+# Get tarball URL from latest GitHub release (tag varies per build)
+asset_url=$(curl -fsSL "$TARBALL_API" | grep -o '"browser_download_url":\s*"[^"]*zeno-release\.tar\.gz"' | cut -d'"' -f4)
+if [ -z "$asset_url" ]; then
+    echo -e "  ${RED}Failed to find release asset. Check https://github.com/bokamix/zeno-blue/releases${NC}"
+    exit 1
+fi
+curl -fsSL "$asset_url" -o "$tmpfile"
 
 # Remove old app code (user data in ~/.zeno/.env, data/, workspace/ is preserved)
 rm -rf "$ZENO_APP"

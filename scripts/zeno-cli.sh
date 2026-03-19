@@ -21,7 +21,13 @@ case "${1:-}" in
         echo "  Updating ZENO..."
         tmpfile=$(mktemp)
         trap 'rm -f "$tmpfile"' EXIT
-        curl -fsSL "https://github.com/bokamix/zeno-blue/releases/download/latest/zeno-release.tar.gz" -o "$tmpfile"
+        # Get tarball URL from latest GitHub release (tag varies per build)
+        asset_url=$(curl -fsSL "https://api.github.com/repos/bokamix/zeno-blue/releases/latest" | grep -o '"browser_download_url":\s*"[^"]*zeno-release\.tar\.gz"' | cut -d'"' -f4)
+        if [ -z "$asset_url" ]; then
+            echo "  Failed to find release asset URL"
+            exit 1
+        fi
+        curl -fsSL "$asset_url" -o "$tmpfile"
 
         rm -rf "$ZENO_APP"
         mkdir -p "$ZENO_APP"

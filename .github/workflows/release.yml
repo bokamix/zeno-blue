@@ -48,9 +48,11 @@ jobs:
       - name: Upload release
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: latest
-          name: Latest Build
-          body: Automated build from main branch
+          tag_name: build-${{ github.sha }}
+          name: Build ${{ github.sha }}
+          body: |
+            Automated build from main branch
+            Commit: ${{ github.sha }}
           prerelease: false
           make_latest: true
           files: zeno-release.tar.gz

@@ -1,10 +1,13 @@
 """
 Background version checker — polls GitHub releases to detect available updates.
+
+Each push to main creates a new release tagged build-{sha}. This module
+fetches /releases/latest (GitHub's "latest" pointer) and compares the
+release tag's commit hash with the local git hash from .build_info.
 """
 
 import asyncio
 import logging
-from datetime import datetime, timezone
 
 import httpx
 
@@ -12,7 +15,7 @@ from user_container.config import settings
 
 logger = logging.getLogger(__name__)
 
-GITHUB_RELEASE_URL = "https://api.github.com/repos/bokamix/zeno-blue/releases/tags/latest"
+GITHUB_LATEST_URL = "https://api.github.com/repos/bokamix/zeno-blue/releases/latest"
 CHECK_INTERVAL = 3600  # 1 hour
 
 # Module-level state
@@ -30,20 +33,14 @@ def get_update_status() -> dict:
 async def _check_for_update():
     global _can_update, _update_version
 
-    local_build_time = settings.build_time
-    if local_build_time in ("unknown", ""):
-        # Can't compare — no local build time
-        return
-
-    try:
-        local_dt = datetime.fromisoformat(local_build_time.replace("Z", "+00:00"))
-    except (ValueError, TypeError):
+    local_hash = settings.git_hash
+    if local_hash in ("unknown", ""):
         return
 
     try:
         async with httpx.AsyncClient(timeout=15) as client:
             resp = await client.get(
-                GITHUB_RELEASE_URL,
+                GITHUB_LATEST_URL,
                 headers={"Accept": "application/vnd.github+json"},
             )
             if resp.status_code != 200:
@@ -51,17 +48,19 @@ async def _check_for_update():
                 return
 
             data = resp.json()
-            published_at = data.get("published_at")
-            if not published_at:
+            tag = data.get("tag_name", "")
+
+            # Tag format: build-{full_sha}
+            remote_hash = tag.removeprefix("build-")[:7] if tag.startswith("build-") else ""
+
+            if not remote_hash:
+                logger.debug(f"[VersionCheck] Unexpected tag format: {tag}")
                 return
 
-            remote_dt = datetime.fromisoformat(published_at.replace("Z", "+00:00"))
-
-            if remote_dt > local_dt:
-                tag = data.get("tag_name", "latest")
+            if remote_hash != local_hash[:7]:
                 _can_update = True
-                _update_version = tag
-                logger.info(f"[VersionCheck] Update available: {tag} (published {published_at})")
+                _update_version = remote_hash
+                logger.info(f"[VersionCheck] Update available: local={local_hash} remote={remote_hash}")
             else:
                 _can_update = False
                 _update_version = None
