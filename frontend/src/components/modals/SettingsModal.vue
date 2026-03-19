@@ -190,31 +190,79 @@
                             <p class="text-[10px] text-zinc-500">{{ $t('modals.settings.openrouterHelp') }}</p>
 
                             <!-- Main Model -->
-                            <div>
+                            <div class="relative" ref="mainModelDropdownRef">
                                 <label class="text-[10px] text-zinc-500 mb-1 block">{{ $t('modals.settings.mainModel') }}</label>
-                                <select
-                                    v-model="selectedMainModel"
-                                    @change="handleSaveModels"
-                                    :disabled="modelsLoading"
-                                    class="w-full px-3 py-1.5 text-xs rounded-lg bg-[var(--bg-elevated)] text-[var(--text-primary)] border border-[var(--border-subtle)] outline-none cursor-pointer disabled:opacity-50"
+                                <div
+                                    class="w-full px-3 py-1.5 text-xs rounded-lg bg-[var(--bg-elevated)] text-[var(--text-primary)] border border-[var(--border-subtle)] outline-none cursor-pointer disabled:opacity-50 flex items-center justify-between"
+                                    :class="{ 'border-blue-500': mainModelDropdownOpen }"
+                                    @click="mainModelDropdownOpen = !mainModelDropdownOpen; if (mainModelDropdownOpen) { mainModelSearch = ''; nextTick(() => mainModelSearchInput?.focus()) }"
                                 >
-                                    <option v-if="modelsLoading" value="">{{ $t('modals.settings.loadingModels') }}</option>
-                                    <option v-for="m in mainModelOptions" :key="m.id" :value="m.id">{{ m.name }}</option>
-                                </select>
+                                    <span class="truncate">{{ modelsLoading ? $t('modals.settings.loadingModels') : getModelName(selectedMainModel) }}</span>
+                                    <svg class="w-3 h-3 ml-1 flex-shrink-0 text-zinc-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
+                                </div>
+                                <div v-if="mainModelDropdownOpen" class="absolute z-50 mt-1 w-full rounded-lg bg-[var(--bg-elevated)] border border-[var(--border-subtle)] shadow-lg overflow-hidden">
+                                    <div class="p-1.5">
+                                        <input
+                                            ref="mainModelSearchInput"
+                                            v-model="mainModelSearch"
+                                            type="text"
+                                            placeholder="Search models..."
+                                            class="w-full px-2 py-1 text-xs rounded bg-[var(--bg-surface)] text-[var(--text-primary)] border border-[var(--border-subtle)] outline-none placeholder-zinc-500"
+                                        />
+                                    </div>
+                                    <div class="max-h-48 overflow-y-auto">
+                                        <div
+                                            v-for="m in filteredMainModels"
+                                            :key="m.id"
+                                            @click="selectedMainModel = m.id; mainModelDropdownOpen = false; handleSaveModels()"
+                                            class="px-3 py-1.5 text-xs cursor-pointer hover:bg-[var(--bg-surface)] flex items-center gap-2"
+                                            :class="{ 'text-blue-400': m.id === selectedMainModel }"
+                                        >
+                                            <svg v-if="m.id === selectedMainModel" class="w-3 h-3 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"/></svg>
+                                            <span v-else class="w-3 flex-shrink-0"></span>
+                                            <span class="truncate">{{ m.name }}</span>
+                                        </div>
+                                        <div v-if="filteredMainModels.length === 0" class="px-3 py-2 text-xs text-zinc-500">No models found</div>
+                                    </div>
+                                </div>
                             </div>
 
                             <!-- Fast Model -->
-                            <div>
+                            <div class="relative" ref="fastModelDropdownRef">
                                 <label class="text-[10px] text-zinc-500 mb-1 block">{{ $t('modals.settings.fastModel') }}</label>
-                                <select
-                                    v-model="selectedFastModel"
-                                    @change="handleSaveModels"
-                                    :disabled="modelsLoading"
-                                    class="w-full px-3 py-1.5 text-xs rounded-lg bg-[var(--bg-elevated)] text-[var(--text-primary)] border border-[var(--border-subtle)] outline-none cursor-pointer disabled:opacity-50"
+                                <div
+                                    class="w-full px-3 py-1.5 text-xs rounded-lg bg-[var(--bg-elevated)] text-[var(--text-primary)] border border-[var(--border-subtle)] outline-none cursor-pointer disabled:opacity-50 flex items-center justify-between"
+                                    :class="{ 'border-blue-500': fastModelDropdownOpen }"
+                                    @click="fastModelDropdownOpen = !fastModelDropdownOpen; if (fastModelDropdownOpen) { fastModelSearch = ''; nextTick(() => fastModelSearchInput?.focus()) }"
                                 >
-                                    <option v-if="modelsLoading" value="">{{ $t('modals.settings.loadingModels') }}</option>
-                                    <option v-for="m in fastModelOptions" :key="m.id" :value="m.id">{{ m.name }}</option>
-                                </select>
+                                    <span class="truncate">{{ modelsLoading ? $t('modals.settings.loadingModels') : getModelName(selectedFastModel) }}</span>
+                                    <svg class="w-3 h-3 ml-1 flex-shrink-0 text-zinc-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
+                                </div>
+                                <div v-if="fastModelDropdownOpen" class="absolute z-50 mt-1 w-full rounded-lg bg-[var(--bg-elevated)] border border-[var(--border-subtle)] shadow-lg overflow-hidden">
+                                    <div class="p-1.5">
+                                        <input
+                                            ref="fastModelSearchInput"
+                                            v-model="fastModelSearch"
+                                            type="text"
+                                            placeholder="Search models..."
+                                            class="w-full px-2 py-1 text-xs rounded bg-[var(--bg-surface)] text-[var(--text-primary)] border border-[var(--border-subtle)] outline-none placeholder-zinc-500"
+                                        />
+                                    </div>
+                                    <div class="max-h-48 overflow-y-auto">
+                                        <div
+                                            v-for="m in filteredFastModels"
+                                            :key="m.id"
+                                            @click="selectedFastModel = m.id; fastModelDropdownOpen = false; handleSaveModels()"
+                                            class="px-3 py-1.5 text-xs cursor-pointer hover:bg-[var(--bg-surface)] flex items-center gap-2"
+                                            :class="{ 'text-blue-400': m.id === selectedFastModel }"
+                                        >
+                                            <svg v-if="m.id === selectedFastModel" class="w-3 h-3 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"/></svg>
+                                            <span v-else class="w-3 flex-shrink-0"></span>
+                                            <span class="truncate">{{ m.name }}</span>
+                                        </div>
+                                        <div v-if="filteredFastModels.length === 0" class="px-3 py-2 text-xs text-zinc-500">No models found</div>
+                                    </div>
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -392,7 +440,7 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted, inject, watch } from 'vue'
+import { ref, computed, onMounted, onBeforeUnmount, inject, watch, nextTick } from 'vue'
 import { Settings, X, Sun, Moon, PanelLeft, PanelRight, Globe, Volume2, VolumeX, ChevronDown, Cpu, HelpCircle, MessageCircle, KeyRound, Eye, EyeOff, MessageSquare } from 'lucide-vue-next'
 import { useSettingsState } from '../../composables/state'
 
@@ -440,10 +488,25 @@ const {
 } = useSettingsState()
 
 // AI Models state
+const DEFAULT_MODEL = 'anthropic/claude-haiku-4.5'
 const availableModels = ref([])
-const selectedMainModel = ref('')
-const selectedFastModel = ref('')
+const selectedMainModel = ref(DEFAULT_MODEL)
+const selectedFastModel = ref(DEFAULT_MODEL)
 const modelsLoading = ref(false)
+const mainModelSearch = ref('')
+const fastModelSearch = ref('')
+const mainModelDropdownOpen = ref(false)
+const fastModelDropdownOpen = ref(false)
+const mainModelDropdownRef = ref(null)
+const fastModelDropdownRef = ref(null)
+const mainModelSearchInput = ref(null)
+const fastModelSearchInput = ref(null)
+
+const getModelName = (modelId) => {
+    if (!modelId) return 'Select model...'
+    const found = availableModels.value.find(m => m.id === modelId)
+    return found ? found.name : modelId
+}
 
 const loadOpenRouterModels = async () => {
     modelsLoading.value = true
@@ -458,8 +521,8 @@ const loadOpenRouterModels = async () => {
         }
         if (settingsRes.ok) {
             const data = await settingsRes.json()
-            selectedMainModel.value = data.openrouter_model || ''
-            selectedFastModel.value = data.openrouter_cheap_model || ''
+            selectedMainModel.value = data.openrouter_model || DEFAULT_MODEL
+            selectedFastModel.value = data.openrouter_cheap_model || DEFAULT_MODEL
         }
     } catch (e) {
         console.error('Failed to load models', e)
@@ -485,8 +548,30 @@ const fastModelOptions = computed(() => {
     return models
 })
 
+const filteredMainModels = computed(() => {
+    const q = mainModelSearch.value.toLowerCase()
+    if (!q) return mainModelOptions.value
+    return mainModelOptions.value.filter(m => m.name.toLowerCase().includes(q) || m.id.toLowerCase().includes(q))
+})
+
+const filteredFastModels = computed(() => {
+    const q = fastModelSearch.value.toLowerCase()
+    if (!q) return fastModelOptions.value
+    return fastModelOptions.value.filter(m => m.name.toLowerCase().includes(q) || m.id.toLowerCase().includes(q))
+})
+
 const handleSaveModels = async () => {
     await saveOpenRouterModels(selectedMainModel.value, selectedFastModel.value)
+}
+
+// Close dropdowns on outside click
+const handleClickOutside = (e) => {
+    if (mainModelDropdownRef.value && !mainModelDropdownRef.value.contains(e.target)) {
+        mainModelDropdownOpen.value = false
+    }
+    if (fastModelDropdownRef.value && !fastModelDropdownRef.value.contains(e.target)) {
+        fastModelDropdownOpen.value = false
+    }
 }
 
 // Custom instructions state
@@ -627,6 +712,11 @@ watch(customSystemPrompt, (newVal) => {
 
 onMounted(() => {
     loadOpenRouterModels()
+    document.addEventListener('click', handleClickOutside)
+})
+
+onBeforeUnmount(() => {
+    document.removeEventListener('click', handleClickOutside)
 })
 
 </script>
