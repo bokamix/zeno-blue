@@ -22,7 +22,7 @@
                     @click="$emit('open-mobile-nav')"
                     class="md:hidden p-2 text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors"
                 >
-                    <Sparkles class="w-5 h-5" />
+                    <LayoutGrid class="w-5 h-5" />
                 </button>
             </div>
 
@@ -57,7 +57,7 @@
 </template>
 
 <script setup>
-import { Menu, Clock, Settings, Plus, Sparkles } from 'lucide-vue-next'
+import { Menu, Clock, Settings, Plus, Sparkles, LayoutGrid } from 'lucide-vue-next'
 
 defineEmits([
     'toggle-sidebar',
