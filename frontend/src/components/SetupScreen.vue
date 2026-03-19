@@ -8,6 +8,16 @@
 
             <div class="bg-[var(--bg-elevated)] rounded-2xl p-6 border border-[var(--border-subtle)]">
                 <div class="space-y-4">
+                    <!-- OpenRouter Info -->
+                    <div class="bg-[var(--bg-surface)] rounded-xl p-4 border border-[var(--border-subtle)]">
+                        <p class="text-sm text-[var(--text-secondary)] mb-2">{{ $t('setup.openrouterDesc') }}</p>
+                        <ol class="text-xs text-[var(--text-muted)] space-y-1 list-decimal list-inside">
+                            <li>{{ $t('setup.openrouterStep1') }}</li>
+                            <li>{{ $t('setup.openrouterStep2') }}</li>
+                            <li>{{ $t('setup.openrouterStep3') }}</li>
+                        </ol>
+                    </div>
+
                     <!-- API Key Input -->
                     <div>
                         <label class="block text-sm font-medium text-[var(--text-secondary)] mb-2">
@@ -20,7 +30,9 @@
                             class="w-full px-4 py-3 rounded-xl bg-[var(--bg-surface)] border border-[var(--border-subtle)] text-[var(--text-primary)] placeholder-[var(--text-muted)] focus:outline-none focus:border-blue-500/50 transition-colors"
                             @keydown.enter="submitSetup"
                         />
-                        <p class="text-xs text-[var(--text-muted)] mt-1">{{ $t('setup.openrouterHint') }}</p>
+                        <p class="text-xs text-[var(--text-muted)] mt-1">
+                            <a href="https://openrouter.ai/keys" target="_blank" rel="noopener" class="text-blue-400 hover:text-blue-300 underline">{{ $t('setup.openrouterLink') }}</a>
+                        </p>
                     </div>
 
                     <!-- Access Password (optional) -->

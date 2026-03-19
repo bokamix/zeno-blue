@@ -2,7 +2,11 @@
   "setup": {
     "subtitle": "Skonfiguruj agenta AI, aby rozpocząć",
     "apiKey": "Klucz API",
-    "openrouterHint": "Pobierz klucz API z openrouter.ai",
+    "openrouterDesc": "ZENO korzysta z OpenRouter, aby mieć dostęp do modeli AI (GPT-4o, Claude, Gemini i wiele innych). OpenRouter to uniwersalna bramka API — płacisz tylko za użycie, bez abonamentów.",
+    "openrouterStep1": "Załóż darmowe konto na openrouter.ai",
+    "openrouterStep2": "Doładuj konto (wystarczy $5 na start)",
+    "openrouterStep3": "Wygeneruj klucz API i wklej go poniżej",
+    "openrouterLink": "Pobierz klucz API na openrouter.ai/keys →",
     "accessPassword": "Hasło dostępu",
     "accessPasswordPlaceholder": "Ustaw hasło do ochrony instancji ZENO",
     "accessPasswordConfirm": "Potwierdź hasło",
