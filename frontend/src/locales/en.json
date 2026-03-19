@@ -243,6 +243,7 @@
       "apiKeyChange": "Change",
       "apiKeySave": "Save",
       "apiKeySaved": "Key saved",
+      "apiKeyDeleted": "Key removed",
       "apiKeyError": "Failed to save key",
       "openrouterApiKey": "OpenRouter API Key",
       "serperApiKey": "Serper API Key (Web Search)",

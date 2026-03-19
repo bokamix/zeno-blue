@@ -138,7 +138,7 @@ def _ensure_venv():
 def _ensure_python_deps():
     """Install Python deps if missing."""
     try:
-        import uvicorn, fastapi, anthropic, litellm  # noqa: F401,E401
+        import uvicorn, fastapi, anthropic, litellm, duckduckgo_search  # noqa: F401,E401
     except ImportError:
         print("📦 Installing Python dependencies...")
         subprocess.check_call(["uv", "pip", "install", "-r", str(ROOT / "requirements.txt"), "-q"])

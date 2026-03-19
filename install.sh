@@ -6,7 +6,7 @@ set -e
 ZENO_HOME="$HOME/.zeno"
 ZENO_APP="$ZENO_HOME/app"
 ZENO_BIN="$ZENO_HOME/bin"
-TARBALL_URL="https://github.com/bokamix/zeno-blue/archive/refs/heads/main.tar.gz"
+TARBALL_URL="https://github.com/bokamix/zeno-blue/releases/download/latest/zeno-release.tar.gz"
 
 # --- Colors ---
 RED='\033[0;31m'
@@ -61,19 +61,6 @@ else
     echo -e "  uv:      ${GREEN}$(uv --version)${NC}"
 fi
 
-# --- Check Node.js/npm ---
-if command -v npm &>/dev/null; then
-    NODE_VERSION=$(node --version 2>/dev/null || echo "unknown")
-    echo -e "  Node.js: ${GREEN}$NODE_VERSION${NC}"
-else
-    echo -e "  Node.js: ${YELLOW}not found${NC} (needed for frontend build on first run)"
-    if [ "$OS_NAME" = "macOS" ]; then
-        echo -e "           Install later: ${GREEN}brew install node${NC}"
-    else
-        echo -e "           Install later: ${GREEN}sudo apt install nodejs npm${NC}"
-    fi
-fi
-
 echo ""
 
 # --- Download and extract ---
@@ -88,7 +75,7 @@ curl -fsSL "$TARBALL_URL" -o "$tmpfile"
 rm -rf "$ZENO_APP"
 mkdir -p "$ZENO_APP"
 
-tar xzf "$tmpfile" --strip-components=1 -C "$ZENO_APP"
+tar xzf "$tmpfile" -C "$ZENO_APP"
 
 echo -e "  Installed to ${GREEN}~/.zeno/app/${NC}"
 
@@ -146,28 +133,11 @@ case "${1:-}" in
         echo "  Updating ZENO..."
         tmpfile=$(mktemp)
         trap 'rm -f "$tmpfile"' EXIT
-        curl -fsSL "https://github.com/bokamix/zeno-blue/archive/refs/heads/main.tar.gz" -o "$tmpfile"
-
-        # Preserve node_modules for faster frontend rebuild
-        if [ -d "$ZENO_APP/frontend/node_modules" ]; then
-            mv "$ZENO_APP/frontend/node_modules" "/tmp/_zeno_node_modules_$$"
-        fi
+        curl -fsSL "https://github.com/bokamix/zeno-blue/releases/download/latest/zeno-release.tar.gz" -o "$tmpfile"
 
         rm -rf "$ZENO_APP"
         mkdir -p "$ZENO_APP"
-        tar xzf "$tmpfile" --strip-components=1 -C "$ZENO_APP"
-
-        # Restore node_modules
-        if [ -d "/tmp/_zeno_node_modules_$$" ]; then
-            mv "/tmp/_zeno_node_modules_$$" "$ZENO_APP/frontend/node_modules"
-        fi
-
-        # Rebuild frontend
-        if command -v npm &>/dev/null && [ -f "$ZENO_APP/frontend/package.json" ]; then
-            echo "  Building frontend..."
-            (cd "$ZENO_APP/frontend" && npm install --silent 2>/dev/null && npm run build --silent 2>/dev/null)
-            echo "  Frontend ready."
-        fi
+        tar xzf "$tmpfile" -C "$ZENO_APP"
 
         echo "  ✅ ZENO updated!"
         echo ""

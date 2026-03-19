@@ -243,6 +243,7 @@
       "apiKeyChange": "Zmień",
       "apiKeySave": "Zapisz",
       "apiKeySaved": "Klucz zapisany",
+      "apiKeyDeleted": "Klucz usunięty",
       "apiKeyError": "Nie udało się zapisać klucza",
       "openrouterApiKey": "Klucz API OpenRouter",
       "serperApiKey": "Klucz Serper API (Wyszukiwarka)",

@@ -1451,6 +1451,8 @@ Your next message should include text for the user, not just tool calls."""
             base = f"{base}{get_planning_injection()}"
             log_debug("[PlannedExecution] Injecting planning prompt")
 
+        base = f"{base}\n\n## CRITICAL REMINDER\nRespond in the SAME LANGUAGE as the user's message. Do not default to English."
+
         return base
 
     def _build_messages(

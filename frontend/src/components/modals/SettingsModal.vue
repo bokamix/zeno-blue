@@ -241,6 +241,7 @@
                     <div v-show="apiKeysExpanded" class="pl-4 pb-3 space-y-2">
                         <!-- Status message -->
                         <p v-if="apiKeySaveStatus === 'success'" class="text-xs text-green-400 mb-1">{{ $t('modals.settings.apiKeySaved') }}</p>
+                        <p v-if="apiKeySaveStatus === 'deleted'" class="text-xs text-green-400 mb-1">{{ $t('modals.settings.apiKeyDeleted') }}</p>
                         <p v-if="apiKeySaveStatus === 'error'" class="text-xs text-red-400 mb-1">{{ $t('modals.settings.apiKeyError') }}</p>
 
                         <div v-for="keyDef in API_KEY_DEFS" :key="keyDef.name" class="py-2">
@@ -267,6 +268,12 @@
                                         @click="startEditKey(keyDef.name)"
                                         class="px-2.5 py-1 text-xs rounded-lg font-medium transition-all bg-white/10 text-zinc-300 hover:bg-white/20">
                                         {{ apiKeys[keyDef.name]?.configured ? $t('modals.settings.apiKeyChange') : $t('modals.settings.apiKeySave') }}
+                                    </button>
+                                    <button v-if="apiKeys[keyDef.name]?.configured && editingKey !== keyDef.name"
+                                        @click="handleDeleteKey(keyDef.name)"
+                                        :disabled="savingKey"
+                                        class="px-2.5 py-1 text-xs rounded-lg font-medium transition-all bg-red-500/10 text-red-400 hover:bg-red-500/20 disabled:opacity-50 disabled:cursor-not-allowed">
+                                        {{ $t('common.delete') }}
                                     </button>
                                 </div>
                             </div>
@@ -533,6 +540,19 @@ const handleSaveKey = async (keyName) => {
         apiKeySaveStatus.value = 'success'
         editingKey.value = null
         editKeyValue.value = ''
+        setTimeout(() => { apiKeySaveStatus.value = null }, 2000)
+    } else {
+        apiKeySaveStatus.value = 'error'
+    }
+}
+
+const handleDeleteKey = async (keyName) => {
+    savingKey.value = true
+    apiKeySaveStatus.value = null
+    const ok = await saveApiKey(keyName, '')
+    savingKey.value = false
+    if (ok) {
+        apiKeySaveStatus.value = 'deleted'
         setTimeout(() => { apiKeySaveStatus.value = null }, 2000)
     } else {
         apiKeySaveStatus.value = 'error'
