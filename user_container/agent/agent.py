@@ -7,8 +7,10 @@ This module provides the main Agent class that:
 3. Supports <thinking> for internal reasoning
 """
 
+import base64
 import hashlib
 import json
+import mimetypes
 import os
 import random
 import re
@@ -543,6 +545,9 @@ class Agent:
 
             # 4. Build messages for LLM (with context header if available)
             messages = self._build_messages(system_prompt, history, context_header)
+
+            # 4.1. Inject images from @mentions in last user message (vision support)
+            messages = self._inject_images_into_last_message(messages)
 
             # 4.5. Inject reflection prompt if needed (depth >= 1, every N steps)
             if should_add_reflection(routing_decision.depth, step_count):
@@ -1477,6 +1482,79 @@ Your next message should include text for the user, not just tool calls."""
         messages.extend(history)
         return messages
 
+    def _inject_images_into_last_message(self, messages: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+        """Inject base64-encoded images into the last user message for vision support.
+
+        Detects @image.ext mentions, loads images from artifacts_dir,
+        and converts the message content to a content array with image_url blocks.
+        Only processes the last user message to avoid token bloat.
+        """
+        # Find last user message (searching from end)
+        last_user_idx = None
+        for i in range(len(messages) - 1, -1, -1):
+            if messages[i].get("role") == "user":
+                last_user_idx = i
+                break
+
+        if last_user_idx is None:
+            return messages
+
+        content = messages[last_user_idx].get("content", "")
+        if not isinstance(content, str):
+            return messages
+
+        # Find all @image mentions
+        image_pattern = r'@(\S+\.(?:png|jpg|jpeg|gif|webp))'
+        matches = re.findall(image_pattern, content, re.IGNORECASE)
+        if not matches:
+            return messages
+
+        artifacts_base = os.path.abspath(settings.artifacts_dir)
+        image_blocks = []
+
+        for filename in matches:
+            # Path traversal protection
+            file_path = os.path.abspath(os.path.join(artifacts_base, filename))
+            if not file_path.startswith(artifacts_base):
+                log_debug(f"[Vision] Blocked path traversal attempt: {filename}")
+                continue
+
+            if not os.path.isfile(file_path):
+                log_debug(f"[Vision] File not found, skipping: {filename}")
+                continue
+
+            # Skip files > 20MB
+            file_size = os.path.getsize(file_path)
+            if file_size > 20 * 1024 * 1024:
+                log_debug(f"[Vision] File too large ({file_size} bytes), skipping: {filename}")
+                continue
+
+            # Determine MIME type
+            mime_type, _ = mimetypes.guess_type(file_path)
+            if not mime_type or not mime_type.startswith("image/"):
+                mime_type = "image/png"  # fallback
+
+            try:
+                with open(file_path, "rb") as f:
+                    image_data = base64.b64encode(f.read()).decode("utf-8")
+                image_blocks.append({
+                    "type": "image_url",
+                    "image_url": {"url": f"data:{mime_type};base64,{image_data}"}
+                })
+                log_debug(f"[Vision] Injected {filename} ({file_size} bytes, {mime_type})")
+            except Exception as e:
+                log_debug(f"[Vision] Failed to read {filename}: {e}")
+
+        if not image_blocks:
+            return messages
+
+        # Convert string content to content array: images first, then text
+        messages[last_user_idx]["content"] = [
+            *image_blocks,
+            {"type": "text", "text": content}
+        ]
+        return messages
+
     def _get_thinking_budget(self, depth: int) -> Optional[int]:
         """Return thinking budget tokens based on task complexity (Anthropic)."""
         if depth == 0:
@@ -1541,7 +1619,20 @@ Your next message should include text for the user, not just tool calls."""
             raise
         except Exception as e:
             log_error(f"LLM Error: {e}")
-            return {"content": f"Error: {e}"}
+            # Extract clean message for user (litellm errors are verbose)
+            err_str = str(e)
+            if "Internal error" in err_str or "INTERNAL" in err_str:
+                clean_msg = "The AI provider returned an internal error. Please try again."
+            elif "rate limit" in err_str.lower() or "429" in err_str:
+                clean_msg = "Rate limit reached. Please wait a moment and try again."
+            elif "authentication" in err_str.lower() or "401" in err_str:
+                clean_msg = "Authentication error with the AI provider. Check your API key."
+            elif "timeout" in err_str.lower():
+                clean_msg = "The request timed out. Please try again."
+            else:
+                # Fallback: first line / first sentence, capped
+                clean_msg = err_str.split("\n")[0][:200]
+            return {"content": f"Error: {clean_msg}"}
 
     def _execute_tool_calls(self, tool_calls: List[Any], job_id: str = None) -> List[Dict[str, Any]]:
         """

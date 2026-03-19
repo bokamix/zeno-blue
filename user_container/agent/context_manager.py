@@ -77,6 +77,15 @@ class ContextManager:
             content = msg.get("content", "")
             if isinstance(content, str):
                 total_chars += len(content)
+            elif isinstance(content, list):
+                # Content array (e.g. vision messages with image_url blocks)
+                for block in content:
+                    if isinstance(block, dict):
+                        if block.get("type") == "text":
+                            total_chars += len(block.get("text", ""))
+                        elif block.get("type") == "image_url":
+                            # ~765 tokens per image (standard estimate)
+                            total_chars += 765 * 4
             # Handle tool calls
             tool_calls = msg.get("tool_calls", [])
             for tc in tool_calls:
