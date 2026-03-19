@@ -34,6 +34,9 @@
                 <button @click="$emit('open-skills')" class="nav-pill-item flex items-center gap-2">
                     <Sparkles class="w-4 h-4" /> {{ $t('nav.skills') }}
                 </button>
+                <a href="https://discord.gg/HQhSaQgN" target="_blank" class="nav-pill-item flex items-center gap-2">
+                    <Lightbulb class="w-4 h-4" /> Use cases
+                </a>
             </nav>
 
             <!-- Right: Settings (desktop) + New Chat -->
@@ -57,7 +60,7 @@
 </template>
 
 <script setup>
-import { Menu, Clock, Settings, Plus, Sparkles, LayoutGrid } from 'lucide-vue-next'
+import { Menu, Clock, Settings, Plus, Sparkles, LayoutGrid, Lightbulb } from 'lucide-vue-next'
 
 defineEmits([
     'toggle-sidebar',
