@@ -59,6 +59,14 @@
                                 </div>
                                 <div class="flex items-center gap-2 flex-shrink-0">
                                     <button
+                                        @click.stop="triggerJob(job.id)"
+                                        class="p-1.5 text-[var(--text-muted)] hover:text-emerald-400 hover:bg-emerald-500/10 rounded-lg transition-all"
+                                        :title="$t('modals.scheduledJobs.runNow')"
+                                        :disabled="triggering"
+                                    >
+                                        <Play class="w-4 h-4" />
+                                    </button>
+                                    <button
                                         @click.stop="toggleJob(job.id, !job.is_enabled)"
                                         :class="job.is_enabled ? 'text-emerald-400 hover:text-emerald-300' : 'text-[var(--text-muted)] hover:text-[var(--text-secondary)]'"
                                         :title="job.is_enabled ? $t('common.disable') : $t('common.enable')"
@@ -111,13 +119,6 @@
                                 >
                                     {{ $t('modals.scheduledJobs.viewDetails') }}
                                 </button>
-                                <button
-                                    @click.stop="triggerJob(job.id)"
-                                    class="px-3 py-1.5 text-sm bg-emerald-500 hover:bg-emerald-600 text-white rounded-lg transition-colors"
-                                    :disabled="triggering"
-                                >
-                                    {{ $t('modals.scheduledJobs.runNow') }}
-                                </button>
                             </div>
                         </div>
                     </div>
@@ -129,7 +130,7 @@
 
 <script setup>
 import { ref, onMounted, onUnmounted } from 'vue'
-import { Clock, X, Trash2, ToggleLeft, ToggleRight, ChevronDown } from 'lucide-vue-next'
+import { Clock, X, Trash2, ToggleLeft, ToggleRight, ChevronDown, Play } from 'lucide-vue-next'
 import { useI18n } from 'vue-i18n'
 
 const emit = defineEmits(['close', 'show-details', 'select-conversation', 'refresh-conversations', 'new-conversation'])

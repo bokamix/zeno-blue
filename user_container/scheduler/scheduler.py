@@ -234,7 +234,7 @@ class JobScheduler:
         job_data = self.db.get_scheduled_job(job_id)
         if not job_data:
             return None
-        return self._trigger_job(job_id)
+        return self._trigger_job(job_id, force=True)
 
     def reload_job(self, job_id: str) -> bool:
         """Reload a single job from database and register with APScheduler."""
@@ -274,7 +274,7 @@ class JobScheduler:
             replace_existing=True
         )
 
-    def _trigger_job(self, scheduled_job_id: str) -> Optional[tuple[str, str]]:
+    def _trigger_job(self, scheduled_job_id: str, force: bool = False) -> Optional[tuple[str, str]]:
         """
         Called when a scheduled job fires.
         Creates a NEW conversation and job, enqueues to in-process queue.
@@ -286,7 +286,7 @@ class JobScheduler:
             log(f"[Scheduler] Scheduled job {scheduled_job_id} not found")
             return None
 
-        if not sj.get("is_enabled"):
+        if not sj.get("is_enabled") and not force:
             log(f"[Scheduler] Scheduled job {scheduled_job_id} is disabled, skipping")
             return None
 
