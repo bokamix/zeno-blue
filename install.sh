@@ -84,30 +84,7 @@ mkdir -p "$ZENO_BIN"
 
 cat > "$ZENO_BIN/zeno" << 'LAUNCHER'
 #!/bin/bash
-ZENO_APP="$HOME/.zeno/app"
-
-case "${1:-}" in
-    update)
-        echo ""
-        echo "  Updating ZENO..."
-        tmpfile=$(mktemp)
-        trap 'rm -f "$tmpfile"' EXIT
-        curl -fsSL "https://github.com/bokamix/zeno-blue/releases/download/latest/zeno-release.tar.gz" -o "$tmpfile"
-
-        rm -rf "$ZENO_APP"
-        mkdir -p "$ZENO_APP"
-        tar xzf "$tmpfile" -C "$ZENO_APP"
-
-        echo "  ✅ ZENO updated!"
-        echo ""
-        ;;
-    serve)
-        exec bash "$ZENO_APP/scripts/serve.sh" "${@:2}"
-        ;;
-    *)
-        exec uv run --python 3.12 "$ZENO_APP/zeno.py" "$@"
-        ;;
-esac
+exec bash "$HOME/.zeno/app/scripts/zeno-cli.sh" "$@"
 LAUNCHER
 
 chmod +x "$ZENO_BIN/zeno"

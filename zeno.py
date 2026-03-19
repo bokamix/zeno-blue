@@ -22,7 +22,21 @@ else:
 VENV_DIR = Path.home() / ".zeno" / "venv"
 
 
+def _migrate_launcher():
+    """Migrate old launcher to thin wrapper that delegates to zeno-cli.sh."""
+    launcher = Path.home() / ".zeno" / "bin" / "zeno"
+    cli_script = Path.home() / ".zeno" / "app" / "scripts" / "zeno-cli.sh"
+    if launcher.exists() and cli_script.exists():
+        content = launcher.read_text()
+        if "zeno-cli.sh" not in content:
+            launcher.write_text(
+                '#!/bin/bash\nexec bash "$HOME/.zeno/app/scripts/zeno-cli.sh" "$@"\n'
+            )
+            launcher.chmod(0o755)
+
+
 def main():
+    _migrate_launcher()
     # In bundled mode, skip venv/deps/frontend - everything is included
     if not BUNDLED:
         _ensure_venv()
