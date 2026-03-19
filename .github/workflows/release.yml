@@ -27,7 +27,8 @@ jobs:
 
       - name: Create release tarball
         run: |
-          tar czf zeno-release.tar.gz \
+          staging=$(mktemp -d)
+          rsync -a \
             --exclude='.git' \
             --exclude='frontend/node_modules' \
             --exclude='frontend/src' \
@@ -37,7 +38,8 @@ jobs:
             --exclude='frontend/postcss.config.*' \
             --exclude='frontend/tailwind.config.*' \
             --exclude='.github' \
-            .
+            ./ "$staging/"
+          tar czf zeno-release.tar.gz -C "$staging" .
 
       - name: Upload release
         uses: softprops/action-gh-release@v2
