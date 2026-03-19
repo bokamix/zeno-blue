@@ -4,11 +4,44 @@ from urllib.parse import urlparse
 from pydantic import BaseModel
 import os
 
+
+def _load_build_info() -> dict:
+    """Read .build_info file (shipped in release tarball) as fallback for env vars."""
+    info = {}
+    for candidate in [
+        os.path.join(os.path.expanduser("~"), ".zeno", "app", ".build_info"),
+        os.path.join(os.path.dirname(os.path.abspath(__file__)), ".build_info"),
+    ]:
+        if os.path.isfile(candidate):
+            try:
+                with open(candidate) as f:
+                    for line in f:
+                        line = line.strip()
+                        if "=" in line:
+                            key, _, value = line.partition("=")
+                            info[key.strip()] = value.strip()
+            except OSError:
+                pass
+            break
+    return info
+
+
+_build_info = _load_build_info()
+
+
+def _bi(env_key: str, default: str) -> str:
+    """Get value from env var, falling back to .build_info, then default."""
+    val = os.getenv(env_key)
+    if val:
+        return val
+    return _build_info.get(env_key, default)
+
+
 class Settings(BaseModel):
     # Build info
-    build_version: str = os.getenv("BUILD_VERSION", "dev")
-    build_time: str = os.getenv("BUILD_TIME", "unknown")
-    git_hash: str = os.getenv("GIT_HASH", "unknown")
+    build_version: str = _bi("BUILD_VERSION", "dev")
+    build_time: str = _bi("BUILD_TIME", "unknown")
+    git_hash: str = _bi("GIT_HASH", "unknown")
 
     # Paths - defaults for native mode (zeno.py overrides these via env vars)
     workspace_dir: str = os.getenv("WORKSPACE_DIR", os.path.join(os.path.expanduser("~"), ".zeno", "workspace"))

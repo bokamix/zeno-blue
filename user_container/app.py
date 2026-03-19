@@ -283,6 +283,10 @@ async def on_startup():
 
     supervisor.start_monitoring()
 
+    # Start background version check (checks GitHub for new releases)
+    from user_container.version_check import start_version_check
+    asyncio.create_task(start_version_check())
+
 
 @app.on_event("shutdown")
 def on_shutdown():
@@ -528,13 +532,19 @@ def get_user_info():
 @app.get("/status")
 def get_status():
     """Get application status."""
+    from user_container.version_check import get_update_status
+
     job_queue = get_job_queue()
     active_jobs = job_queue.get_active_jobs_count()
+    update_info = get_update_status()
 
     return {
         "version": settings.build_version,
         "build_time": settings.build_time,
         "active_jobs": active_jobs,
+        "can_update": update_info["can_update"],
+        "update_version": update_info["update_version"],
+        "update_pending": False,
     }
 
 

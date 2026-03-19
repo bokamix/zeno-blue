@@ -12,16 +12,23 @@
                 {{ t('update.in_progress') }}
             </span>
         </div>
+        <div
+            v-else-if="canUpdate"
+            class="flex items-center justify-center gap-3 px-4 py-2 text-sm font-medium bg-blue-500 text-white flex-shrink-0"
+        >
+            <ArrowUpCircle class="w-4 h-4" />
+            <span>{{ t('update.available') }}</span>
+        </div>
     </Transition>
 </template>
 
 <script setup>
-import { RefreshCw } from 'lucide-vue-next'
+import { RefreshCw, ArrowUpCircle } from 'lucide-vue-next'
 import { useI18n } from 'vue-i18n'
 import { useUpdateStatus } from '../composables/useUpdateStatus'
 
 const { t } = useI18n()
-const { updatePending, activeJobs } = useUpdateStatus()
+const { updatePending, activeJobs, canUpdate } = useUpdateStatus()
 </script>
 
 <style scoped>

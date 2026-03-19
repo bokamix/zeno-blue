@@ -448,7 +448,8 @@
   },
   "update": {
     "pending_with_jobs": "Aktualizacja oczekuje. Zostanie zastosowana po zakończeniu bieżącego zadania ({jobs} aktywne)...",
-    "in_progress": "Aktualizowanie... Proszę czekać."
+    "in_progress": "Aktualizowanie... Proszę czekać.",
+    "available": "Nowa wersja dostępna. Uruchom zeno update, aby zaktualizować."
   },
   "viewer": {
     "showCode": "Pokaż kod",

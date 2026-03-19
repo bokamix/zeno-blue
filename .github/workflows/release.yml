@@ -39,6 +39,10 @@ jobs:
             --exclude='frontend/tailwind.config.*' \
             --exclude='.github' \
             ./ "$staging/"
+          # Bake version info into tarball
+          echo "BUILD_VERSION=$(git describe --tags --always 2>/dev/null || echo 'dev')" > "$staging/.build_info"
+          echo "BUILD_TIME=$(date -u +%Y-%m-%dT%H:%M:%SZ)" >> "$staging/.build_info"
+          echo "GIT_HASH=$(git rev-parse --short HEAD)" >> "$staging/.build_info"
           tar czf zeno-release.tar.gz -C "$staging" .
 
       - name: Upload release
