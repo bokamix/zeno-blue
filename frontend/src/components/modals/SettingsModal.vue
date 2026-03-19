@@ -586,11 +586,7 @@ const copyToClipboard = async (text) => {
 }
 
 const openCrispChat = () => {
-    emit('close')
-    if (window.$crisp) {
-        window.$crisp.push(['do', 'chat:show'])
-        window.$crisp.push(['do', 'chat:open'])
-    }
+    window.open('https://discord.gg/HQhSaQgN', '_blank')
 }
 
 // Dashboard URL - use app subdomain of base domain

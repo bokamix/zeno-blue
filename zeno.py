@@ -64,11 +64,14 @@ def main():
     threading.Timer(1.5, lambda: webbrowser.open(f"http://{host}:{port}")).start()
 
     import uvicorn
+    reload = os.environ.get("ZENO_RELOAD", "").lower() in ("1", "true")
     uvicorn.run(
         "user_container.app:app",
         host=host,
         port=port,
         log_level="info",
+        reload=reload,
+        reload_dirs=[str(ROOT / "user_container")] if reload else None,
     )
 
 
@@ -84,13 +87,24 @@ def _kill_existing(host: str, port: int):
 
     # Port is in use - find and kill the process
     try:
-        out = subprocess.check_output(
-            ["lsof", "-ti", f"tcp:{port}"], text=True
-        ).strip()
-        for pid_str in out.splitlines():
-            pid = int(pid_str)
-            if pid != os.getpid():
-                os.kill(pid, signal.SIGTERM)
+        if sys.platform == "win32":
+            out = subprocess.check_output(
+                ["netstat", "-ano", "-p", "tcp"], text=True
+            )
+            for line in out.splitlines():
+                if f":{port}" in line and "LISTENING" in line:
+                    pid = int(line.strip().split()[-1])
+                    if pid != os.getpid():
+                        subprocess.call(["taskkill", "/F", "/PID", str(pid)],
+                                        stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        else:
+            out = subprocess.check_output(
+                ["lsof", "-ti", f"tcp:{port}"], text=True
+            ).strip()
+            for pid_str in out.splitlines():
+                pid = int(pid_str)
+                if pid != os.getpid():
+                    os.kill(pid, signal.SIGTERM)
         import time
         time.sleep(0.5)
         print(f"   Stopped previous ZENO instance (port {port})")
@@ -105,7 +119,10 @@ def _ensure_venv():
     if sys.prefix != sys.base_prefix:
         return
 
-    venv_python = VENV_DIR / "bin" / "python"
+    if sys.platform == "win32":
+        venv_python = VENV_DIR / "Scripts" / "python.exe"
+    else:
+        venv_python = VENV_DIR / "bin" / "python"
 
     if not venv_python.exists():
         print("📦 Creating virtual environment (~/.zeno/venv)...")
@@ -114,7 +131,8 @@ def _ensure_venv():
         print("   Done.\n")
 
     os.environ["VIRTUAL_ENV"] = str(VENV_DIR)
-    os.execv(str(venv_python), [str(venv_python), str(ROOT / "zeno.py")] + sys.argv[1:])
+    cmd = [str(venv_python), str(ROOT / "zeno.py")] + sys.argv[1:]
+    sys.exit(subprocess.call(cmd))
 
 
 def _ensure_python_deps():

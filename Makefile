@@ -35,8 +35,9 @@ ID ?= $(id)
 logs:
 	@python3 scripts/logs.py $(ID)
 
-# Alias for 'up' (legacy compatibility)
-dev: up
+# Run locally with auto-reload (no .env needed, setup screen in browser)
+dev:
+	ZENO_RELOAD=1 python3 zeno.py
 
 run:
 	docker run --rm -it \
