@@ -14,8 +14,8 @@
                         <Clock class="w-5 h-5 text-cyan-400" />
                     </div>
                     <div>
-                        <h2 class="text-lg font-semibold text-[var(--text-primary)]">{{ job?.name || $t('modals.schedulerDetail.title') }}</h2>
-                        <p v-if="job" class="text-sm text-[var(--text-secondary)]">{{ job.schedule_description }}</p>
+                        <h2 class="text-lg font-semibold text-[var(--text-primary)]">{{ mode === 'create' ? $t('modals.schedulerDetail.createTitle') : (job?.name || $t('modals.schedulerDetail.title')) }}</h2>
+                        <p v-if="mode === 'view' && job" class="text-sm text-[var(--text-secondary)]">{{ job.schedule_description }}</p>
                     </div>
                 </div>
                 <button @click="$emit('close')" class="p-2 rounded-xl text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-surface)] transition-all">
@@ -24,11 +24,156 @@
             </div>
 
             <!-- Loading State -->
-            <div v-if="loading" class="flex-1 flex items-center justify-center">
+            <div v-if="mode === 'view' && loading" class="flex-1 flex items-center justify-center">
                 <div class="animate-spin w-8 h-8 border-2 border-cyan-500 border-t-transparent rounded-full"></div>
             </div>
 
-            <!-- Modal Body -->
+            <!-- Create Mode Body -->
+            <div v-else-if="mode === 'create'" class="flex-1 overflow-y-auto p-6 custom-scroll space-y-6">
+                <!-- Name -->
+                <div>
+                    <label class="text-sm font-medium text-[var(--text-primary)] block mb-2">{{ $t('modals.schedulerDetail.nameLabel') }}</label>
+                    <input
+                        v-model="createName"
+                        type="text"
+                        class="w-full bg-[var(--bg-surface)] border border-[var(--border-subtle)] rounded-lg px-3 py-2 text-sm text-[var(--text-primary)] focus:outline-none focus:border-cyan-500/50"
+                        :placeholder="$t('modals.schedulerDetail.namePlaceholder')"
+                    />
+                </div>
+
+                <!-- Prompt -->
+                <div>
+                    <label class="text-sm font-medium text-[var(--text-primary)] block mb-2">{{ $t('modals.schedulerDetail.whatItDoes') }}</label>
+                    <textarea
+                        v-model="createPrompt"
+                        rows="4"
+                        class="w-full bg-[var(--bg-surface)] border border-[var(--border-subtle)] rounded-lg px-3 py-2 text-sm text-[var(--text-primary)] focus:outline-none focus:border-cyan-500/50 resize-y"
+                        :placeholder="$t('modals.schedulerDetail.promptPlaceholder')"
+                    ></textarea>
+                </div>
+
+                <!-- Schedule Builder -->
+                <div>
+                    <label class="text-sm font-medium text-[var(--text-primary)] block mb-2">{{ $t('modals.schedulerDetail.schedule') }}</label>
+                    <div class="p-3 bg-[var(--bg-elevated)] border border-[var(--border-subtle)] rounded-lg space-y-3">
+                        <!-- Frequency -->
+                        <div>
+                            <label class="text-xs text-[var(--text-secondary)] font-medium block mb-1">{{ $t('modals.schedulerDetail.frequency') }}</label>
+                            <select
+                                v-model="scheduleFrequency"
+                                class="w-full bg-[var(--bg-surface)] border border-[var(--border-subtle)] rounded-lg px-3 py-2 text-sm text-[var(--text-primary)] focus:outline-none focus:border-cyan-500/50"
+                            >
+                                <option value="everyMinutes">{{ $t('modals.schedulerDetail.everyMinutes') }}</option>
+                                <option value="daily">{{ $t('modals.schedulerDetail.daily') }}</option>
+                                <option value="weekly">{{ $t('modals.schedulerDetail.weekly') }}</option>
+                                <option value="monthly">{{ $t('modals.schedulerDetail.monthly') }}</option>
+                                <option value="customDays">{{ $t('modals.schedulerDetail.customDays') }}</option>
+                            </select>
+                        </div>
+
+                        <!-- Interval (for everyMinutes) -->
+                        <div v-if="scheduleFrequency === 'everyMinutes'">
+                            <label class="text-xs text-[var(--text-secondary)] font-medium block mb-1">{{ $t('modals.schedulerDetail.interval') }}</label>
+                            <select
+                                v-model="scheduleInterval"
+                                class="w-full bg-[var(--bg-surface)] border border-[var(--border-subtle)] rounded-lg px-3 py-2 text-sm text-[var(--text-primary)] focus:outline-none focus:border-cyan-500/50"
+                            >
+                                <option v-for="m in [1, 2, 3, 5, 10, 15, 30]" :key="m" :value="m">{{ $t('modals.schedulerDetail.everyXMinutes', { minutes: m }) }}</option>
+                            </select>
+                        </div>
+
+                        <!-- Day of week (for weekly) -->
+                        <div v-if="scheduleFrequency === 'weekly'">
+                            <label class="text-xs text-[var(--text-secondary)] font-medium block mb-1">{{ $t('modals.schedulerDetail.dayOfWeek') }}</label>
+                            <select
+                                v-model="scheduleDayOfWeek"
+                                class="w-full bg-[var(--bg-surface)] border border-[var(--border-subtle)] rounded-lg px-3 py-2 text-sm text-[var(--text-primary)] focus:outline-none focus:border-cyan-500/50"
+                            >
+                                <option value="1">{{ $t('days.monday') }}</option>
+                                <option value="2">{{ $t('days.tuesday') }}</option>
+                                <option value="3">{{ $t('days.wednesday') }}</option>
+                                <option value="4">{{ $t('days.thursday') }}</option>
+                                <option value="5">{{ $t('days.friday') }}</option>
+                                <option value="6">{{ $t('days.saturday') }}</option>
+                                <option value="0">{{ $t('days.sunday') }}</option>
+                            </select>
+                        </div>
+
+                        <!-- Day of month (for monthly) -->
+                        <div v-if="scheduleFrequency === 'monthly'">
+                            <label class="text-xs text-[var(--text-secondary)] font-medium block mb-1">{{ $t('modals.schedulerDetail.dayOfMonth') }}</label>
+                            <select
+                                v-model="scheduleDayOfMonth"
+                                class="w-full bg-[var(--bg-surface)] border border-[var(--border-subtle)] rounded-lg px-3 py-2 text-sm text-[var(--text-primary)] focus:outline-none focus:border-cyan-500/50"
+                            >
+                                <option v-for="d in 28" :key="d" :value="d">{{ d }}</option>
+                            </select>
+                        </div>
+
+                        <!-- Custom days (for customDays) -->
+                        <div v-if="scheduleFrequency === 'customDays'">
+                            <label class="text-xs text-[var(--text-secondary)] font-medium block mb-1">{{ $t('modals.schedulerDetail.selectDays') }}</label>
+                            <div class="flex flex-wrap gap-2">
+                                <label
+                                    v-for="day in weekDays"
+                                    :key="day.value"
+                                    class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg cursor-pointer transition-colors"
+                                    :class="selectedDays.includes(day.value)
+                                        ? 'bg-cyan-500 text-white border border-cyan-500'
+                                        : 'bg-[var(--bg-surface)] text-[var(--text-secondary)] border border-[var(--border-subtle)] hover:bg-[var(--bg-overlay)]'"
+                                >
+                                    <input
+                                        type="checkbox"
+                                        v-model="selectedDays"
+                                        :value="day.value"
+                                        class="sr-only"
+                                    />
+                                    <span class="text-sm">{{ $t(`days.${day.key}`) }}</span>
+                                </label>
+                            </div>
+                        </div>
+
+                        <!-- Time (hidden for everyMinutes) -->
+                        <div v-if="scheduleFrequency !== 'everyMinutes'">
+                            <label class="text-xs text-[var(--text-secondary)] font-medium block mb-1">{{ $t('modals.schedulerDetail.time') }}</label>
+                            <div class="flex items-center gap-2">
+                                <select
+                                    v-model="scheduleHour"
+                                    class="bg-[var(--bg-surface)] border border-[var(--border-subtle)] rounded-lg px-3 py-2 text-sm text-[var(--text-primary)] focus:outline-none focus:border-cyan-500/50"
+                                >
+                                    <option v-for="h in 24" :key="h-1" :value="String(h-1).padStart(2, '0')">{{ String(h-1).padStart(2, '0') }}</option>
+                                </select>
+                                <span class="text-[var(--text-secondary)]">:</span>
+                                <select
+                                    v-model="scheduleMinute"
+                                    class="bg-[var(--bg-surface)] border border-[var(--border-subtle)] rounded-lg px-3 py-2 text-sm text-[var(--text-primary)] focus:outline-none focus:border-cyan-500/50"
+                                >
+                                    <option v-for="m in 60" :key="m-1" :value="String(m-1).padStart(2, '0')">{{ String(m-1).padStart(2, '0') }}</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Create Mode Footer -->
+            <div v-if="mode === 'create'" class="flex items-center justify-end gap-3 p-6 border-t border-[var(--border-subtle)]">
+                <button
+                    @click="$emit('close')"
+                    class="px-4 py-2 text-sm text-[var(--text-primary)] hover:bg-[var(--bg-overlay)] rounded-lg transition-colors"
+                >
+                    {{ $t('common.cancel') }}
+                </button>
+                <button
+                    @click="createScheduler"
+                    :disabled="creating || !createName.trim() || !createPrompt.trim()"
+                    class="px-4 py-2 bg-cyan-500 hover:bg-cyan-600 text-white rounded-lg text-sm transition-colors disabled:opacity-50"
+                >
+                    {{ creating ? $t('common.loading') : $t('modals.schedulerDetail.createButton') }}
+                </button>
+            </div>
+
+            <!-- Modal Body (view mode) -->
             <div v-else-if="job" class="flex-1 overflow-y-auto p-6 custom-scroll space-y-6">
                 <!-- Task Prompt -->
                 <div>
@@ -275,8 +420,8 @@
                 </div>
             </div>
 
-            <!-- Footer Actions -->
-            <div v-if="job" class="flex items-center justify-between p-6 border-t border-[var(--border-subtle)]">
+            <!-- Footer Actions (view mode) -->
+            <div v-if="mode === 'view' && job" class="flex items-center justify-between p-6 border-t border-[var(--border-subtle)]">
                 <button
                     @click="deleteScheduler"
                     class="px-4 py-2 text-sm text-red-400 hover:text-red-300 hover:bg-red-500/10 rounded-lg transition-colors"
@@ -311,11 +456,15 @@ import { useI18n } from 'vue-i18n'
 const props = defineProps({
     schedulerId: {
         type: String,
-        required: true
+        default: null
+    },
+    mode: {
+        type: String,
+        default: 'view' // 'view' | 'create'
     }
 })
 
-const emit = defineEmits(['close', 'select-conversation', 'deleted'])
+const emit = defineEmits(['close', 'select-conversation', 'deleted', 'created'])
 const { t, locale } = useI18n()
 
 const job = ref(null)
@@ -326,6 +475,11 @@ const showEditSchedule = ref(false)
 const showEditPrompt = ref(false)
 const editedPrompt = ref('')
 const savingPrompt = ref(false)
+
+// Create mode
+const createName = ref('')
+const createPrompt = ref('')
+const creating = ref(false)
 
 // Schedule builder form values
 const scheduleFrequency = ref('daily')
@@ -465,6 +619,31 @@ const cronToHumanReadable = (cron) => {
     return cron
 }
 
+const createScheduler = async () => {
+    if (!createName.value.trim() || !createPrompt.value.trim()) return
+    creating.value = true
+    try {
+        const cronExpression = buildCronFromForm()
+        const res = await fetch('/scheduled-jobs', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                name: createName.value.trim(),
+                prompt: createPrompt.value.trim(),
+                cron_expression: cronExpression
+            })
+        })
+        if (res.ok) {
+            emit('created')
+            emit('close')
+        }
+    } catch (e) {
+        console.error('Failed to create scheduler', e)
+    } finally {
+        creating.value = false
+    }
+}
+
 const fetchDetails = async () => {
     loading.value = true
     try {
@@ -563,10 +742,10 @@ const formatDate = (isoString) => {
 }
 
 watch(() => props.schedulerId, () => {
-    fetchDetails()
+    if (props.mode === 'view') fetchDetails()
 })
 
 onMounted(() => {
-    fetchDetails()
+    if (props.mode === 'view') fetchDetails()
 })
 </script>

@@ -150,7 +150,8 @@
       "noPreview": "Brak podglądu",
       "viewDetails": "Szczegóły",
       "runNow": "Uruchom teraz",
-      "scheduledTask": "Zaplanowane zadanie"
+      "scheduledTask": "Zaplanowane zadanie",
+      "createNew": "Utwórz"
     },
     "schedulerDetail": {
       "title": "Szczegóły harmonogramu",
@@ -190,7 +191,11 @@
       "everyWeekday": "Co {day} o {time}",
       "everyWeekdays": "Co {days} o {time}",
       "everyMonthDay": "{day}. dnia miesiąca o {time}",
-      "everyXMinutes": "Co {minutes} minut(y)"
+      "everyXMinutes": "Co {minutes} minut(y)",
+      "createTitle": "Utwórz harmonogram",
+      "nameLabel": "Nazwa",
+      "namePlaceholder": "np. Dzienny raport",
+      "createButton": "Utwórz harmonogram"
     },
     "integrations": {
       "title": "Integracje",

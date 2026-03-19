@@ -15,9 +15,14 @@
                     </div>
                     <h2 class="text-lg font-semibold text-[var(--text-primary)]">{{ $t('modals.scheduledJobs.title') }}</h2>
                 </div>
-                <button @click="$emit('close')" class="p-2 rounded-xl text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-surface)] transition-all">
-                    <X class="w-5 h-5" />
-                </button>
+                <div class="flex items-center gap-1">
+                    <button @click="$emit('create-scheduler')" class="p-2 rounded-xl text-[var(--text-muted)] hover:text-cyan-400 hover:bg-cyan-500/10 transition-all" :title="$t('modals.scheduledJobs.createNew')">
+                        <Plus class="w-5 h-5" />
+                    </button>
+                    <button @click="$emit('close')" class="p-2 rounded-xl text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-surface)] transition-all">
+                        <X class="w-5 h-5" />
+                    </button>
+                </div>
             </div>
 
             <!-- Modal Body -->
@@ -28,6 +33,12 @@
                     </div>
                     <p class="text-[var(--text-secondary)]">{{ $t('modals.scheduledJobs.noJobs') }}</p>
                     <p class="text-sm text-[var(--text-muted)] mt-1">{{ $t('modals.scheduledJobs.askAssistant') }}</p>
+                    <button
+                        @click="$emit('create-scheduler')"
+                        class="mt-4 px-4 py-2 bg-cyan-500 hover:bg-cyan-600 text-white rounded-lg text-sm font-medium transition-colors"
+                    >
+                        {{ $t('modals.scheduledJobs.createNew') }}
+                    </button>
                 </div>
 
                 <div v-else class="space-y-3">
@@ -130,10 +141,10 @@
 
 <script setup>
 import { ref, onMounted, onUnmounted } from 'vue'
-import { Clock, X, Trash2, ToggleLeft, ToggleRight, ChevronDown, Play } from 'lucide-vue-next'
+import { Clock, X, Trash2, ToggleLeft, ToggleRight, ChevronDown, Play, Plus } from 'lucide-vue-next'
 import { useI18n } from 'vue-i18n'
 
-const emit = defineEmits(['close', 'show-details', 'select-conversation', 'refresh-conversations', 'new-conversation'])
+const emit = defineEmits(['close', 'show-details', 'select-conversation', 'refresh-conversations', 'new-conversation', 'create-scheduler'])
 const { t } = useI18n()
 
 const jobs = ref([])

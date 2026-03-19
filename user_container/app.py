@@ -45,7 +45,7 @@ from user_container.observability import flush_langfuse
 from user_container.jobs.job import Job
 from user_container.jobs.queue import init_job_queue, get_job_queue
 from user_container.scheduler.scheduler import init_scheduler, close_scheduler, get_scheduler
-from user_container.scheduler.models import UpdateScheduledJobRequest
+from user_container.scheduler.models import UpdateScheduledJobRequest, CreateScheduledJobFromUIRequest
 from user_container import admin as admin_module
 from user_container.api_v1 import router as api_v1_router
 from user_container.internal_api import skills as internal_skills
@@ -1892,6 +1892,27 @@ async def force_respond_job(job_id: str):
 
 
 # --- Scheduled Jobs Endpoints (A.7) ---
+
+@app.post("/scheduled-jobs")
+async def create_scheduled_job_from_ui(payload: CreateScheduledJobFromUIRequest):
+    """Create a scheduled job from the UI."""
+    from user_container.scheduler.cron_utils import parse_cron, humanize_cron
+
+    if not parse_cron(payload.cron_expression):
+        raise HTTPException(status_code=400, detail=f"Invalid CRON expression: {payload.cron_expression}")
+
+    schedule_description = humanize_cron(payload.cron_expression)
+    scheduler = get_scheduler()
+    job_id = scheduler.add_scheduled_job(
+        conversation_id="ui-created",
+        name=payload.name,
+        prompt=payload.prompt,
+        cron_expression=payload.cron_expression,
+        schedule_description=schedule_description,
+    )
+
+    return {"status": "ok", "job_id": job_id}
+
 
 @app.get("/scheduled-jobs")
 async def list_scheduled_jobs():

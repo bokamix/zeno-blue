@@ -150,7 +150,8 @@
       "noPreview": "No preview available",
       "viewDetails": "View Details",
       "runNow": "Run Now",
-      "scheduledTask": "Scheduled task"
+      "scheduledTask": "Scheduled task",
+      "createNew": "Create"
     },
     "schedulerDetail": {
       "title": "Scheduler Details",
@@ -190,7 +191,11 @@
       "everyWeekday": "Every {day} at {time}",
       "everyWeekdays": "Every {days} at {time}",
       "everyMonthDay": "{day}th of every month at {time}",
-      "everyXMinutes": "Every {minutes} minute(s)"
+      "everyXMinutes": "Every {minutes} minute(s)",
+      "createTitle": "Create Scheduler",
+      "nameLabel": "Name",
+      "namePlaceholder": "e.g. Daily report",
+      "createButton": "Create Scheduler"
     },
     "integrations": {
       "title": "Integrations",

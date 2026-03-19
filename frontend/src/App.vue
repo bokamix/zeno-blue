@@ -93,15 +93,18 @@
             @select-conversation="handleSchedulerConversationSelect"
             @refresh-conversations="refreshConversations"
             @new-conversation="handleNewConversation"
+            @create-scheduler="handleCreateScheduler"
         />
 
         <!-- Scheduler Detail Modal -->
         <SchedulerDetailModal
-            v-if="showSchedulerDetailModal && selectedSchedulerId"
+            v-if="showSchedulerDetailModal && (selectedSchedulerId || schedulerModalMode === 'create')"
             :scheduler-id="selectedSchedulerId"
+            :mode="schedulerModalMode"
             @close="showSchedulerDetailModal = false"
             @select-conversation="handleSchedulerConversationSelect"
             @deleted="refreshConversations"
+            @created="handleSchedulerCreated"
         />
 
         <!-- Custom Skills Modal -->
@@ -380,6 +383,7 @@ const chatViewRef = ref(null)
 // Scheduler detail modal state
 const showSchedulerDetailModal = ref(false)
 const selectedSchedulerId = ref(null)
+const schedulerModalMode = ref('view')
 
 // Create item modal state
 const showCreateModal = ref(false)
@@ -388,8 +392,22 @@ const renameItem = ref(null) // item being renamed
 
 const showSchedulerDetail = (schedulerId) => {
     selectedSchedulerId.value = schedulerId
+    schedulerModalMode.value = 'view'
     showSchedulerDetailModal.value = true
     showScheduledJobsModal.value = false
+}
+
+const handleCreateScheduler = () => {
+    schedulerModalMode.value = 'create'
+    selectedSchedulerId.value = null
+    showSchedulerDetailModal.value = true
+    showScheduledJobsModal.value = false
+}
+
+const handleSchedulerCreated = () => {
+    schedulerModalMode.value = 'view'
+    showSchedulerDetailModal.value = false
+    showScheduledJobsModal.value = true
 }
 
 const handleSchedulerConversationSelect = (convId) => {

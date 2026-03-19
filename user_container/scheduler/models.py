@@ -54,6 +54,14 @@ class CreateScheduledJobRequest(BaseModel):
     schedule_description: str
 
 
+class CreateScheduledJobFromUIRequest(BaseModel):
+    """Request to create a scheduled job from UI."""
+
+    name: str
+    prompt: str
+    cron_expression: str
+
+
 class UpdateScheduledJobRequest(BaseModel):
     """Request to update a scheduled job."""
 
