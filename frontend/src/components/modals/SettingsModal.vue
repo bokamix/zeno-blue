@@ -464,6 +464,34 @@
                     </div>
                 </div>
 
+                <!-- Update Section -->
+                <div class="w-full flex items-center justify-between p-4 rounded-2xl bg-gradient-to-r from-emerald-500/10 to-teal-500/10 border transition-all"
+                    :class="canUpdate ? 'border-emerald-500/30' : 'border-white/5'"
+                >
+                    <div class="flex items-center gap-3">
+                        <div class="p-2 rounded-xl" :class="canUpdate ? 'bg-emerald-500/20' : 'bg-white/5'">
+                            <RefreshCw v-if="updatePending" class="w-5 h-5 text-emerald-400 animate-spin" />
+                            <ArrowUpCircle v-else-if="canUpdate" class="w-5 h-5 text-emerald-400" />
+                            <CheckCircle v-else class="w-5 h-5 text-zinc-500" />
+                        </div>
+                        <div class="text-left">
+                            <span class="text-sm font-medium text-[var(--text-primary)]">{{ $t('modals.settings.appVersion') }}</span>
+                            <p class="text-xs text-zinc-500">
+                                <span v-if="updatePending">{{ $t('update.in_progress') }}</span>
+                                <span v-else-if="canUpdate">{{ $t('update.available') }}</span>
+                                <span v-else>{{ $t('modals.settings.upToDate') }}</span>
+                            </p>
+                        </div>
+                    </div>
+                    <button
+                        v-if="canUpdate && !updatePending"
+                        @click="handleSettingsUpdate"
+                        class="px-4 py-1.5 text-xs rounded-xl font-medium transition-all bg-emerald-500/20 text-emerald-400 hover:bg-emerald-500/30 flex-shrink-0"
+                    >
+                        {{ $t('update.update_now') }}
+                    </button>
+                </div>
+
                 <!-- Help Button -->
                 <button
                     @click="openCrispChat"
@@ -488,10 +516,17 @@
 
 <script setup>
 import { ref, computed, onMounted, onBeforeUnmount, inject, watch, nextTick } from 'vue'
-import { Settings, X, Sun, Moon, PanelLeft, PanelRight, Globe, Volume2, VolumeX, ChevronDown, Cpu, HelpCircle, MessageCircle, KeyRound, Eye, EyeOff, MessageSquare } from 'lucide-vue-next'
+import { Settings, X, Sun, Moon, PanelLeft, PanelRight, Globe, Volume2, VolumeX, ChevronDown, Cpu, HelpCircle, MessageCircle, KeyRound, Eye, EyeOff, MessageSquare, RefreshCw, ArrowUpCircle, CheckCircle } from 'lucide-vue-next'
 import { useSettingsState } from '../../composables/state'
+import { useUpdateStatus } from '../../composables/useUpdateStatus'
 
 const emit = defineEmits(['close'])
+
+const { canUpdate, updatePending, triggerUpdate } = useUpdateStatus()
+
+async function handleSettingsUpdate() {
+    await triggerUpdate()
+}
 
 // Swipe gesture state from parent
 const swipeState = inject('swipeState', {

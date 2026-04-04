@@ -258,7 +258,9 @@
       "zenoApiKeys": "API Keys (External Access)",
       "zenoApiKeysDesc": "Generate API keys to access ZENO from external tools and scripts.",
       "zenoApiKeyGenerate": "Generate New Key",
-      "zenoApiKeyCopyHint": "Copy this key now. It won't be shown again."
+      "zenoApiKeyCopyHint": "Copy this key now. It won't be shown again.",
+      "appVersion": "Application Version",
+      "upToDate": "You're up to date"
     },
     "customSkills": {
       "title": "Custom Skills",
