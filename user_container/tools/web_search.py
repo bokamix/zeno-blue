@@ -69,8 +69,14 @@ def make_web_search_tool(api_key: Optional[str]):
 
         if not api_key:
             return {
-                "status": "error",
-                "error": "Web search requires a Serper API key. Please add your Serper API key in Settings → API Keys."
+                "status": "fatal_error",
+                "error": (
+                    "FATAL: Serper API key is not configured. "
+                    "Web search is permanently disabled until the key is added. "
+                    "DO NOT call web_search again — every call will fail with this same error. "
+                    "STOP immediately and tell the user: "
+                    "'Web search is not available. Please add your Serper API key in Settings → API Keys to enable it.'"
+                )
             }
 
         # Map search type to Serper endpoint

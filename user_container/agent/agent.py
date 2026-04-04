@@ -1827,6 +1827,11 @@ Your next message should include text for the user, not just tool calls."""
                 output = self.tools.call(tool_name, args)
                 result_str = json.dumps(output, default=str)
 
+                # Fatal errors: tool is permanently unavailable, stop retrying immediately
+                if isinstance(output, dict) and output.get("status") == "fatal_error":
+                    result_str = f"⛔ FATAL ERROR — DO NOT CALL THIS TOOL AGAIN:\n{result_str}"
+                    is_error = True
+
                 # Track skill API usage if present in output
                 track_skill_usage(
                     tool_name=tool_name,
