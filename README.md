@@ -4,10 +4,14 @@ Your personal AI agent. Runs locally as a native desktop app - no cloud, no Dock
 
 ## Install
 
-**macOS / Linux**
+**macOS / Linux / VPS**
 ```bash
-curl -fsSL https://raw.githubusercontent.com/bokamix/zeno-blue/main/install.sh | bash
+curl -fsSL https://raw.githubusercontent.com/bokamix/zeno-blue/main/server-install.sh | bash
 ```
+
+Automatically detects the environment:
+- **macOS / WSL** — installs and opens in browser at `localhost`
+- **Linux VPS (systemd)** — installs, sets up HTTPS via Caddy, prints your URL
 
 **Windows**
 ```powershell
@@ -15,7 +19,7 @@ powershell -ExecutionPolicy Bypass -c "irm https://raw.githubusercontent.com/bok
 ```
 
 Then run:
-```bash
+```powershell
 zeno
 ```
 

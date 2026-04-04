@@ -283,6 +283,18 @@ async def on_startup():
 
     supervisor.start_monitoring()
 
+    # Load sensitive settings from DB if not already set via env vars
+    if not settings.openrouter_api_key:
+        stored_key = db.get_setting("openrouter_api_key")
+        if stored_key:
+            settings.openrouter_api_key = stored_key
+            log("[Startup] Loaded OpenRouter API key from DB")
+    if not settings.auth_password:
+        stored_hash = db.get_setting("auth_password_hash")
+        if stored_hash:
+            settings.auth_password = stored_hash
+            log("[Startup] Loaded auth password hash from DB")
+
     # Start background version check (checks GitHub for new releases)
     from user_container.version_check import start_version_check
     asyncio.create_task(start_version_check())
@@ -418,51 +430,28 @@ async def setup_status():
 @app.post("/setup")
 async def setup_config(payload: dict):
     """
-    First-run configuration. Saves OpenRouter API key to local config.
-    Expects: {"api_key": "sk-or-..."}
+    First-run configuration. Saves OpenRouter API key and access password to DB.
+    Expects: {"api_key": "sk-or-...", "password": "..."}
     """
-    api_key = payload.get("api_key", "").strip()
+    import bcrypt
 
+    api_key = payload.get("api_key", "").strip()
     if not api_key:
         raise HTTPException(status_code=400, detail="OpenRouter API key is required")
 
-    # Determine config file path
-    config_dir = Path(os.environ.get("ZENO_CONFIG_DIR", Path.home() / ".zeno"))
-    config_dir.mkdir(parents=True, exist_ok=True)
-    env_path = config_dir / ".env"
-
-    # Write .env file
-    env_lines = []
-    if env_path.exists():
-        with open(env_path) as f:
-            for line in f:
-                stripped = line.strip()
-                if stripped.startswith("OPENROUTER_API_KEY="):
-                    continue
-                env_lines.append(line.rstrip("\n"))
-
-    env_lines.append(f"OPENROUTER_API_KEY={api_key}")
-
-    with open(env_path, "w") as f:
-        f.write("\n".join(env_lines) + "\n")
-
-    # Reload settings in-process
-    settings.openrouter_api_key = api_key
-
-    # Password is required
     password = payload.get("password", "").strip()
     if not password:
         raise HTTPException(status_code=400, detail="Password is required")
 
-    with open(env_path) as f:
-        current_lines = [line.rstrip("\n") for line in f if not line.strip().startswith("ZENO_PASSWORD=")]
-    current_lines.append(f"ZENO_PASSWORD={password}")
-    with open(env_path, "w") as f:
-        f.write("\n".join(current_lines) + "\n")
-    settings.auth_password = password
-    log(f"[Setup] Access password configured")
+    password_hash = bcrypt.hashpw(password.encode(), bcrypt.gensalt()).decode()
 
-    log(f"[Setup] Configured OpenRouter, saved to {env_path}")
+    db.set_setting("openrouter_api_key", api_key)
+    db.set_setting("auth_password_hash", password_hash)
+
+    settings.openrouter_api_key = api_key
+    settings.auth_password = password
+
+    log("[Setup] Configured OpenRouter API key and access password (stored in DB)")
     return {"status": "ok"}
 
 
@@ -479,11 +468,19 @@ async def auth_login(payload: dict):
     """Login with password. Returns httponly session cookie."""
     from user_container.auth import create_session
 
+    import bcrypt
+
     password = payload.get("password", "")
     if not settings.auth_password:
         raise HTTPException(status_code=400, detail="Auth is not enabled")
 
-    if password != settings.auth_password:
+    stored = settings.auth_password.encode()
+    is_bcrypt = stored.startswith(b"$2b$") or stored.startswith(b"$2a$")
+    if is_bcrypt:
+        valid = bcrypt.checkpw(password.encode(), stored)
+    else:
+        valid = password == settings.auth_password  # legacy plaintext fallback
+    if not valid:
         raise HTTPException(status_code=401, detail="Invalid password")
 
     session_id = create_session()
