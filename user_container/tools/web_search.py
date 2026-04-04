@@ -1,5 +1,5 @@
 """
-web_search tool - Search the web using Serper API (Google Search) with DuckDuckGo fallback.
+web_search tool - Search the web using Serper API (Google Search).
 
 Provides search results for research tasks, fact-checking,
 finding current information, etc.
@@ -9,17 +9,12 @@ from typing import Any, Dict, List, Optional
 
 import httpx
 
-try:
-    from duckduckgo_search import DDGS
-except ImportError:
-    DDGS = None
-
 from user_container.tools.registry import ToolSchema, make_parameters
 
 
 WEB_SEARCH_SCHEMA = ToolSchema(
     name="web_search",
-    description="""Search the web using Google (via Serper API), with DuckDuckGo fallback when Serper is not configured.
+    description="""Search the web using Google (via Serper API).
 
 USE FOR:
 - Research tasks requiring current/up-to-date information
@@ -55,7 +50,7 @@ def make_web_search_tool(api_key: Optional[str]):
 
     def web_search(args: Dict[str, Any]) -> Dict[str, Any]:
         """
-        Search the web using Serper API, with DuckDuckGo fallback.
+        Search the web using Serper API.
 
         Args (via dict):
             query: Search query
@@ -73,7 +68,10 @@ def make_web_search_tool(api_key: Optional[str]):
         search_type = args.get("search_type") or "search"
 
         if not api_key:
-            return _search_duckduckgo(query, num_results, search_type)
+            return {
+                "status": "error",
+                "error": "Web search requires a Serper API key. Please add your Serper API key in Settings → API Keys."
+            }
 
         # Map search type to Serper endpoint
         endpoint_map = {
@@ -177,63 +175,3 @@ def _parse_serper_response(data: Dict[str, Any], search_type: str) -> List[Dict[
     return results
 
 
-def _search_duckduckgo(query: str, num_results: int, search_type: str) -> Dict[str, Any]:
-    """Search the web using DuckDuckGo as a fallback."""
-    if DDGS is None:
-        return {
-            "status": "error",
-            "error": "SERPER_API_KEY not configured and duckduckgo-search package is not installed."
-        }
-    try:
-        with DDGS() as ddgs:
-            if search_type == "news":
-                raw = list(ddgs.news(query, max_results=num_results))
-            elif search_type == "images":
-                raw = list(ddgs.images(query, max_results=num_results))
-            else:
-                raw = list(ddgs.text(query, max_results=num_results))
-
-        results = _parse_ddg_results(raw, search_type)
-
-        return {
-            "status": "success",
-            "query": query,
-            "search_type": search_type,
-            "source": "duckduckgo",
-            "results": results,
-            "num_results": len(results),
-        }
-    except Exception as e:
-        return {"status": "error", "query": query, "error": f"DuckDuckGo search failed: {e}"}
-
-
-def _parse_ddg_results(raw: List[Dict[str, Any]], search_type: str) -> List[Dict[str, Any]]:
-    """Normalize DuckDuckGo results to match Serper output format."""
-    results = []
-
-    if search_type == "news":
-        for item in raw:
-            results.append({
-                "title": item.get("title", ""),
-                "link": item.get("url", ""),
-                "snippet": item.get("body", ""),
-                "source": item.get("source", ""),
-                "date": item.get("date", ""),
-            })
-    elif search_type == "images":
-        for item in raw:
-            results.append({
-                "title": item.get("title", ""),
-                "link": item.get("url", ""),
-                "image_url": item.get("image", ""),
-            })
-    else:
-        for i, item in enumerate(raw, 1):
-            results.append({
-                "title": item.get("title", ""),
-                "link": item.get("href", ""),
-                "snippet": item.get("body", ""),
-                "position": i,
-            })
-
-    return results
