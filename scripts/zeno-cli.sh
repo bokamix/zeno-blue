@@ -2,6 +2,20 @@
 ZENO_APP="$HOME/.zeno/app"
 ZENO_LAUNCHER="$HOME/.zeno/bin/zeno"
 
+_current_version() {
+    local build_info="$ZENO_APP/.build_info"
+    if [ -f "$build_info" ]; then
+        grep '^BUILD_VERSION=' "$build_info" | cut -d'=' -f2
+    else
+        echo "dev"
+    fi
+}
+
+_latest_version() {
+    curl -fsSL --max-time 5 "https://api.github.com/repos/bokamix/zeno-blue/releases/latest" \
+        2>/dev/null | grep -o '"tag_name":\s*"[^"]*"' | cut -d'"' -f4
+}
+
 # --- Ensure launcher is the thin wrapper ---
 _ensure_thin_launcher() {
     if [ -f "$ZENO_LAUNCHER" ]; then
@@ -18,10 +32,29 @@ WRAPPER
 case "${1:-}" in
     update)
         echo ""
-        echo "  Updating ZENO..."
+        CURRENT=$(_current_version)
+        echo "  Checking for updates..."
+        LATEST=$(_latest_version)
+
+        if [ -z "$LATEST" ]; then
+            echo "  Could not reach GitHub. Check your connection."
+            echo ""
+            exit 1
+        fi
+
+        # Tag format: build-{sha} or semver
+        LATEST_SHORT="${LATEST#build-}"
+
+        if [ "$CURRENT" = "$LATEST_SHORT" ] || [ "$CURRENT" = "$LATEST" ]; then
+            echo "  ✅ Already up to date ($CURRENT)"
+            echo ""
+            exit 0
+        fi
+
+        echo "  Updating $CURRENT → $LATEST_SHORT..."
+
         tmpfile=$(mktemp)
         trap 'rm -f "$tmpfile"' EXIT
-        # Get tarball URL from latest GitHub release (tag varies per build)
         asset_url=$(curl -fsSL "https://api.github.com/repos/bokamix/zeno-blue/releases/latest" | grep -o '"browser_download_url":\s*"[^"]*zeno-release\.tar\.gz"' | cut -d'"' -f4)
         if [ -z "$asset_url" ]; then
             echo "  Failed to find release asset URL"
@@ -33,10 +66,9 @@ case "${1:-}" in
         mkdir -p "$ZENO_APP"
         tar xzf "$tmpfile" -C "$ZENO_APP"
 
-        # Migrate launcher to thin wrapper (for old installations)
         _ensure_thin_launcher
 
-        echo "  ✅ ZENO updated!"
+        echo "  ✅ Updated to $LATEST_SHORT"
         echo ""
         ;;
     serve)
@@ -74,6 +106,9 @@ print("  ✅ Password reset. Restart ZENO to apply.")
 PYEOF
         echo ""
         ;;
+    version|-v|--version)
+        echo "$(_current_version)"
+        ;;
     help|--help|-h)
         echo ""
         echo "  Usage: zeno [command]"
@@ -83,6 +118,7 @@ PYEOF
         echo "    update            Update to latest version"
         echo "    serve             Deploy with HTTPS (Linux VPS)"
         echo "    reset-password    Reset access password"
+        echo "    version, -v       Show current version"
         echo "    help              Show this help"
         echo ""
         ;;

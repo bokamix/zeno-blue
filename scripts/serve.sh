@@ -115,7 +115,26 @@ cmd_setup() {
     SVC_ZENO_ENV="$ZENO_SVC_HOME/.env"
     SVC_CADDYFILE="$ZENO_SVC_HOME/Caddyfile"
 
-    # 2. Install Caddy if missing
+    # 2. Make uv available system-wide (service user needs it)
+    if ! /usr/local/bin/uv --version &>/dev/null 2>&1; then
+        UV_BIN=$(command -v uv 2>/dev/null || echo "$HOME/.local/bin/uv")
+        if [ -f "$UV_BIN" ]; then
+            info "Installing uv system-wide..."
+            sudo cp "$UV_BIN" /usr/local/bin/uv
+            sudo chmod +x /usr/local/bin/uv
+        else
+            info "Installing uv..."
+            curl -LsSf https://astral.sh/uv/install.sh | sh 2>/dev/null
+            UV_BIN="$HOME/.local/bin/uv"
+            sudo cp "$UV_BIN" /usr/local/bin/uv
+            sudo chmod +x /usr/local/bin/uv
+        fi
+        info "uv installed system-wide: $(uv --version)"
+    else
+        info "uv already system-wide: $(/usr/local/bin/uv --version)"
+    fi
+
+    # 3. Install Caddy if missing
     if ! command -v caddy &>/dev/null; then
         info "Installing Caddy..."
         ARCH=$(dpkg --print-architecture 2>/dev/null || uname -m)
