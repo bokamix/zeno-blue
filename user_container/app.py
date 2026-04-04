@@ -581,6 +581,9 @@ def get_user_info():
     }
 
 
+_update_pending = False
+
+
 @app.get("/status")
 def get_status():
     """Get application status."""
@@ -596,8 +599,39 @@ def get_status():
         "active_jobs": active_jobs,
         "can_update": update_info["can_update"],
         "update_version": update_info["update_version"],
-        "update_pending": False,
+        "update_pending": _update_pending,
     }
+
+
+@app.post("/update")
+async def trigger_update():
+    """Trigger application update in background, then restart."""
+    global _update_pending
+    from user_container.version_check import get_update_status
+
+    update_info = get_update_status()
+    if not update_info["can_update"]:
+        raise HTTPException(status_code=400, detail="No update available")
+
+    if _update_pending:
+        raise HTTPException(status_code=409, detail="Update already in progress")
+
+    _update_pending = True
+
+    def run_update():
+        import signal
+        import subprocess
+        import time
+
+        script = Path.home() / ".zeno" / "app" / "scripts" / "zeno-cli.sh"
+        subprocess.run(["bash", str(script), "update"], capture_output=True)
+        time.sleep(2)
+        os.kill(os.getpid(), signal.SIGTERM)
+
+    import threading
+    threading.Thread(target=run_update, daemon=True).start()
+
+    return {"status": "started"}
 
 
 @app.get("/disk-usage")

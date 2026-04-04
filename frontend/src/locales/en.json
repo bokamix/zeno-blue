@@ -454,7 +454,8 @@
   "update": {
     "pending_with_jobs": "Update pending. Will apply after current task completes ({jobs} active)...",
     "in_progress": "Updating... Please wait.",
-    "available": "New version available. Run zeno update to upgrade."
+    "available": "New version available.",
+    "update_now": "Update Now"
   },
   "viewer": {
     "showCode": "Show code",

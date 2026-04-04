@@ -22,8 +22,14 @@
             <ArrowUpCircle class="w-4 h-4 text-blue-400 flex-shrink-0" />
             <span>{{ t('update.available') }}</span>
             <button
+                @click="handleUpdate"
+                class="ml-2 px-3 py-1 rounded-lg bg-blue-500/20 hover:bg-blue-500/30 text-blue-300 hover:text-blue-200 text-xs font-medium transition-colors"
+            >
+                {{ t('update.update_now') }}
+            </button>
+            <button
                 @click="dismissed = true"
-                class="ml-2 p-1 rounded-lg hover:bg-white/10 text-white/40 hover:text-white/70 transition-colors"
+                class="p-1 rounded-lg hover:bg-white/10 text-white/40 hover:text-white/70 transition-colors"
             >
                 <X class="w-3.5 h-3.5" />
             </button>
@@ -38,8 +44,13 @@ import { useI18n } from 'vue-i18n'
 import { useUpdateStatus } from '../composables/useUpdateStatus'
 
 const { t } = useI18n()
-const { updatePending, activeJobs, canUpdate } = useUpdateStatus()
+const { updatePending, activeJobs, canUpdate, triggerUpdate } = useUpdateStatus()
 const dismissed = ref(false)
+
+async function handleUpdate() {
+    dismissed.value = true
+    await triggerUpdate()
+}
 </script>
 
 <style scoped>

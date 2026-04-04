@@ -59,6 +59,13 @@ function stopPolling() {
     isPolling = false
 }
 
+async function triggerUpdate() {
+    wasUpdatePending = true
+    updatePending.value = true
+    canUpdate.value = false
+    await fetch('/update', { method: 'POST' })
+}
+
 export function useUpdateStatus() {
     onMounted(() => {
         startPolling()
@@ -75,6 +82,7 @@ export function useUpdateStatus() {
         updateVersion,
         canUpdate,
         currentVersion,
-        refresh: fetchStatus
+        refresh: fetchStatus,
+        triggerUpdate
     }
 }
