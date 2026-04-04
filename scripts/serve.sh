@@ -78,10 +78,11 @@ cmd_setup() {
 
     if [ -z "$DOMAIN" ]; then
         info "No domain provided, detecting public IP..."
-        PUBLIC_IP=$(curl -fsSL --max-time 5 https://ifconfig.me 2>/dev/null || \
-                    curl -fsSL --max-time 5 https://api.ipify.org 2>/dev/null || true)
+        # Force IPv4 (sslip.io doesn't support IPv6 addresses as domain names)
+        PUBLIC_IP=$(curl -4 -fsSL --max-time 5 https://ifconfig.me 2>/dev/null || \
+                    curl -4 -fsSL --max-time 5 https://api.ipify.org 2>/dev/null || true)
         if [ -z "$PUBLIC_IP" ]; then
-            error "Could not detect public IP. Use --domain your.domain.com"
+            error "Could not detect public IPv4. Use --domain your.domain.com"
         fi
         DOMAIN="${PUBLIC_IP//./-}.sslip.io"
         info "Using auto domain: $DOMAIN"
@@ -189,6 +190,8 @@ User=$ZENO_SERVICE_USER
 ExecStart=/usr/bin/env bash $ZENO_SVC_HOME/app/scripts/zeno-cli.sh
 WorkingDirectory=$ZENO_SVC_HOME/app
 EnvironmentFile=$SVC_ZENO_ENV
+Environment=HOME=$ZENO_SVC_HOME
+Environment=UV_CACHE_DIR=$ZENO_SVC_HOME/.cache/uv
 Restart=always
 RestartSec=5
 
