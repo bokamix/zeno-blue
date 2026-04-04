@@ -13,7 +13,7 @@ ZENO_HOME="$HOME/.zeno"
 ZENO_APP="$ZENO_HOME/app"
 ZENO_ENV="$ZENO_HOME/.env"
 CADDYFILE="$ZENO_HOME/Caddyfile"
-ZENO_SERVICE_USER="zeno-svc"
+CURRENT_USER="$(whoami)"
 
 # --- Colors ---
 RED='\033[0;31m'
@@ -78,7 +78,7 @@ cmd_setup() {
 
     if [ -z "$DOMAIN" ]; then
         info "No domain provided, detecting public IP..."
-        # Force IPv4 (sslip.io doesn't support IPv6 addresses as domain names)
+        # Force IPv4 (sslip.io doesn't support IPv6 as domain name)
         PUBLIC_IP=$(curl -4 -fsSL --max-time 5 https://ifconfig.me 2>/dev/null || \
                     curl -4 -fsSL --max-time 5 https://api.ipify.org 2>/dev/null || true)
         if [ -z "$PUBLIC_IP" ]; then
@@ -100,23 +100,7 @@ cmd_setup() {
     echo -e "  ${BOLD}Setting up ZENO for ${GREEN}$DOMAIN${NC}"
     echo ""
 
-    # 1. Create dedicated service user (limited permissions, no login shell)
-    if ! id "$ZENO_SERVICE_USER" &>/dev/null; then
-        info "Creating service user: $ZENO_SERVICE_USER..."
-        sudo useradd --system --no-create-home --shell /usr/sbin/nologin "$ZENO_SERVICE_USER"
-    fi
-
-    # Copy ~/.zeno to service user's home (/var/lib/zeno-svc)
-    ZENO_SVC_HOME="/var/lib/zeno-svc"
-    sudo mkdir -p "$ZENO_SVC_HOME"
-    sudo cp -r "$ZENO_HOME/app" "$ZENO_SVC_HOME/"
-    sudo chown -R "$ZENO_SERVICE_USER:$ZENO_SERVICE_USER" "$ZENO_SVC_HOME"
-    sudo chmod 750 "$ZENO_SVC_HOME"
-
-    SVC_ZENO_ENV="$ZENO_SVC_HOME/.env"
-    SVC_CADDYFILE="$ZENO_SVC_HOME/Caddyfile"
-
-    # 2. Make uv available system-wide (service user needs it)
+    # 1. Make uv available system-wide
     if ! /usr/local/bin/uv --version &>/dev/null 2>&1; then
         UV_BIN=$(command -v uv 2>/dev/null || echo "$HOME/.local/bin/uv")
         if [ -f "$UV_BIN" ]; then
@@ -126,16 +110,15 @@ cmd_setup() {
         else
             info "Installing uv..."
             curl -LsSf https://astral.sh/uv/install.sh | sh 2>/dev/null
-            UV_BIN="$HOME/.local/bin/uv"
-            sudo cp "$UV_BIN" /usr/local/bin/uv
+            sudo cp "$HOME/.local/bin/uv" /usr/local/bin/uv
             sudo chmod +x /usr/local/bin/uv
         fi
-        info "uv installed system-wide: $(uv --version)"
+        info "uv installed system-wide: $(/usr/local/bin/uv --version)"
     else
-        info "uv already system-wide: $(/usr/local/bin/uv --version)"
+        info "uv: $(/usr/local/bin/uv --version)"
     fi
 
-    # 3. Install Caddy if missing
+    # 2. Install Caddy if missing
     if ! command -v caddy &>/dev/null; then
         info "Installing Caddy..."
         ARCH=$(dpkg --print-architecture 2>/dev/null || uname -m)
@@ -149,35 +132,26 @@ cmd_setup() {
         sudo chmod +x /usr/local/bin/caddy
         info "Caddy installed."
     else
-        info "Caddy already installed: $(caddy version 2>/dev/null || echo 'unknown')"
+        info "Caddy: $(caddy version 2>/dev/null || echo 'unknown')"
     fi
 
-    # 3. Write service .env (no secrets — API key and password set via browser setup)
-    sudo tee "$SVC_ZENO_ENV" > /dev/null << EOF
-ZENO_HOST=0.0.0.0
-BASE_URL=https://$DOMAIN
-DATA_DIR=$ZENO_SVC_HOME/data
-WORKSPACE_DIR=$ZENO_SVC_HOME/workspace
-ARTIFACTS_DIR=$ZENO_SVC_HOME/workspace/artifacts
-DB_PATH=$ZENO_SVC_HOME/data/runtime.db
-SKILLS_DIR=$ZENO_SVC_HOME/app/user_container/skills
-EOF
-    sudo chown "$ZENO_SERVICE_USER:$ZENO_SERVICE_USER" "$SVC_ZENO_ENV"
-    sudo chmod 600 "$SVC_ZENO_ENV"
+    # 3. Write .env (BASE_URL + host, no secrets)
+    info "Configuring environment..."
+    touch "$ZENO_ENV"
+    sed -i '/^ZENO_HOST=/d' "$ZENO_ENV" 2>/dev/null || true
+    sed -i '/^BASE_URL=/d' "$ZENO_ENV" 2>/dev/null || true
+    echo "ZENO_HOST=0.0.0.0" >> "$ZENO_ENV"
+    echo "BASE_URL=https://$DOMAIN" >> "$ZENO_ENV"
 
-    # Create data dirs for service user
-    sudo mkdir -p "$ZENO_SVC_HOME/data" "$ZENO_SVC_HOME/workspace/artifacts"
-    sudo chown -R "$ZENO_SERVICE_USER:$ZENO_SERVICE_USER" "$ZENO_SVC_HOME/data" "$ZENO_SVC_HOME/workspace"
-
-    # 5. Create Caddyfile
+    # 4. Create Caddyfile
     info "Creating Caddyfile..."
-    sudo tee "$SVC_CADDYFILE" > /dev/null << EOF
+    cat > "$CADDYFILE" << EOF
 $DOMAIN {
     reverse_proxy localhost:18000
 }
 EOF
 
-    # 6. Create zeno.service
+    # 5. Create zeno.service (runs as current user, uses their ~/.zeno)
     info "Creating systemd service: zeno.service..."
     sudo tee /etc/systemd/system/zeno.service > /dev/null << EOF
 [Unit]
@@ -186,12 +160,10 @@ After=network.target
 
 [Service]
 Type=simple
-User=$ZENO_SERVICE_USER
-ExecStart=/usr/bin/env bash $ZENO_SVC_HOME/app/scripts/zeno-cli.sh
-WorkingDirectory=$ZENO_SVC_HOME/app
-EnvironmentFile=$SVC_ZENO_ENV
-Environment=HOME=$ZENO_SVC_HOME
-Environment=UV_CACHE_DIR=$ZENO_SVC_HOME/.cache/uv
+User=$CURRENT_USER
+ExecStart=$ZENO_HOME/bin/zeno
+WorkingDirectory=$ZENO_APP
+Environment=HOME=$HOME
 Restart=always
 RestartSec=5
 
@@ -199,7 +171,7 @@ RestartSec=5
 WantedBy=multi-user.target
 EOF
 
-    # 7. Create caddy.service (if not exists) or reload
+    # 6. Create caddy.service (if not exists) or reload
     if [ ! -f /etc/systemd/system/caddy.service ]; then
         info "Creating systemd service: caddy.service..."
         sudo tee /etc/systemd/system/caddy.service > /dev/null << EOF
@@ -209,27 +181,29 @@ After=network.target
 
 [Service]
 Type=simple
-ExecStart=/usr/local/bin/caddy run --config $SVC_CADDYFILE
-ExecReload=/usr/local/bin/caddy reload --config $SVC_CADDYFILE
+ExecStart=/usr/local/bin/caddy run --config $CADDYFILE
+ExecReload=/usr/local/bin/caddy reload --config $CADDYFILE
 Restart=always
 RestartSec=5
+Environment=HOME=$HOME
 
 [Install]
 WantedBy=multi-user.target
 EOF
     else
-        info "caddy.service exists, reloading config..."
-        sudo systemctl reload caddy.service 2>/dev/null || true
+        info "Updating caddy.service config..."
+        sudo sed -i "s|ExecStart=.*caddy run.*|ExecStart=/usr/local/bin/caddy run --config $CADDYFILE|" \
+            /etc/systemd/system/caddy.service 2>/dev/null || true
     fi
 
-    # 8. Enable and start services
+    # 7. Enable and start services
     info "Enabling and starting services..."
     sudo systemctl daemon-reload
     sudo systemctl enable zeno.service caddy.service
     sudo systemctl restart caddy.service
     sudo systemctl restart zeno.service
 
-    # 9. Summary
+    # 8. Summary
     echo ""
     echo -e "  ${GREEN}✅ ZENO is live at https://$DOMAIN${NC}"
     echo ""
