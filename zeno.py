@@ -150,13 +150,22 @@ def _ensure_venv():
 
 
 def _ensure_python_deps():
-    """Install Python deps if missing."""
-    try:
-        import uvicorn, fastapi, anthropic, litellm, duckduckgo_search  # noqa: F401,E401
-    except ImportError:
-        print("📦 Installing Python dependencies...")
-        subprocess.check_call(["uv", "pip", "install", "-r", str(ROOT / "requirements.txt"), "-q"])
-        print("   Done.\n")
+    """Install Python deps if requirements.txt changed since last install."""
+    import hashlib
+    req_file = ROOT / "requirements.txt"
+    if not req_file.exists():
+        return
+
+    current_hash = hashlib.md5(req_file.read_bytes()).hexdigest()
+    hash_file = VENV_DIR / ".deps_hash"
+
+    if hash_file.exists() and hash_file.read_text().strip() == current_hash:
+        return
+
+    print("📦 Installing Python dependencies...")
+    subprocess.check_call(["uv", "pip", "install", "-r", str(req_file), "-q"])
+    hash_file.write_text(current_hash)
+    print("   Done.\n")
 
 
 def _ensure_frontend():

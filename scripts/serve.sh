@@ -133,7 +133,6 @@ cmd_setup() {
     fi
 
     # 3. Write service .env (no secrets — API key and password set via browser setup)
-    info "Configuring environment..."
     sudo tee "$SVC_ZENO_ENV" > /dev/null << EOF
 ZENO_HOST=0.0.0.0
 BASE_URL=https://$DOMAIN

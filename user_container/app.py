@@ -14,6 +14,7 @@ import re
 import signal
 import time
 import mimetypes
+import bcrypt
 from datetime import datetime, timedelta
 from fastapi import FastAPI, HTTPException, Request, UploadFile, File, Form, Header
 from fastapi.responses import Response, StreamingResponse, FileResponse, HTMLResponse, RedirectResponse, JSONResponse
@@ -69,6 +70,20 @@ if settings.sentry_dsn:
 # --- Config ---
 
 app = FastAPI(title="User Container MVP")
+
+
+def _remove_from_env(key: str):
+    """Remove a key from ~/.zeno/.env if present."""
+    import re
+    env_path = Path(os.environ.get("ZENO_CONFIG_DIR", Path.home() / ".zeno")) / ".env"
+    if not env_path.exists():
+        return
+    try:
+        lines = env_path.read_text().splitlines()
+        lines = [l for l in lines if not re.match(rf"^{re.escape(key)}\s*=", l)]
+        env_path.write_text("\n".join(lines) + "\n")
+    except OSError:
+        pass
 
 
 def _get_allowed_origins() -> list[str]:
@@ -289,11 +304,25 @@ async def on_startup():
         if stored_key:
             settings.openrouter_api_key = stored_key
             log("[Startup] Loaded OpenRouter API key from DB")
+    elif not db.get_setting("openrouter_api_key"):
+        # Migrate: key came from .env, save to DB
+        db.set_setting("openrouter_api_key", settings.openrouter_api_key)
+        log("[Startup] Migrated OpenRouter API key from .env to DB")
+
     if not settings.auth_password:
         stored_hash = db.get_setting("auth_password_hash")
         if stored_hash:
             settings.auth_password = stored_hash
             log("[Startup] Loaded auth password hash from DB")
+    elif not db.get_setting("auth_password_hash"):
+        # Migrate: plaintext password came from .env, hash it and save to DB
+        is_bcrypt = settings.auth_password.startswith("$2b$") or settings.auth_password.startswith("$2a$")
+        if not is_bcrypt:
+            hashed = bcrypt.hashpw(settings.auth_password.encode(), bcrypt.gensalt()).decode()
+            db.set_setting("auth_password_hash", hashed)
+            settings.auth_password = hashed
+            _remove_from_env("ZENO_PASSWORD")
+            log("[Startup] Migrated plaintext password from .env to DB (bcrypt hash)")
 
     # Start background version check (checks GitHub for new releases)
     from user_container.version_check import start_version_check
@@ -433,8 +462,6 @@ async def setup_config(payload: dict):
     First-run configuration. Saves OpenRouter API key and access password to DB.
     Expects: {"api_key": "sk-or-...", "password": "..."}
     """
-    import bcrypt
-
     api_key = payload.get("api_key", "").strip()
     if not api_key:
         raise HTTPException(status_code=400, detail="OpenRouter API key is required")
@@ -467,8 +494,6 @@ async def auth_status():
 async def auth_login(payload: dict):
     """Login with password. Returns httponly session cookie."""
     from user_container.auth import create_session
-
-    import bcrypt
 
     password = payload.get("password", "")
     if not settings.auth_password:
