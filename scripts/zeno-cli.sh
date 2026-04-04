@@ -42,6 +42,38 @@ case "${1:-}" in
     serve)
         exec bash "$ZENO_APP/scripts/serve.sh" "${@:2}"
         ;;
+    reset-password)
+        echo ""
+        while true; do
+            echo -n "  New password: "
+            read -rs NEW_PASSWORD
+            echo ""
+            echo -n "  Confirm password: "
+            read -rs NEW_PASSWORD_CONFIRM
+            echo ""
+            if [ -z "$NEW_PASSWORD" ]; then
+                echo "  Password cannot be empty."
+            elif [ "$NEW_PASSWORD" != "$NEW_PASSWORD_CONFIRM" ]; then
+                echo "  Passwords don't match, try again."
+            else
+                break
+            fi
+        done
+
+        DB_PATH="${DB_PATH:-$HOME/.zeno/data/runtime.db}"
+
+        uv run --python 3.12 - "$NEW_PASSWORD" "$DB_PATH" << 'PYEOF'
+import sys, bcrypt, sqlite3
+password, db_path = sys.argv[1], sys.argv[2]
+hashed = bcrypt.hashpw(password.encode(), bcrypt.gensalt()).decode()
+con = sqlite3.connect(db_path)
+con.execute("INSERT INTO user_settings (key, value, updated_at) VALUES ('auth_password_hash', ?, datetime('now')) ON CONFLICT(key) DO UPDATE SET value = excluded.value, updated_at = excluded.updated_at", (hashed,))
+con.commit()
+con.close()
+print("  ✅ Password reset. Restart ZENO to apply.")
+PYEOF
+        echo ""
+        ;;
     *)
         exec uv run --python 3.12 "$ZENO_APP/zeno.py" "$@"
         ;;

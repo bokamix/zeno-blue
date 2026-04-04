@@ -417,6 +417,53 @@
                     </div>
                 </div>
 
+                <!-- Change Password Section (only when auth is enabled) -->
+                <div v-if="authEnabled" class="border-b border-[var(--border-subtle)]">
+                    <button
+                        @click="changePasswordExpanded = !changePasswordExpanded"
+                        class="w-full flex items-center justify-between py-3 text-left"
+                    >
+                        <div class="flex items-center gap-3">
+                            <div class="p-2 rounded-lg bg-red-500/20">
+                                <KeyRound class="w-4 h-4 text-red-400" />
+                            </div>
+                            <span class="text-sm text-[var(--text-primary)]">{{ $t('modals.settings.changePassword') }}</span>
+                        </div>
+                        <ChevronDown class="w-4 h-4 text-zinc-400 transition-transform" :class="{ 'rotate-180': changePasswordExpanded }" />
+                    </button>
+
+                    <div v-show="changePasswordExpanded" class="pl-4 pb-3 space-y-2">
+                        <input
+                            v-model="currentPassword"
+                            type="password"
+                            :placeholder="$t('modals.settings.currentPassword')"
+                            class="w-full px-3 py-2 text-xs rounded-lg bg-[var(--bg-elevated)] text-[var(--text-primary)] border border-[var(--border-subtle)] outline-none focus:border-red-500/50"
+                        />
+                        <input
+                            v-model="newPassword"
+                            type="password"
+                            :placeholder="$t('modals.settings.newPassword')"
+                            class="w-full px-3 py-2 text-xs rounded-lg bg-[var(--bg-elevated)] text-[var(--text-primary)] border border-[var(--border-subtle)] outline-none focus:border-red-500/50"
+                        />
+                        <input
+                            v-model="newPasswordConfirm"
+                            type="password"
+                            :placeholder="$t('modals.settings.confirmNewPassword')"
+                            class="w-full px-3 py-2 text-xs rounded-lg bg-[var(--bg-elevated)] text-[var(--text-primary)] border border-[var(--border-subtle)] outline-none focus:border-red-500/50"
+                            @keydown.enter="handleChangePassword"
+                        />
+                        <p v-if="changePasswordError" class="text-xs text-red-400">{{ changePasswordError }}</p>
+                        <p v-if="changePasswordSuccess" class="text-xs text-green-400">{{ $t('modals.settings.passwordChanged') }}</p>
+                        <button
+                            @click="handleChangePassword"
+                            :disabled="changingPassword || !currentPassword || !newPassword || !newPasswordConfirm"
+                            class="w-full px-3 py-2 text-xs rounded-lg font-medium transition-all bg-red-500/20 text-red-400 hover:bg-red-500/30 disabled:opacity-50 disabled:cursor-not-allowed"
+                        >
+                            {{ changingPassword ? $t('common.saving') : $t('modals.settings.changePassword') }}
+                        </button>
+                    </div>
+                </div>
+
                 <!-- Help Button -->
                 <button
                     @click="openCrispChat"
@@ -646,6 +693,46 @@ const handleDeleteKey = async (keyName) => {
 // ZENO API Keys state
 const zenoApiKeysExpanded = ref(false)
 const zenoApiKeys = ref([])
+
+// Auth
+const authEnabled = ref(false)
+const changePasswordExpanded = ref(false)
+const currentPassword = ref('')
+const newPassword = ref('')
+const newPasswordConfirm = ref('')
+const changingPassword = ref(false)
+const changePasswordError = ref('')
+const changePasswordSuccess = ref(false)
+
+const handleChangePassword = async () => {
+    changePasswordError.value = ''
+    changePasswordSuccess.value = false
+    if (newPassword.value !== newPasswordConfirm.value) {
+        changePasswordError.value = 'Passwords do not match'
+        return
+    }
+    changingPassword.value = true
+    try {
+        const res = await fetch('/api/auth/change-password', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ current_password: currentPassword.value, new_password: newPassword.value })
+        })
+        if (!res.ok) {
+            const data = await res.json()
+            changePasswordError.value = data.detail || 'Error'
+        } else {
+            changePasswordSuccess.value = true
+            currentPassword.value = ''
+            newPassword.value = ''
+            newPasswordConfirm.value = ''
+        }
+    } catch {
+        changePasswordError.value = 'Connection error'
+    } finally {
+        changingPassword.value = false
+    }
+}
 const newlyGeneratedKey = ref(null)
 const generatingKey = ref(false)
 const copied = ref(false)
@@ -710,9 +797,16 @@ watch(customSystemPrompt, (newVal) => {
     localCustomPrompt.value = newVal || ''
 })
 
-onMounted(() => {
+onMounted(async () => {
     loadOpenRouterModels()
     document.addEventListener('click', handleClickOutside)
+    try {
+        const res = await fetch('/api/auth/status')
+        if (res.ok) {
+            const data = await res.json()
+            authEnabled.value = data.auth_enabled
+        }
+    } catch {}
 })
 
 onBeforeUnmount(() => {

@@ -462,6 +462,9 @@ async def setup_config(payload: dict):
     First-run configuration. Saves OpenRouter API key and access password to DB.
     Expects: {"api_key": "sk-or-...", "password": "..."}
     """
+    if settings.openrouter_api_key:
+        raise HTTPException(status_code=403, detail="Already configured")
+
     api_key = payload.get("api_key", "").strip()
     if not api_key:
         raise HTTPException(status_code=400, detail="OpenRouter API key is required")
@@ -520,6 +523,33 @@ async def auth_login(payload: dict):
     )
     log("[Auth] User logged in")
     return response
+
+
+@app.post("/api/auth/change-password")
+async def auth_change_password(payload: dict):
+    """Change access password. Requires current password verification."""
+    current_password = payload.get("current_password", "")
+    new_password = payload.get("new_password", "").strip()
+
+    if not settings.auth_password:
+        raise HTTPException(status_code=400, detail="Auth is not enabled")
+    if not new_password:
+        raise HTTPException(status_code=400, detail="New password is required")
+
+    stored = settings.auth_password.encode()
+    is_bcrypt = stored.startswith(b"$2b$") or stored.startswith(b"$2a$")
+    if is_bcrypt:
+        valid = bcrypt.checkpw(current_password.encode(), stored)
+    else:
+        valid = current_password == settings.auth_password
+    if not valid:
+        raise HTTPException(status_code=401, detail="Current password is incorrect")
+
+    new_hash = bcrypt.hashpw(new_password.encode(), bcrypt.gensalt()).decode()
+    db.set_setting("auth_password_hash", new_hash)
+    settings.auth_password = new_hash
+    log("[Auth] Password changed")
+    return {"status": "ok"}
 
 
 @app.post("/api/auth/logout")
