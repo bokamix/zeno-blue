@@ -26,24 +26,8 @@ echo ""
 
 # --- Detect OS ---
 OS="$(uname -s)"
-HAS_SYSTEMD=false
-IS_SERVER=false
-
 case "$OS" in
-    Darwin)
-        MODE="local"
-        ;;
-    Linux)
-        if command -v systemctl &>/dev/null && systemctl is-system-running &>/dev/null 2>&1; then
-            HAS_SYSTEMD=true
-        fi
-        # Server mode: Linux + systemd + not WSL
-        if $HAS_SYSTEMD && [ -z "${WSL_DISTRO_NAME:-}" ]; then
-            MODE="server"
-        else
-            MODE="local"
-        fi
-        ;;
+    Darwin|Linux) ;;
     MINGW*|MSYS*|CYGWIN*)
         echo -e "  ${RED}Windows is not supported.${NC}"
         echo ""
@@ -56,12 +40,6 @@ case "$OS" in
         exit 1
         ;;
 esac
-
-if [ "$MODE" = "server" ]; then
-    echo -e "  ${BOLD}Server Install${NC} (Linux + systemd detected)"
-else
-    echo -e "  ${BOLD}Local Install${NC}"
-fi
 echo ""
 
 # --- Install uv ---
@@ -141,36 +119,27 @@ _add_to_path
 export PATH="$ZENO_BIN:$PATH"
 
 echo ""
-
-# --- Server mode: Caddy + systemd ---
-if [ "$MODE" = "server" ]; then
-    echo -e "  ${BOLD}Setting up server...${NC}"
-    exec bash "$ZENO_APP/scripts/serve.sh"
-fi
-
-# --- Local mode: just run ---
 echo -e "  ${GREEN}✅ ZENO installed!${NC}"
 echo ""
-echo -e "  Run:    ${BOLD}zeno${NC}"
-echo -e "  Update: ${BOLD}zeno update${NC}"
+echo -e "  ${BOLD}Run locally:${NC}   zeno"
+echo -e "  ${BOLD}Run on server:${NC} zeno serve"
+echo -e "  ${BOLD}Update:${NC}        zeno update"
 echo ""
 
 if [ ! -t 0 ]; then
     shell_name="$(basename "$SHELL")"
-    echo -e "  ${YELLOW}To start using zeno now, run:${NC}"
+    echo -e "  ${YELLOW}Reload your shell first:${NC}"
     case "$shell_name" in
-        zsh)  echo -e "  ${GREEN}source ~/.zshrc && zeno${NC}" ;;
-        fish) echo -e "  ${GREEN}source ~/.config/fish/config.fish && zeno${NC}" ;;
+        zsh)  echo -e "  ${GREEN}source ~/.zshrc${NC}" ;;
+        fish) echo -e "  ${GREEN}source ~/.config/fish/config.fish${NC}" ;;
         bash)
             if [ -f "$HOME/.bash_profile" ]; then
-                echo -e "  ${GREEN}source ~/.bash_profile && zeno${NC}"
+                echo -e "  ${GREEN}source ~/.bash_profile${NC}"
             else
-                echo -e "  ${GREEN}source ~/.bashrc && zeno${NC}"
+                echo -e "  ${GREEN}source ~/.bashrc${NC}"
             fi
             ;;
-        *)    echo -e "  ${GREEN}source ~/.profile && zeno${NC}" ;;
+        *)    echo -e "  ${GREEN}source ~/.profile${NC}" ;;
     esac
     echo ""
-else
-    zeno
 fi

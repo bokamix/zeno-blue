@@ -74,6 +74,18 @@ print("  ✅ Password reset. Restart ZENO to apply.")
 PYEOF
         echo ""
         ;;
+    help|--help|-h)
+        echo ""
+        echo "  Usage: zeno [command]"
+        echo ""
+        echo "  Commands:"
+        echo "    (none)            Start ZENO"
+        echo "    update            Update to latest version"
+        echo "    serve             Deploy with HTTPS (Linux VPS)"
+        echo "    reset-password    Reset access password"
+        echo "    help              Show this help"
+        echo ""
+        ;;
     *)
         exec uv run --python 3.12 "$ZENO_APP/zeno.py" "$@"
         ;;
