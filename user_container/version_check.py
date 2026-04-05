@@ -8,6 +8,7 @@ release tag's commit hash with the local git hash from .build_info.
 
 import asyncio
 import logging
+from pathlib import Path
 
 import httpx
 
@@ -30,10 +31,26 @@ def get_update_status() -> dict:
     }
 
 
+def _read_local_hash() -> str:
+    """Read GIT_HASH directly from .build_info on disk.
+
+    This bypasses settings (which may be frozen to the Docker ENV var baked
+    at image build time) so that an in-place update that writes a new
+    .build_info is immediately reflected on the next version check.
+    """
+    build_info_path = Path.home() / ".zeno" / "app" / ".build_info"
+    if build_info_path.is_file():
+        for line in build_info_path.read_text().splitlines():
+            if line.startswith("GIT_HASH="):
+                return line.partition("=")[2].strip()
+    # Fall back to the value frozen into settings (env var or startup .build_info)
+    return settings.git_hash
+
+
 async def _check_for_update():
     global _can_update, _update_version
 
-    local_hash = settings.git_hash
+    local_hash = _read_local_hash()
     if local_hash in ("unknown", ""):
         return
 
