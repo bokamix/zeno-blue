@@ -37,7 +37,8 @@ import {
     FileSpreadsheet,
     FileImage,
     FileCode,
-    File as FileIcon
+    File as FileIcon,
+    ScrollText
 } from 'lucide-vue-next'
 
 defineProps({
@@ -63,6 +64,7 @@ const handleTabClick = (tab) => {
 // Get icon based on tab type and file extension
 const getTabIcon = (tab) => {
     if (tab.type === 'chat') return MessageSquare
+    if (tab.type === 'logs') return ScrollText
 
     // For file tabs, determine icon by extension
     const ext = tab.path?.split('.').pop()?.toLowerCase() || ''

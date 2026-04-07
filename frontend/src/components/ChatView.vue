@@ -81,6 +81,38 @@
                 <FileTabContent :file-path="tab.path" @saved="$emit('refresh-artifacts')" />
             </div>
 
+            <!-- Logs Tab Content -->
+            <div
+                v-show="activeTabId === 'logs'"
+                class="h-full overflow-y-auto custom-scroll p-4 md:p-6"
+            >
+                <div v-if="chatLogs.length === 0" class="flex flex-col items-center justify-center h-full text-center">
+                    <ScrollText class="w-10 h-10 text-[var(--text-muted)] mb-3 opacity-40" />
+                    <p class="text-[var(--text-muted)] text-sm">No logs yet for this conversation</p>
+                </div>
+                <div v-else class="max-w-3xl mx-auto space-y-1 font-mono text-xs">
+                    <div
+                        v-for="log in chatLogs"
+                        :key="log.id"
+                        class="flex gap-3 py-1.5 border-b border-[var(--border-subtle)]/40"
+                        :class="log.is_error ? 'text-red-400' : 'text-[var(--text-secondary)]'"
+                    >
+                        <span class="text-[var(--text-muted)] shrink-0 w-20">{{ formatLogTime(log.timestamp) }}</span>
+                        <span class="text-blue-400/70 shrink-0 w-20 truncate">{{ log.type }}</span>
+                        <span class="flex-1 break-all">{{ log.message }}
+                            <span v-if="log.detail" class="text-[var(--text-muted)] ml-1 cursor-pointer hover:text-[var(--text-secondary)]" @click="toggleLogDetail(log.id)">
+                                {{ expandedLogs.includes(log.id) ? '[hide]' : '[detail]' }}
+                            </span>
+                        </span>
+                    </div>
+                    <div
+                        v-for="log in chatLogs.filter(l => l.detail && expandedLogs.includes(l.id))"
+                        :key="'detail-' + log.id"
+                        class="py-2 px-3 bg-[var(--bg-surface)] rounded text-[var(--text-muted)] whitespace-pre-wrap break-all text-[11px]"
+                    >{{ log.detail }}</div>
+                </div>
+            </div>
+
             <!-- Scroll to bottom button -->
             <Transition name="fade">
                 <button
@@ -347,7 +379,7 @@
 
 <script setup>
 import { ref, computed, nextTick, onMounted, onUnmounted, watch } from 'vue'
-import { Plus, Send, FileIcon, ChevronDown, Upload, Square, Clock, MessageSquareReply } from 'lucide-vue-next'
+import { Plus, Send, FileIcon, ChevronDown, Upload, Square, Clock, MessageSquareReply, ScrollText } from 'lucide-vue-next'
 import { useI18n } from 'vue-i18n'
 import { useApi } from '../composables/useApi'
 
@@ -419,7 +451,9 @@ const {
     suggestions,
     postResponseSuggestions,
     postResponseSuggestionsConversationId,
+    chatLogs,
     clearActivities,
+    clearChatLogs,
     setSuggestions,
     preserveSuggestionsForPostResponse,
     clearPostResponseSuggestions
@@ -661,6 +695,7 @@ const pollJobUntilDone = async (jobId, targetConversationId = null) => {
         if (isCurrentConversation) {
             if (job.activities?.length > 0) {
                 activities.value = [...activities.value, ...job.activities]
+                chatLogs.value = [...chatLogs.value, ...job.activities]
                 lastActivityId.value = job.last_activity_id
                 nextTick(() => scrollToBottom())
             }
@@ -1421,6 +1456,28 @@ const checkPendingOAuthInStorage = () => {
         console.error('Error checking pending OAuth in localStorage:', e)
         localStorage.removeItem('oauth_complete')
     }
+}
+
+// Logs tab state
+const expandedLogs = ref([])
+
+const toggleLogDetail = (logId) => {
+    const idx = expandedLogs.value.indexOf(logId)
+    if (idx > -1) {
+        expandedLogs.value.splice(idx, 1)
+    } else {
+        expandedLogs.value.push(logId)
+    }
+}
+
+const formatLogTime = (timestamp) => {
+    const date = new Date(timestamp * 1000)
+    return date.toLocaleTimeString('en-US', {
+        hour: '2-digit',
+        minute: '2-digit',
+        second: '2-digit',
+        hour12: false
+    })
 }
 
 // Watch activities for token_stats updates (real-time during agent work)

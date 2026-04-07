@@ -11,6 +11,9 @@ const activities = ref([])
 const lastActivityId = ref(null)
 const currentActivity = ref(null)
 
+// Accumulated logs for the entire current conversation (not cleared between messages)
+const chatLogs = ref([])
+
 // Related question suggestions (Perplexity-style)
 const suggestions = ref([])
 
@@ -37,6 +40,11 @@ export function useJobState() {
         currentActivity.value = null
         thinkingMessages.value = []
         suggestions.value = []
+    }
+
+    // Clear accumulated conversation logs
+    const clearChatLogs = () => {
+        chatLogs.value = []
     }
 
     // Add new activities
@@ -140,9 +148,11 @@ export function useJobState() {
         restartCooldown,
         isRestarting,
         restartError,
+        chatLogs,
 
         // Actions
         clearActivities,
+        clearChatLogs,
         addActivities,
         clearThinkingMessages,
         setThinkingMessage,

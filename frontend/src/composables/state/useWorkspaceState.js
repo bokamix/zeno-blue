@@ -6,12 +6,16 @@ const fileToView = ref(null) // { path, name } - for mobile file viewer modal
 
 // Workspace tabs state
 const workspaceTabs = ref([
-    { type: 'chat', id: 'chat', title: 'Chat', closable: false }
+    { type: 'chat', id: 'chat', title: 'Chat', closable: false },
+    { type: 'logs', id: 'logs', title: 'Logs', closable: false }
 ])
 const activeTabId = ref('chat')
 
 // Default chat tab
-const DEFAULT_TABS = [{ type: 'chat', id: 'chat', title: 'Chat', closable: false }]
+const DEFAULT_TABS = [
+    { type: 'chat', id: 'chat', title: 'Chat', closable: false },
+    { type: 'logs', id: 'logs', title: 'Logs', closable: false }
+]
 
 // Computed set of open file paths for quick lookup
 const openFilePaths = computed(() => {
@@ -56,7 +60,14 @@ export function useWorkspaceState() {
         if (saved) {
             try {
                 const workspace = JSON.parse(saved)
-                workspaceTabs.value = workspace.tabs || [...DEFAULT_TABS]
+                const tabs = workspace.tabs || [...DEFAULT_TABS]
+                // Ensure permanent tabs are always present
+                const hasLogs = tabs.some(t => t.id === 'logs')
+                if (!hasLogs) {
+                    const chatIdx = tabs.findIndex(t => t.id === 'chat')
+                    tabs.splice(chatIdx + 1, 0, { type: 'logs', id: 'logs', title: 'Logs', closable: false })
+                }
+                workspaceTabs.value = tabs
                 activeTabId.value = workspace.activeTab || 'chat'
             } catch (e) {
                 console.error('Failed to load workspace:', e)
@@ -95,7 +106,7 @@ export function useWorkspaceState() {
 
     // Close tab
     const closeTab = (tabId, conversationId) => {
-        if (tabId === 'chat') return
+        if (tabId === 'chat' || tabId === 'logs') return
         const idx = workspaceTabs.value.findIndex(t => t.id === tabId)
         if (idx === -1) return
         workspaceTabs.value.splice(idx, 1)

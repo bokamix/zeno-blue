@@ -289,6 +289,7 @@ const {
     isRestarting,
     restartError,
     clearActivities,
+    clearChatLogs,
     setRestartCooldown,
     cleanupCooldown
 } = useJobState()
@@ -357,6 +358,9 @@ const onSetupComplete = () => {
 
 const onAuthenticated = () => {
     needsLogin.value = false
+    refreshConversations()
+    refreshArtifacts()
+    refreshArchivedConversations()
 }
 
 // Computed for showing settings during drag
@@ -536,6 +540,7 @@ const newChat = () => {
     pendingOAuth.value = null
     isLoading.value = false
     clearActivities()
+    clearChatLogs()
     window.history.pushState({}, '', '/')
     refreshConversations()
     resetWorkspace()
@@ -597,6 +602,7 @@ const loadConversation = async (convId) => {
     pendingQuestion.value = null
     pendingOAuth.value = null
     clearActivities()
+    clearChatLogs()
 
     try {
         // IMPORTANT: Fetch messages FIRST to get old read_at (for unread separator)
