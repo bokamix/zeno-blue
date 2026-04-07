@@ -84,33 +84,49 @@
             <!-- Logs Tab Content -->
             <div
                 v-show="activeTabId === 'logs'"
-                class="h-full overflow-y-auto custom-scroll p-4 md:p-6"
+                class="h-full flex flex-col overflow-hidden"
             >
                 <div v-if="chatLogs.length === 0" class="flex flex-col items-center justify-center h-full text-center">
                     <ScrollText class="w-10 h-10 text-[var(--text-muted)] mb-3 opacity-40" />
                     <p class="text-[var(--text-muted)] text-sm">No logs yet for this conversation</p>
                 </div>
-                <div v-else class="max-w-3xl mx-auto space-y-1 font-mono text-xs">
-                    <div
-                        v-for="log in chatLogs"
-                        :key="log.id"
-                        class="flex gap-3 py-1.5 border-b border-[var(--border-subtle)]/40"
-                        :class="log.is_error ? 'text-red-400' : 'text-[var(--text-secondary)]'"
-                    >
-                        <span class="text-[var(--text-muted)] shrink-0 w-20">{{ formatLogTime(log.timestamp) }}</span>
-                        <span class="text-blue-400/70 shrink-0 w-20 truncate">{{ log.type }}</span>
-                        <span class="flex-1 break-all">{{ log.message }}
-                            <span v-if="log.detail" class="text-[var(--text-muted)] ml-1 cursor-pointer hover:text-[var(--text-secondary)]" @click="toggleLogDetail(log.id)">
-                                {{ expandedLogs.includes(log.id) ? '[hide]' : '[detail]' }}
-                            </span>
-                        </span>
+                <template v-else>
+                    <div class="flex items-center justify-end px-4 py-2 border-b border-[var(--border-subtle)] shrink-0">
+                        <button
+                            @click="copyAllLogs"
+                            class="flex items-center gap-1.5 text-xs px-3 py-1.5 rounded
+                                   bg-[var(--bg-surface)] border border-[var(--border-subtle)]
+                                   text-[var(--text-secondary)] hover:text-[var(--text-primary)]
+                                   hover:bg-[var(--bg-elevated)] transition-colors"
+                        >
+                            <Copy class="w-3.5 h-3.5" />
+                            {{ logsCopied ? 'Copied!' : 'Copy all' }}
+                        </button>
                     </div>
-                    <div
-                        v-for="log in chatLogs.filter(l => l.detail && expandedLogs.includes(l.id))"
-                        :key="'detail-' + log.id"
-                        class="py-2 px-3 bg-[var(--bg-surface)] rounded text-[var(--text-muted)] whitespace-pre-wrap break-all text-[11px]"
-                    >{{ log.detail }}</div>
-                </div>
+                    <div class="flex-1 overflow-y-auto custom-scroll p-4 md:p-6">
+                        <div class="max-w-3xl mx-auto space-y-1 font-mono text-xs">
+                            <template v-for="log in chatLogs" :key="log.id">
+                                <div
+                                    class="flex gap-3 py-1.5 border-b border-[var(--border-subtle)]/40"
+                                    :class="log.is_error ? 'text-red-400' : 'text-[var(--text-secondary)]'"
+                                >
+                                    <span class="text-[var(--text-muted)] shrink-0 w-20">{{ formatLogTime(log.timestamp) }}</span>
+                                    <span class="text-blue-400/70 shrink-0 w-20 truncate">{{ log.type }}</span>
+                                    <span class="flex-1 break-all">{{ log.message }}
+                                        <span v-if="log.detail" class="text-[var(--text-muted)] ml-1 cursor-pointer hover:text-[var(--text-secondary)]" @click="toggleLogDetail(log.id)">
+                                            {{ expandedLogs.includes(log.id) ? '[hide]' : '[detail]' }}
+                                        </span>
+                                    </span>
+                                </div>
+                                <div
+                                    v-if="log.detail && expandedLogs.includes(log.id)"
+                                    :key="'detail-' + log.id"
+                                    class="py-2 px-3 bg-[var(--bg-surface)] rounded text-[var(--text-muted)] whitespace-pre-wrap break-all text-[11px]"
+                                >{{ log.detail }}</div>
+                            </template>
+                        </div>
+                    </div>
+                </template>
             </div>
 
             <!-- Scroll to bottom button -->
@@ -379,7 +395,7 @@
 
 <script setup>
 import { ref, computed, nextTick, onMounted, onUnmounted, watch } from 'vue'
-import { Plus, Send, FileIcon, ChevronDown, Upload, Square, Clock, MessageSquareReply, ScrollText } from 'lucide-vue-next'
+import { Plus, Send, FileIcon, ChevronDown, Upload, Square, Clock, MessageSquareReply, ScrollText, Copy } from 'lucide-vue-next'
 import { useI18n } from 'vue-i18n'
 import { useApi } from '../composables/useApi'
 
@@ -934,6 +950,17 @@ const sendMessage = async () => {
         // Note: convId may not be set if the error occurred before API response
         const currentConvId = conversationId.value
 
+        // Log the error to the Logs tab
+        chatLogs.value = [...chatLogs.value, {
+            id: Date.now(),
+            timestamp: Date.now() / 1000,
+            type: 'error',
+            message: e.message,
+            detail: null,
+            tool_name: null,
+            is_error: true
+        }]
+
         if (currentConvId) {
             clearActivities()
             await reloadMessages({ targetConversationId: currentConvId })
@@ -1460,6 +1487,7 @@ const checkPendingOAuthInStorage = () => {
 
 // Logs tab state
 const expandedLogs = ref([])
+const logsCopied = ref(false)
 
 const toggleLogDetail = (logId) => {
     const idx = expandedLogs.value.indexOf(logId)
@@ -1478,6 +1506,17 @@ const formatLogTime = (timestamp) => {
         second: '2-digit',
         hour12: false
     })
+}
+
+const copyAllLogs = async () => {
+    const text = chatLogs.value.map(log => {
+        const time = formatLogTime(log.timestamp)
+        const detail = log.detail ? `\n  ${log.detail}` : ''
+        return `[${time}] ${log.type.padEnd(20)} ${log.message}${detail}`
+    }).join('\n')
+    await navigator.clipboard.writeText(text)
+    logsCopied.value = true
+    setTimeout(() => { logsCopied.value = false }, 2000)
 }
 
 // Watch activities for token_stats updates (real-time during agent work)

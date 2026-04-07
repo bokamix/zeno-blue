@@ -1859,6 +1859,38 @@ async def get_job_status(
     return job_response
 
 
+@app.get("/conversations/{conversation_id}/activities")
+async def get_conversation_activities(conversation_id: str):
+    """
+    Get all activities for a conversation (across all jobs), ordered by time.
+    Used to populate the Logs tab when loading a conversation from history.
+    """
+    rows = db.fetchall(
+        """
+        SELECT ja.id, ja.timestamp, ja.type, ja.message, ja.detail, ja.tool_name, ja.is_error
+        FROM job_activities ja
+        JOIN jobs j ON ja.job_id = j.id
+        WHERE j.conversation_id = ?
+        ORDER BY ja.id ASC
+        LIMIT 1000
+        """,
+        (conversation_id,)
+    )
+    activities = []
+    for row in rows:
+        detail = row.get("detail")
+        activities.append({
+            "id": row["id"],
+            "timestamp": row["timestamp"],
+            "type": row["type"],
+            "message": row["message"],
+            "detail": detail,
+            "tool_name": row.get("tool_name"),
+            "is_error": bool(row.get("is_error", 0))
+        })
+    return {"activities": activities}
+
+
 @app.get("/conversations/{conversation_id}/active-job")
 async def get_active_job(conversation_id: str):
     """

@@ -631,6 +631,13 @@ const loadConversation = async (convId) => {
             metadata: m.metadata || null
         }))
 
+        // Load historical activities for the Logs tab (fire and forget)
+        api.getConversationActivities(convId).then(data => {
+            if (data.activities?.length > 0) {
+                chatLogs.value = data.activities
+            }
+        }).catch(() => {})
+
         // Clear loader now that messages are loaded
         clearTimeout(conversationLoaderTimeout)
         showConversationLoader.value = false

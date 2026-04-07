@@ -91,6 +91,12 @@ export function useApi() {
         return res.json()
     }
 
+    const getConversationActivities = async (conversationId) => {
+        const res = await fetch(`${API_BASE}/conversations/${conversationId}/activities`)
+        if (!res.ok) throw new Error('Failed to fetch activities')
+        return res.json()
+    }
+
     const submitAnswer = async (jobId, response) => {
         const res = await fetch(`${API_BASE}/jobs/${jobId}/respond`, {
             method: 'POST',
@@ -483,6 +489,7 @@ export function useApi() {
     return {
         sendMessage,
         pollJob,
+        getConversationActivities,
         submitAnswer,
         cancelJob,
         forceRespond,
