@@ -57,6 +57,20 @@ Python process
       └─ APScheduler (in-process)
 ```
 
+## Security Notice
+
+> **This application is currently in early development and has not undergone a security audit.**
+>
+> ZENO is intended to be run in **isolated or disposable environments only** — such as a dedicated virtual machine or a Docker container. Do not run it on devices where a security compromise would be unacceptable (e.g. your primary work machine, production servers, or systems storing sensitive data). The following limitations apply:
+>
+> - Authentication is based on a single shared access password — no user account system or session management is implemented.
+> - The application has **not been hardened** against malicious input or unauthorized access.
+> - No penetration testing or formal security review has been performed.
+>
+> **Run this application only on machines you can afford to compromise.** Use at your own risk.
+>
+> Security improvements are planned for future releases.
+
 ## License
 
 MIT
