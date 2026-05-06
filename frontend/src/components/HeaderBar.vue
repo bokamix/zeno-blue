@@ -28,10 +28,13 @@
 
             <!-- Center: Navigation Pills (desktop only) -->
             <nav class="hidden md:flex nav-pill absolute left-1/2 -translate-x-1/2">
-                <button @click="$emit('open-scheduler')" class="nav-pill-item flex items-center gap-2">
+                <button @click="$emit('open-procedures')" :class="['nav-pill-item flex items-center gap-2', activeSection === 'procedures' && 'active']">
+                    <Workflow class="w-4 h-4" /> Procedures
+                </button>
+                <button @click="$emit('open-scheduler')" :class="['nav-pill-item flex items-center gap-2', activeSection === 'scheduler' && 'active']">
                     <Clock class="w-4 h-4" /> {{ $t('nav.scheduler') }}
                 </button>
-                <button @click="$emit('open-skills')" class="nav-pill-item flex items-center gap-2">
+                <button @click="$emit('open-skills')" :class="['nav-pill-item flex items-center gap-2', activeSection === 'skills' && 'active']">
                     <Sparkles class="w-4 h-4" /> {{ $t('nav.skills') }}
                 </button>
                 <a href="https://discord.gg/HQhSaQgN" target="_blank" class="nav-pill-item flex items-center gap-2">
@@ -60,7 +63,11 @@
 </template>
 
 <script setup>
-import { Menu, Clock, Settings, Plus, Sparkles, LayoutGrid, Lightbulb } from 'lucide-vue-next'
+import { Menu, Clock, Settings, Plus, Sparkles, LayoutGrid, Lightbulb, Workflow } from 'lucide-vue-next'
+
+defineProps({
+    activeSection: { type: String, default: null }
+})
 
 defineEmits([
     'toggle-sidebar',
@@ -68,6 +75,7 @@ defineEmits([
     'open-scheduler',
     'open-settings',
     'open-skills',
+    'open-procedures',
     'new-chat'
 ])
 </script>

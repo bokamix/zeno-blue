@@ -2614,6 +2614,334 @@ app.include_router(admin_module.router)
 app.include_router(api_v1_router)
 
 
+# --- Procedures Module ---
+
+import time as _time
+from collections import defaultdict as _defaultdict
+
+_session_rate: dict = _defaultdict(list)  # ip -> [timestamps]
+_RATE_LIMIT_WINDOW = 60   # seconds
+_RATE_LIMIT_MAX    = 10   # max sessions per IP per window
+
+
+def _check_session_rate_limit(request: Request) -> None:
+    ip = request.client.host if request.client else "unknown"
+    now = _time.monotonic()
+    window_start = now - _RATE_LIMIT_WINDOW
+    _session_rate[ip] = [t for t in _session_rate[ip] if t > window_start]
+    if len(_session_rate[ip]) >= _RATE_LIMIT_MAX:
+        raise HTTPException(status_code=429, detail="Too many sessions — try again later")
+    _session_rate[ip].append(now)
+
+
+def _extract_text(filename: str, content: bytes) -> str:
+    """Extract plain text from uploaded file (PDF, DOCX, or plain text)."""
+    lower = filename.lower()
+    try:
+        if lower.endswith(".pdf"):
+            import pdfplumber
+            import io
+            with pdfplumber.open(io.BytesIO(content)) as pdf:
+                return "\n".join(page.extract_text() or "" for page in pdf.pages)
+        if lower.endswith(".docx"):
+            import docx
+            import io
+            doc = docx.Document(io.BytesIO(content))
+            return "\n".join(p.text for p in doc.paragraphs)
+    except Exception as e:
+        log(f"[Procedures] Text extraction failed for {filename}: {e}")
+    # Fallback: decode as UTF-8
+    try:
+        return content.decode("utf-8", errors="replace")
+    except Exception:
+        return ""
+
+
+# --- Procedure Admin Routes (require auth) ---
+
+@app.get("/procedures")
+async def list_procedures():
+    procs = db.get_procedures()
+    result = []
+    for p in procs:
+        files = db.get_procedure_files(p["id"])
+        files_safe = [{"id": f["id"], "original_name": f["original_name"], "file_size": f["file_size"]} for f in files]
+        result.append({**p, "is_active": bool(p.get("is_active", 1)), "files": files_safe})
+    return result
+
+
+@app.post("/procedures")
+async def create_procedure(payload: dict):
+    name = (payload.get("name") or "").strip()
+    if not name:
+        raise HTTPException(status_code=400, detail="name is required")
+    skill_prompt = (payload.get("skill_prompt") or "").strip()
+    if not skill_prompt:
+        raise HTTPException(status_code=400, detail="skill_prompt is required")
+
+    import re
+    slug = payload.get("slug") or re.sub(r"[^a-z0-9-]", "-", name.lower())
+    slug = re.sub(r"-+", "-", slug).strip("-")[:60]
+    if not slug:
+        slug = str(uuid.uuid4())[:8]
+
+    # Ensure slug uniqueness
+    base_slug = slug
+    counter = 1
+    while db.get_procedure_by_slug(slug):
+        slug = f"{base_slug}-{counter}"
+        counter += 1
+
+    proc_id = str(uuid.uuid4())
+    db.create_procedure(proc_id, name, slug, skill_prompt, payload.get("completion_condition"))
+    proc = db.get_procedure(proc_id)
+    return {**proc, "is_active": True, "files": []}
+
+
+@app.get("/procedures/{procedure_id}")
+async def get_procedure(procedure_id: str):
+    proc = db.get_procedure(procedure_id)
+    if not proc:
+        raise HTTPException(status_code=404, detail="Procedure not found")
+    files = db.get_procedure_files(procedure_id)
+    files_safe = [{"id": f["id"], "original_name": f["original_name"], "file_size": f["file_size"]} for f in files]
+    return {**proc, "is_active": bool(proc.get("is_active", 1)), "files": files_safe}
+
+
+@app.put("/procedures/{procedure_id}")
+async def update_procedure(procedure_id: str, payload: dict):
+    proc = db.get_procedure(procedure_id)
+    if not proc:
+        raise HTTPException(status_code=404, detail="Procedure not found")
+
+    name = (payload.get("name") or "").strip() or proc["name"]
+    skill_prompt = (payload.get("skill_prompt") or "").strip() or proc["skill_prompt"]
+
+    import re
+    slug = payload.get("slug") or proc["slug"]
+    slug = re.sub(r"[^a-z0-9-]", "-", slug.lower())
+    slug = re.sub(r"-+", "-", slug).strip("-")[:60] or proc["slug"]
+
+    # Check slug uniqueness (excluding this procedure)
+    existing = db.get_procedure_by_slug(slug)
+    if existing and existing["id"] != procedure_id:
+        raise HTTPException(status_code=409, detail="Slug already in use")
+
+    db.update_procedure(procedure_id, name, slug, skill_prompt, payload.get("completion_condition"))
+    updated = db.get_procedure(procedure_id)
+    files = db.get_procedure_files(procedure_id)
+    files_safe = [{"id": f["id"], "original_name": f["original_name"], "file_size": f["file_size"]} for f in files]
+    return {**updated, "is_active": bool(updated.get("is_active", 1)), "files": files_safe}
+
+
+@app.delete("/procedures/{procedure_id}")
+async def delete_procedure(procedure_id: str):
+    if not db.delete_procedure(procedure_id):
+        raise HTTPException(status_code=404, detail="Procedure not found")
+    return {"ok": True}
+
+
+@app.post("/procedures/{procedure_id}/files")
+async def upload_procedure_file(procedure_id: str, file: UploadFile = File(...)):
+    proc = db.get_procedure(procedure_id)
+    if not proc:
+        raise HTTPException(status_code=404, detail="Procedure not found")
+
+    content = await file.read()
+    if len(content) > 20 * 1024 * 1024:  # 20MB limit
+        raise HTTPException(status_code=413, detail="File too large (max 20MB)")
+
+    text_content = _extract_text(file.filename or "file.txt", content)
+    file_id = str(uuid.uuid4())
+    db.add_procedure_file(file_id, procedure_id, file.filename or "file.txt", text_content, len(content), binary_content=content)
+
+    return {"id": file_id, "original_name": file.filename, "file_size": len(content)}
+
+
+@app.delete("/procedures/{procedure_id}/files/{file_id}")
+async def delete_procedure_file(procedure_id: str, file_id: str):
+    if not db.delete_procedure_file(file_id):
+        raise HTTPException(status_code=404, detail="File not found")
+    return {"ok": True}
+
+
+# --- Procedure Public Session Routes (no auth) ---
+
+@app.get("/p/{slug}/info")
+async def procedure_info(slug: str):
+    """Public: get procedure name/description without exposing the full prompt."""
+    proc = db.get_procedure_by_slug(slug)
+    if not proc:
+        raise HTTPException(status_code=404, detail="Procedure not found")
+    return {"id": proc["id"], "name": proc["name"], "slug": proc["slug"]}
+
+
+@app.post("/p/{slug}/sessions")
+async def create_procedure_session(slug: str, request: Request):
+    """Public: create a new procedure session (fresh conversation)."""
+    _check_session_rate_limit(request)
+    proc = db.get_procedure_by_slug(slug)
+    if not proc:
+        raise HTTPException(status_code=404, detail="Procedure not found")
+
+    conversation_id = str(uuid.uuid4())
+    now = DB.now()
+    db.execute(
+        "INSERT INTO conversations(id, created_at, read_at, procedure_id) VALUES (?, ?, ?, ?)",
+        (conversation_id, now, now, proc["id"]),
+    )
+
+    session_id = str(uuid.uuid4())
+    db.create_procedure_session(session_id, proc["id"], conversation_id)
+
+    # Create a dedicated output folder for this session (inside artifacts so files are served)
+    from user_container.config import settings as _settings
+    session_folder = os.path.join(_settings.artifacts_dir, "procedure_sessions", session_id)
+    refs_folder = os.path.join(session_folder, "references")
+    os.makedirs(refs_folder, exist_ok=True)
+
+    # Copy reference files to disk so the agent can access them directly
+    proc_files = db.get_procedure_files(proc["id"])
+    for pf in proc_files:
+        safe_name = pf["original_name"].replace("/", "_").replace("..", "_")
+        file_path = os.path.join(refs_folder, safe_name)
+        binary = db.get_procedure_file_binary(pf["id"])
+        if binary:
+            with open(file_path, "wb") as fh:
+                fh.write(binary)
+        elif pf.get("text_content"):
+            with open(file_path, "w", encoding="utf-8") as fh:
+                fh.write(pf["text_content"])
+
+    # Auto-kickoff: enqueue a hidden job so AI starts the procedure immediately.
+    # The kickoff message is internal (not shown to user) — AI will respond with
+    # its opening message asking for the first required inputs.
+    kickoff = (
+        "[SYSTEM: The procedure session has started. "
+        "Begin immediately: greet the user briefly, explain what you will help them with, "
+        "and ask for the first required piece of information. Do not ask for confirmation — just start.]"
+    )
+    db.save_message_from_dict(conversation_id, {"role": "user", "content": kickoff, "internal": 1})
+
+    kickoff_job_id = str(uuid.uuid4())
+    job_queue = get_job_queue()
+    job_queue.create_job(kickoff_job_id, conversation_id, kickoff, skip_history=False)
+    job_queue.enqueue(kickoff_job_id)
+
+    db.update_procedure_session_status(session_id, "in_progress")
+
+    return {
+        "session_id": session_id,
+        "conversation_id": conversation_id,
+        "kickoff_job_id": kickoff_job_id,
+    }
+
+
+@app.get("/p/{slug}/sessions/{session_id}")
+async def get_procedure_session(slug: str, session_id: str):
+    """Public: get session status and messages."""
+    session = db.get_procedure_session(session_id)
+    if not session:
+        raise HTTPException(status_code=404, detail="Session not found")
+
+    conv_id = session["conversation_id"]
+    rows = db.fetchall(
+        "SELECT id, role, content, created_at FROM messages WHERE conversation_id = ? AND internal = 0 ORDER BY id ASC",
+        (conv_id,)
+    )
+    messages = [{"id": r["id"], "role": r["role"], "content": r["content"], "created_at": r["created_at"]} for r in rows]
+
+    return {
+        "session_id": session_id,
+        "status": session["status"],
+        "conversation_id": conv_id,
+        "messages": messages,
+    }
+
+
+@app.post("/p/{slug}/sessions/{session_id}/chat")
+async def procedure_session_chat(slug: str, session_id: str, payload: dict):
+    """Public: send a message in a procedure session."""
+    session = db.get_procedure_session(session_id)
+    if not session:
+        raise HTTPException(status_code=404, detail="Session not found")
+    if session["status"] == "done":
+        raise HTTPException(status_code=400, detail="Procedure already completed")
+
+    message = (payload.get("message") or "").strip()
+    if not message:
+        raise HTTPException(status_code=400, detail="message is required")
+
+    conv_id = session["conversation_id"]
+    db.save_message_from_dict(conv_id, {"role": "user", "content": message})
+
+    msg_row = db.fetchone(
+        "SELECT id FROM messages WHERE conversation_id = ? ORDER BY id DESC LIMIT 1",
+        (conv_id,)
+    )
+    message_id = msg_row["id"] if msg_row else None
+
+    # Mark session as in_progress
+    db.update_procedure_session_status(session_id, "in_progress")
+
+    job_id = str(uuid.uuid4())
+    job_queue = get_job_queue()
+    job_queue.create_job(job_id, conv_id, message)
+    job_queue.enqueue(job_id)
+
+    return {"job_id": job_id, "conversation_id": conv_id, "message_id": message_id}
+
+
+@app.get("/p/{slug}/sessions/{session_id}/jobs/{job_id}")
+async def procedure_job_status(slug: str, session_id: str, job_id: str, since_activity_id: int = None):
+    """Public: poll job status for a procedure session."""
+    job_queue = get_job_queue()
+    job_data = job_queue.get_job(job_id)
+    if not job_data:
+        raise HTTPException(status_code=404, detail="Job not found")
+
+    activities = db.get_job_activities(job_id, limit=100, since_id=since_activity_id)
+
+    # After job completes, check for [PROCEDURE_COMPLETE] marker and update session status
+    if job_data.get("status") == "completed":
+        session = db.get_procedure_session(session_id)
+        if session and session["status"] == "in_progress":
+            result = job_data.get("result") or ""
+            # Also check last assistant message content
+            last_msg = db.fetchone(
+                "SELECT content FROM messages WHERE conversation_id = ? AND role = 'assistant' ORDER BY id DESC LIMIT 1",
+                (session["conversation_id"],)
+            )
+            content = (last_msg["content"] or "") if last_msg else ""
+            if "[PROCEDURE_COMPLETE]" in content or "[PROCEDURE_COMPLETE]" in result:
+                db.update_procedure_session_status(session_id, "done")
+            else:
+                db.update_procedure_session_status(session_id, "waiting_for_user")
+
+    # Re-fetch updated session status
+    session = db.get_procedure_session(session_id)
+
+    return {
+        "id": job_data.get("id"),
+        "status": job_data.get("status"),
+        "result": job_data.get("result") or None,
+        "error": job_data.get("error") or None,
+        "question": job_data.get("question") or None,
+        "session_status": session["status"] if session else None,
+        "activities": [
+            {
+                "id": a.id,
+                "type": a.type,
+                "message": a.message,
+                "tool_name": a.tool_name,
+                "is_error": a.is_error,
+                "timestamp": a.timestamp,
+            }
+            for a in activities
+        ],
+    }
+
+
 # --- Frontend Static Files ---
 # Serve built frontend (searches multiple locations for native/Docker/bundled mode)
 

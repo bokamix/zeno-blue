@@ -19,6 +19,11 @@ services:
       - ./tests:/app/tests
     env_file:
       - .env
+    environment:
+      - WORKSPACE_DIR=/workspace
+      - ARTIFACTS_DIR=/workspace/artifacts
+      - DATA_DIR=/data
+      - DB_PATH=/data/runtime.db
     command: python -m uvicorn user_container.app:app --host 0.0.0.0 --port 8000 --reload --reload-dir user_container
     # Resource management
     deploy:

@@ -21,6 +21,10 @@ MANAGE_SKILL_SCHEMA = ToolSchema(
     name="manage_skill",
     description="""Create, update, delete, list custom skills, or write scripts for them.
 
+A skill is an INTERNAL AI capability — a Python script or workflow that the AI uses as a tool to complete tasks (e.g. Gmail integration, PDF converter, API client).
+
+NOT for user-facing guided workflows. If the user wants to create a repeatable process that END USERS will run interactively (guided conversation, form wizard, document fill-in), use create_procedure instead.
+
 Use ONLY when you have a confirmed plan and the user has explicitly agreed to create/update/delete a skill.
 Do NOT call this tool to answer questions about skills — just respond in text.
 

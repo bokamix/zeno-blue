@@ -14,8 +14,9 @@
                 />
 
                 <!-- Conversation Loading State (delayed to avoid flash on fast loads) -->
+                <!-- Also shown while isLoading and no messages — covers procedure kickoff with no messages yet -->
                 <div
-                    v-if="messages.length === 0 && showConversationLoader && !pendingQuestion && !pendingOAuth"
+                    v-if="messages.length === 0 && (showConversationLoader || isLoading) && !pendingQuestion && !pendingOAuth"
                     class="h-full flex items-center justify-center"
                 >
                     <div class="flex items-center gap-2">
@@ -29,7 +30,7 @@
                 <VirtualMessageList
                     v-if="messages.length > 0"
                     ref="virtualMessageList"
-                    :messages="messages"
+                    :messages="displayMessages"
                     :read-at="readAt"
                     v-model:isAtBottom="isAtBottom"
                     @fork="$emit('fork', $event)"
@@ -148,6 +149,12 @@
         <!-- Input Area - Only visible when chat tab is active -->
         <div v-show="activeTabId === 'chat'" class="px-4 md:px-6 pt-4 pb-6 shrink-0 bg-[var(--bg-base)]">
             <div class="max-w-3xl mx-auto">
+
+                <!-- Procedure completed banner -->
+                <div v-if="isProcedureDone" class="mb-4 px-4 py-3 rounded-xl bg-emerald-500/10 border border-emerald-500/30 flex items-center gap-3">
+                    <CheckCircle2 class="w-5 h-5 text-emerald-400 shrink-0" />
+                    <span class="text-sm text-emerald-300 font-medium">Procedure completed — this conversation is now locked.</span>
+                </div>
                 <!-- File Attachments Preview Gallery -->
                 <div v-if="attachedFiles.length > 0" class="mb-3 flex flex-wrap gap-2">
                     <div
@@ -258,7 +265,7 @@
                             @paste="handlePaste"
                             rows="1"
                             :placeholder="$t('chat.messagePlaceholder')"
-                            :disabled="isLoading"
+                            :disabled="isLoading || isProcedureDone"
                             class="w-full bg-transparent text-[15px] text-[var(--text-primary)] rounded-2xl pl-14 pt-[21px] pb-[15px] pr-14
                                    focus:outline-none resize-none custom-scroll leading-normal overflow-hidden
                                    placeholder:text-[var(--text-muted)] transition-colors"
@@ -278,7 +285,7 @@
                                 class="hidden"
                                 @change="handleFileInputChange"
                                 multiple
-                                :disabled="isLoading"
+                                :disabled="isLoading || isProcedureDone"
                             >
                         </label>
 
@@ -318,7 +325,7 @@
                         <button
                             v-else
                             @click="sendMessage"
-                            :disabled="!inputText.trim() || isLoading || hasUploadingFiles"
+                            :disabled="!inputText.trim() || isLoading || hasUploadingFiles || isProcedureDone"
                             class="absolute right-3 bottom-3 p-2.5 rounded-xl
                                    bg-gradient-to-r from-blue-600 to-sky-500 text-white
                                    shadow-lg shadow-blue-500/25
@@ -395,7 +402,7 @@
 
 <script setup>
 import { ref, computed, nextTick, onMounted, onUnmounted, watch } from 'vue'
-import { Plus, Send, FileIcon, ChevronDown, Upload, Square, Clock, MessageSquareReply, ScrollText, Copy } from 'lucide-vue-next'
+import { Plus, Send, FileIcon, ChevronDown, Upload, Square, Clock, MessageSquareReply, ScrollText, Copy, CheckCircle2 } from 'lucide-vue-next'
 import { useI18n } from 'vue-i18n'
 import { useApi } from '../composables/useApi'
 
@@ -482,6 +489,21 @@ const {
 } = useWorkspaceState()
 
 const { playNotificationSound } = useSettingsState()
+
+// Procedure completion detection
+const isProcedureDone = computed(() =>
+    messages.value.some(m => m.role === 'assistant' && m.text?.includes('[PROCEDURE_COMPLETE]'))
+)
+
+// Strip [PROCEDURE_COMPLETE] marker from displayed messages
+const displayMessages = computed(() =>
+    messages.value.map(m => {
+        if (m.role === 'assistant' && m.text?.includes('[PROCEDURE_COMPLETE]')) {
+            return { ...m, text: m.text.replace(/\[PROCEDURE_COMPLETE\]/g, '').trim() }
+        }
+        return m
+    })
+)
 
 // Token meter state
 const contextStats = ref(null)

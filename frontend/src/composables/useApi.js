@@ -486,6 +486,55 @@ export function useApi() {
         }
     }
 
+    // --- Procedures ---
+    const getProcedures = async () => {
+        const res = await fetchWithTimeout(`${API_BASE}/procedures`)
+        if (!res.ok) throw new Error('Failed to fetch procedures')
+        return res.json()
+    }
+    const createProcedure = async (data) => {
+        const res = await fetchWithTimeout(`${API_BASE}/procedures`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data) })
+        if (!res.ok) throw new Error('Failed to create procedure')
+        return res.json()
+    }
+    const updateProcedure = async (id, data) => {
+        const res = await fetchWithTimeout(`${API_BASE}/procedures/${id}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data) })
+        if (!res.ok) throw new Error('Failed to update procedure')
+        return res.json()
+    }
+    const deleteProcedure = async (id) => {
+        const res = await fetchWithTimeout(`${API_BASE}/procedures/${id}`, { method: 'DELETE' })
+        if (!res.ok) throw new Error('Failed to delete procedure')
+        return res.json()
+    }
+    const uploadProcedureFile = async (procedureId, file) => {
+        const form = new FormData()
+        form.append('file', file)
+        const res = await fetchWithTimeout(`${API_BASE}/procedures/${procedureId}/files`, { method: 'POST', body: form }, 30000)
+        if (!res.ok) throw new Error('Failed to upload file')
+        return res.json()
+    }
+    const deleteProcedureFile = async (procedureId, fileId) => {
+        const res = await fetchWithTimeout(`${API_BASE}/procedures/${procedureId}/files/${fileId}`, { method: 'DELETE' })
+        if (!res.ok) throw new Error('Failed to delete file')
+        return res.json()
+    }
+    // Public procedure session API
+    const getProcedureInfo = async (slug) => {
+        const res = await fetchWithTimeout(`${API_BASE}/p/${slug}/info`)
+        if (!res.ok) throw new Error('Procedure not found')
+        return res.json()
+    }
+    const createProcedureSession = async (slug) => {
+        const res = await fetchWithTimeout(`${API_BASE}/p/${slug}/sessions`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{}' })
+        if (!res.ok) throw new Error('Failed to create session')
+        return res.json()
+    }
+    const getProcedureSession = async (slug, sessionId) => {
+        const res = await fetchWithTimeout(`${API_BASE}/p/${slug}/sessions/${sessionId}`)
+        if (!res.ok) throw new Error('Session not found')
+        return res.json()
+    }
     return {
         sendMessage,
         pollJob,
@@ -526,6 +575,15 @@ export function useApi() {
         setSkillSecret,
         deleteSkillSecret,
         getContextStats,
-        compressConversation
+        compressConversation,
+        getProcedures,
+        createProcedure,
+        updateProcedure,
+        deleteProcedure,
+        uploadProcedureFile,
+        deleteProcedureFile,
+        getProcedureInfo,
+        createProcedureSession,
+        getProcedureSession,
     }
 }

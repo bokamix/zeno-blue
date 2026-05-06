@@ -65,6 +65,7 @@ RUN --mount=type=cache,target=/root/.npm \
 COPY frontend/ frontend/
 # Pass build version and Sentry config to Vite
 RUN cd frontend && \
+    NODE_OPTIONS=--experimental-global-webcrypto \
     VITE_BUILD_VERSION=${BUILD_VERSION} \
     VITE_SENTRY_DSN=${VITE_SENTRY_DSN} \
     VITE_SENTRY_ENVIRONMENT=${VITE_SENTRY_ENVIRONMENT} \

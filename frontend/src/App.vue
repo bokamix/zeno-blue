@@ -1,6 +1,9 @@
 <template>
+    <!-- Public procedure page (no auth required) -->
+    <ProcedureChatView v-if="isProcedurePage" :slug="procedureSlug" :initial-session-id="procedureSessionId" />
+
     <!-- Setup screen (first run) -->
-    <SetupScreen v-if="needsSetup && setupChecked" @complete="onSetupComplete" />
+    <SetupScreen v-else-if="needsSetup && setupChecked" @complete="onSetupComplete" />
 
     <!-- Login screen (auth enabled but not authenticated) -->
     <LoginScreen v-else-if="needsLogin && setupChecked" @authenticated="onAuthenticated" />
@@ -49,16 +52,19 @@
 
             <!-- Header -->
             <HeaderBar
+                :active-section="currentSection"
                 @toggle-sidebar="toggleSidebar"
                 @open-mobile-nav="showMobileNav = true"
-                @open-scheduler="showScheduledJobsModal = true"
-                @open-skills="showCustomSkillsModal = true"
+                @open-scheduler="navigateToSection('scheduler')"
+                @open-skills="navigateToSection('skills')"
+                @open-procedures="navigateToSection(currentSection === 'procedures' ? null : 'procedures')"
                 @open-settings="openSettingsModal"
-                @new-chat="newChat"
+                @new-chat="currentSection = null; newChat()"
             />
 
-            <!-- Tab Bar (desktop only) -->
+            <!-- Tab Bar (desktop only, hidden in section views) -->
             <TabBar
+                v-if="!currentSection"
                 :tabs="workspaceTabs"
                 :active-tab-id="activeTabId"
                 @select="activeTabId = $event; saveWorkspace(conversationId)"
@@ -66,8 +72,27 @@
                 @reveal="revealFileInTree"
             />
 
+            <!-- Section views -->
+            <ProceduresView v-if="currentSection === 'procedures'" />
+
+            <ScheduledJobsModal
+                v-else-if="currentSection === 'scheduler'"
+                :embedded="true"
+                @show-details="showSchedulerDetail"
+                @select-conversation="handleSchedulerConversationSelect"
+                @refresh-conversations="refreshConversations"
+                @new-conversation="handleNewConversation"
+                @create-scheduler="handleCreateScheduler"
+            />
+
+            <CustomSkillsModal
+                v-else-if="currentSection === 'skills'"
+                :embedded="true"
+            />
+
             <!-- Chat View -->
             <ChatView
+                v-else
                 ref="chatViewRef"
                 @fork="handleForkConversation"
                 @open-file="handleFileClick"
@@ -214,6 +239,8 @@ import HeaderBar from './components/HeaderBar.vue'
 import ChatView from './components/ChatView.vue'
 import UpdateBanner from './components/UpdateBanner.vue'
 import PullToRefresh from './components/PullToRefresh.vue'
+import ProcedureChatView from './components/ProcedureChatView.vue'
+import ProceduresView from './components/ProceduresView.vue'
 
 // Lazy load modals for better initial bundle size
 // With retry on failure (handles offline/network errors)
@@ -379,6 +406,39 @@ const {
     findFileInArtifacts,
     revealFileInTree
 } = useWorkspaceState()
+
+// Procedure routing — supports /p/{slug} and /p/{slug}/{session_id}
+const isProcedurePage = window.location.pathname.startsWith('/p/')
+const _procParts = window.location.pathname.replace(/^\/p\//, '').split('/')
+const procedureSlug = _procParts[0] || ''
+const procedureSessionId = _procParts[1] || null
+
+// Section routing — tracks which section is active via URL
+const getSectionFromUrl = () => {
+    const path = window.location.pathname
+    if (path === '/procedures') return 'procedures'
+    if (path === '/scheduler') return 'scheduler'
+    if (path === '/skills') return 'skills'
+    return null
+}
+
+const currentSection = ref(getSectionFromUrl())
+
+const navigateToSection = (section) => {
+    if (!section) {
+        currentSection.value = null
+        window.history.pushState({}, '', conversationId.value ? `/c/${conversationId.value}` : '/')
+        return
+    }
+    if (section === currentSection.value) {
+        currentSection.value = null
+        window.history.pushState({}, '', conversationId.value ? `/c/${conversationId.value}` : '/')
+        return
+    }
+    currentSection.value = section
+    const urls = { procedures: '/procedures', scheduler: '/scheduler', skills: '/skills' }
+    if (urls[section]) window.history.pushState({}, '', urls[section])
+}
 
 // Template refs
 const sidebarRef = ref(null)
@@ -641,7 +701,8 @@ const loadConversation = async (convId) => {
         // Clear loader now that messages are loaded
         clearTimeout(conversationLoaderTimeout)
         showConversationLoader.value = false
-        isLoading.value = false
+        // Keep isLoading=true until active-job check completes — prevents blank
+        // EmptyState flash when a procedure kickoff is still running with no messages yet
 
         nextTick(() => chatViewRef.value?.forceScrollToBottom())
 
@@ -812,6 +873,7 @@ const reloadMessages = (options = {}) => reloadMessagesFromState(api, options)
 // Handle conversation selection
 const handleSelectConversation = (convId) => {
     closeSidebar()
+    currentSection.value = null
     loadConversation(convId)
 }
 
@@ -988,6 +1050,11 @@ const openFile = (item) => openFileFromState(item, conversationId.value, closeSi
 const handleFileClick = (fileNameOrPath) => {
     // For full /workspace paths, open directly without checking artifacts
     // (children are lazy-loaded, so nested files won't be in artifacts.value)
+    // Also handle absolute OS paths containing .zeno/workspace (from agent output)
+    const zenoWorkspaceMatch = fileNameOrPath.match(/\.zeno\/workspace\/(.+)$/)
+    if (zenoWorkspaceMatch) {
+        fileNameOrPath = '/workspace/' + zenoWorkspaceMatch[1]
+    }
     if (fileNameOrPath.startsWith('/workspace/')) {
         const relativePath = fileNameOrPath.replace(/^\/workspace\/artifacts\/?/, '').replace(/^\/workspace\/?/, '')
         const name = relativePath.split('/').pop()
@@ -1147,6 +1214,12 @@ const handleGlobalKeydown = (e) => {
 
 // Handle browser back/forward navigation
 const handlePopstate = async () => {
+    const section = getSectionFromUrl()
+    if (section !== null) {
+        currentSection.value = section
+        return
+    }
+    currentSection.value = null
     const urlConvId = getConversationFromUrl()
     if (urlConvId && urlConvId !== conversationId.value) {
         await loadConversation(urlConvId)

@@ -91,7 +91,10 @@ You have basic tools always available:
 - `delegate_task` - spawn lightweight worker for atomic subtasks (runs in parallel)
 - `list_scheduled_jobs` - **LIST SCHEDULERS** - see all existing scheduled jobs (always check before creating!)
 - `create_scheduled_job` - **RECURRING TASKS** - schedule agent to do something periodically (CRON)
-- `manage_skill` - **CREATE SKILLS** - create reusable skills (requires discussing plan with user first)
+- `manage_skill` - **CREATE SKILLS** - create internal AI capabilities/tools (Python scripts, API integrations). NOT for user-facing guided workflows.
+- `list_procedures` - **LIST PROCEDURES** - see all existing procedure workflows
+- `create_procedure` - **CREATE PROCEDURE** - create a shareable guided workflow that END USERS run interactively (e.g. filling a form, onboarding, a document wizard). Users access it via a /p/slug link and chat with AI step by step.
+- `update_procedure` - **UPDATE PROCEDURE** - edit or delete an existing procedure
 
 ## CODEBASE EXPLORATION
 Use `explore` tool to understand code BEFORE making changes:

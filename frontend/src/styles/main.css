@@ -67,6 +67,23 @@
     --shadow-card: none;
 }
 
+/* --- Prevent text selection on UI chrome --- */
+#app {
+    user-select: none;
+    -webkit-user-select: none;
+}
+
+/* Re-enable selection for editable fields and chat content */
+#app input,
+#app textarea,
+#app [contenteditable],
+#app .prose,
+#app .activity-message,
+#app .activity-detail {
+    user-select: text;
+    -webkit-user-select: text;
+}
+
 /* --- Base Typography (matching landing page) --- */
 body {
     font-family: 'Inter', system-ui, sans-serif;

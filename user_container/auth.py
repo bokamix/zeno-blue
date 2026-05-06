@@ -37,6 +37,7 @@ PUBLIC_PREFIXES = (
     "/sw.js",
     "/registerSW.js",
     "/manifest.webmanifest",
+    "/p/",  # Public procedure sessions
 )
 
 
@@ -127,7 +128,7 @@ async def auth_middleware(request: Request, call_next):
     api_prefixes = ("/api/", "/chat", "/jobs", "/conversations", "/settings",
                     "/status", "/artifacts", "/apps", "/scheduled-jobs",
                     "/custom-skills", "/container/", "/internal/",
-                    "/user-info", "/disk-usage")
+                    "/user-info", "/disk-usage", "/procedures")
     for prefix in api_prefixes:
         if path.startswith(prefix):
             return JSONResponse(

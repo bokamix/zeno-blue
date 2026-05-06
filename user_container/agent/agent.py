@@ -14,6 +14,7 @@ import mimetypes
 import os
 import random
 import re
+import sys
 import time
 import threading
 from concurrent.futures import ThreadPoolExecutor, as_completed
@@ -91,6 +92,11 @@ from user_container.tools.schedule import (
     make_update_scheduled_job_tool, UPDATE_SCHEDULED_JOB_SCHEMA,
 )
 from user_container.tools.skill_management import make_manage_skill_tool, MANAGE_SKILL_SCHEMA
+from user_container.tools.procedures import (
+    make_create_procedure_tool, CREATE_PROCEDURE_SCHEMA,
+    make_list_procedures_tool, LIST_PROCEDURES_SCHEMA,
+    make_update_procedure_tool, UPDATE_PROCEDURE_SCHEMA,
+)
 
 
 class Agent:
@@ -257,6 +263,13 @@ class Agent:
                 schema=LIST_SCHEDULED_JOBS_SCHEMA
             )
 
+            # Procedures - list_procedures (always available)
+            registry.register(
+                name="list_procedures",
+                handler=make_list_procedures_tool(self.db),
+                schema=LIST_PROCEDURES_SCHEMA
+            )
+
             # Skill management - create/update/delete/list custom skills
             registry.register(
                 name="manage_skill",
@@ -408,6 +421,19 @@ class Agent:
                 # Scheduler not initialized (e.g., during tests)
                 log_debug("[Agent] Scheduler not available, skipping scheduler tools")
 
+            # Procedure management tools
+            self.tools.register(
+                name="create_procedure",
+                handler=make_create_procedure_tool(self.db),
+                schema=CREATE_PROCEDURE_SCHEMA
+            )
+            self.tools.register(
+                name="update_procedure",
+                handler=make_update_procedure_tool(self.db),
+                schema=UPDATE_PROCEDURE_SCHEMA
+            )
+            log_debug(f"[Agent] Registered procedure tools for conversation {conversation_id}")
+
         # Track consecutive truncations to prevent infinite loops
         consecutive_truncations = 0
         MAX_CONSECUTIVE_TRUNCATIONS = 3
@@ -536,10 +562,13 @@ class Agent:
 
             # 3. Build system prompt with loaded skills (and planning if depth >= 1)
             skill_prompts = self.skill_loader.get_skill_prompts(selected_skills)
+            # Load procedure context if this conversation belongs to a procedure
+            procedure_context = self._load_procedure_context(conversation_id)
             system_prompt = self._build_system_prompt(
                 skill_prompts,
                 depth=routing_decision.depth,
-                step_count=step_count
+                step_count=step_count,
+                procedure_context=procedure_context
             )
             log_debug(f"System prompt length: {len(system_prompt)} chars")
 
@@ -1422,9 +1451,105 @@ Your next message should include text for the user, not just tool calls."""
         )
         return {"status": "timeout", "summary": "Max steps reached", "steps": step_count, "elapsed_seconds": round(elapsed_time, 2)}
 
-    def _build_system_prompt(self, skill_prompts: str, depth: int = 0, step_count: int = 0) -> str:
+    def _load_procedure_context(self, conversation_id: str) -> dict:
+        """Load procedure context for a procedure-linked conversation."""
+        conv = self.db.fetchone("SELECT procedure_id FROM conversations WHERE id = ?", (conversation_id,))
+        if not conv or not conv.get("procedure_id"):
+            return None
+        proc = self.db.get_procedure(conv["procedure_id"])
+        if not proc:
+            return None
+        files = self.db.get_procedure_files(conv["procedure_id"])
+
+        # Look up the procedure session to get its dedicated output folder
+        session = self.db.fetchone(
+            "SELECT id FROM procedure_sessions WHERE conversation_id = ?", (conversation_id,)
+        )
+        session_folder = None
+        if session:
+            session_folder = os.path.join(
+                settings.artifacts_dir, "procedure_sessions", session["id"]
+            )
+            os.makedirs(session_folder, exist_ok=True)
+
+        return {
+            "skill_prompt": proc["skill_prompt"],
+            "completion_condition": proc.get("completion_condition"),
+            "files": [{"name": f["original_name"], "content": f.get("text_content", "")} for f in files],
+            "session_folder": session_folder,
+        }
+
+    def _build_system_prompt(self, skill_prompts: str, depth: int = 0, step_count: int = 0, procedure_context: dict = None) -> str:
         """Build full system prompt with loaded skills and planning injection."""
         from datetime import datetime
+
+        # Procedure mode: prepend strict procedure instructions before the base prompt
+        if procedure_context:
+            completion = procedure_context.get("completion_condition") or (
+                "When you have fully completed all steps and delivered all required outputs, "
+                "end your FINAL message with the marker [PROCEDURE_COMPLETE] on its own line, "
+                "then STOP. Do not send any further messages."
+            )
+
+            session_folder = procedure_context.get("session_folder") or settings.workspace_dir
+            venv_python = sys.executable
+
+            proc_header = f"""## ⚠ PROCEDURE MODE — STRICT EXECUTION
+
+You are running in PROCEDURE MODE. You must follow these rules WITHOUT EXCEPTION:
+
+1. Execute ONLY what is described in the procedure below. Nothing more, nothing less.
+2. Do NOT offer help outside the procedure scope.
+3. Do NOT suggest unrelated next steps, ask "Can I help with anything else?", or improvise.
+4. Do NOT generate follow-up suggestions or questions beyond what the procedure requires.
+5. When the procedure is complete: {completion}
+6. The conversation ends the moment the procedure is complete. Do not continue after that.
+
+## SESSION OUTPUT FOLDER
+Save ALL output files (PDFs, documents, exports) to this dedicated folder:
+`{session_folder}`
+
+## REFERENCE FILES
+All reference files for this procedure are saved on disk at:
+`{session_folder}/references/`
+Use them directly from that path. Do NOT search the workspace root.
+
+## FILLING A DOCX TEMPLATE AND GENERATING A PDF — MANDATORY WORKFLOW
+⚠ NEVER write ad-hoc fill scripts.
+⚠ NEVER use fpdf, reportlab, or any other PDF library directly.
+⚠ NEVER run Python without the venv interpreter.
+
+**Step 1** — Create a `replacements.json` file mapping each placeholder to its replacement value:
+```json
+{{"placeholder text": "real value", "other placeholder": "other value"}}
+```
+
+**Step 2** — Run the fill-and-convert helper (ONE command does everything):
+```
+{venv_python} {settings.artifacts_dir}/fill_and_convert.py <template.docx> replacements.json <output.pdf>
+```
+
+This fills the template, saves a `_filled.docx` alongside the PDF, and converts to PDF with Polish character support.
+
+**Simple DOCX → PDF only (no filling needed):**
+```
+{venv_python} {settings.artifacts_dir}/docx_to_pdf.py <input.docx> <output.pdf>
+```
+
+## PROCEDURE INSTRUCTIONS
+{procedure_context['skill_prompt']}"""
+
+            files = procedure_context.get("files", [])
+            if files:
+                docs = "\n\n".join(
+                    f"### {f['name']}\n{f['content']}" for f in files if f.get("content")
+                )
+                if docs:
+                    proc_header += f"\n\n## REFERENCE DOCUMENTS\n{docs}"
+
+            proc_header += "\n\n---\n\n"
+        else:
+            proc_header = ""
 
         # Substitute path placeholders
         base = BASE_SYSTEM_PROMPT.format(
@@ -1453,7 +1578,7 @@ Your next message should include text for the user, not just tool calls."""
 
         base = f"{base}\n\n## CRITICAL REMINDER\nRespond in the SAME LANGUAGE as the user's message. Do not default to English."
 
-        return base
+        return f"{proc_header}{base}"
 
     def _build_messages(
         self,

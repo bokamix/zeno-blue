@@ -360,6 +360,53 @@ class DB:
                 PRIMARY KEY (skill_id, filename)
               )
             """)
+            # Procedures module
+            cur.execute("""
+              CREATE TABLE IF NOT EXISTS procedures (
+                id TEXT PRIMARY KEY,
+                name TEXT NOT NULL,
+                slug TEXT UNIQUE NOT NULL,
+                skill_prompt TEXT NOT NULL,
+                completion_condition TEXT,
+                created_at TEXT NOT NULL,
+                is_active INTEGER DEFAULT 1
+              )
+            """)
+            cur.execute("""
+              CREATE TABLE IF NOT EXISTS procedure_files (
+                id TEXT PRIMARY KEY,
+                procedure_id TEXT NOT NULL,
+                original_name TEXT NOT NULL,
+                text_content TEXT,
+                binary_content BLOB,
+                file_size INTEGER,
+                created_at TEXT NOT NULL,
+                FOREIGN KEY (procedure_id) REFERENCES procedures(id)
+              )
+            """)
+            cur.execute("""
+              CREATE TABLE IF NOT EXISTS procedure_sessions (
+                id TEXT PRIMARY KEY,
+                procedure_id TEXT NOT NULL,
+                conversation_id TEXT NOT NULL UNIQUE,
+                status TEXT DEFAULT 'waiting_for_user',
+                created_at TEXT NOT NULL,
+                updated_at TEXT NOT NULL,
+                FOREIGN KEY (procedure_id) REFERENCES procedures(id)
+              )
+            """)
+            cur.execute("CREATE INDEX IF NOT EXISTS idx_procedure_sessions_proc ON procedure_sessions(procedure_id)")
+            cur.execute("CREATE INDEX IF NOT EXISTS idx_procedure_files_proc ON procedure_files(procedure_id)")
+            # Migration: add procedure_id to conversations
+            try:
+                cur.execute("ALTER TABLE conversations ADD COLUMN procedure_id TEXT")
+            except Exception:
+                pass
+            # Migration: add binary_content to procedure_files
+            try:
+                cur.execute("ALTER TABLE procedure_files ADD COLUMN binary_content BLOB")
+            except Exception:
+                pass
             conn.commit()
             conn.close()
 
@@ -1705,3 +1752,72 @@ class DB:
     def delete_skill_scripts(self, skill_id: str) -> None:
         """Delete all scripts for a skill (cleanup on skill delete)."""
         self.execute("DELETE FROM skill_scripts WHERE skill_id = ?", (skill_id,))
+
+    # --- Procedures Methods ---
+
+    def get_procedures(self) -> List[Dict[str, Any]]:
+        return self.fetchall("SELECT * FROM procedures ORDER BY created_at DESC")
+
+    def get_procedure(self, procedure_id: str) -> Optional[Dict[str, Any]]:
+        return self.fetchone("SELECT * FROM procedures WHERE id = ?", (procedure_id,))
+
+    def get_procedure_by_slug(self, slug: str) -> Optional[Dict[str, Any]]:
+        return self.fetchone("SELECT * FROM procedures WHERE slug = ? AND is_active = 1", (slug,))
+
+    def create_procedure(self, procedure_id: str, name: str, slug: str, skill_prompt: str, completion_condition: str = None) -> None:
+        self.execute(
+            "INSERT INTO procedures (id, name, slug, skill_prompt, completion_condition, created_at) VALUES (?, ?, ?, ?, ?, ?)",
+            (procedure_id, name, slug, skill_prompt, completion_condition, self.now())
+        )
+
+    def update_procedure(self, procedure_id: str, name: str, slug: str, skill_prompt: str, completion_condition: str = None) -> bool:
+        result = self.execute(
+            "UPDATE procedures SET name=?, slug=?, skill_prompt=?, completion_condition=? WHERE id=?",
+            (name, slug, skill_prompt, completion_condition, procedure_id)
+        )
+        return result.rowcount > 0
+
+    def delete_procedure(self, procedure_id: str) -> bool:
+        self.execute("DELETE FROM procedure_files WHERE procedure_id = ?", (procedure_id,))
+        self.execute("DELETE FROM procedure_sessions WHERE procedure_id = ?", (procedure_id,))
+        result = self.execute("DELETE FROM procedures WHERE id = ?", (procedure_id,))
+        return result.rowcount > 0
+
+    def get_procedure_files(self, procedure_id: str) -> List[Dict[str, Any]]:
+        return self.fetchall(
+            "SELECT id, procedure_id, original_name, text_content, file_size, created_at FROM procedure_files WHERE procedure_id = ? ORDER BY created_at ASC",
+            (procedure_id,)
+        )
+
+    def get_procedure_file_binary(self, file_id: str) -> Optional[bytes]:
+        row = self.fetchone("SELECT binary_content FROM procedure_files WHERE id = ?", (file_id,))
+        return row["binary_content"] if row else None
+
+    def add_procedure_file(self, file_id: str, procedure_id: str, original_name: str, text_content: str, file_size: int, binary_content: bytes = None) -> None:
+        self.execute(
+            "INSERT INTO procedure_files (id, procedure_id, original_name, text_content, binary_content, file_size, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)",
+            (file_id, procedure_id, original_name, text_content, binary_content, file_size, self.now())
+        )
+
+    def delete_procedure_file(self, file_id: str) -> bool:
+        result = self.execute("DELETE FROM procedure_files WHERE id = ?", (file_id,))
+        return result.rowcount > 0
+
+    def create_procedure_session(self, session_id: str, procedure_id: str, conversation_id: str) -> None:
+        now = self.now()
+        self.execute(
+            "INSERT INTO procedure_sessions (id, procedure_id, conversation_id, status, created_at, updated_at) VALUES (?, ?, ?, 'waiting_for_user', ?, ?)",
+            (session_id, procedure_id, conversation_id, now, now)
+        )
+
+    def get_procedure_session(self, session_id: str) -> Optional[Dict[str, Any]]:
+        return self.fetchone("SELECT * FROM procedure_sessions WHERE id = ?", (session_id,))
+
+    def get_procedure_session_by_conversation(self, conversation_id: str) -> Optional[Dict[str, Any]]:
+        return self.fetchone("SELECT * FROM procedure_sessions WHERE conversation_id = ?", (conversation_id,))
+
+    def update_procedure_session_status(self, session_id: str, status: str) -> None:
+        self.execute(
+            "UPDATE procedure_sessions SET status = ?, updated_at = ? WHERE id = ?",
+            (status, self.now(), session_id)
+        )
