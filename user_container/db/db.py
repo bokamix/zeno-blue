@@ -1821,3 +1821,23 @@ class DB:
             "UPDATE procedure_sessions SET status = ?, updated_at = ? WHERE id = ?",
             (status, self.now(), session_id)
         )
+
+    def get_procedure_sessions(self, procedure_id: str) -> list:
+        return self.fetchall(
+            """SELECT ps.id, ps.conversation_id,
+                      CASE
+                        WHEN EXISTS (
+                          SELECT 1 FROM messages m
+                          WHERE m.conversation_id = ps.conversation_id
+                            AND m.role = 'assistant'
+                            AND m.content LIKE '%[PROCEDURE_COMPLETE]%'
+                        ) THEN 'done'
+                        ELSE ps.status
+                      END AS status,
+                      ps.created_at, ps.updated_at, c.preview
+               FROM procedure_sessions ps
+               LEFT JOIN conversations c ON c.id = ps.conversation_id
+               WHERE ps.procedure_id = ?
+               ORDER BY ps.created_at DESC""",
+            (procedure_id,)
+        )

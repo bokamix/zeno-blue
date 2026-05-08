@@ -519,6 +519,11 @@ export function useApi() {
         if (!res.ok) throw new Error('Failed to delete file')
         return res.json()
     }
+    const getProcedureSessions = async (procedureId) => {
+        const res = await fetchWithTimeout(`${API_BASE}/procedures/${procedureId}/sessions`)
+        if (!res.ok) throw new Error('Failed to fetch sessions')
+        return res.json()
+    }
     // Public procedure session API
     const getProcedureInfo = async (slug) => {
         const res = await fetchWithTimeout(`${API_BASE}/p/${slug}/info`)
@@ -585,5 +590,6 @@ export function useApi() {
         getProcedureInfo,
         createProcedureSession,
         getProcedureSession,
+        getProcedureSessions,
     }
 }

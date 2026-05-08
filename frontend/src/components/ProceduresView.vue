@@ -29,61 +29,130 @@
                 <div
                     v-for="proc in procedures"
                     :key="proc.id"
-                    class="bg-[var(--bg-surface)] border border-[var(--border-subtle)] rounded-xl p-4 hover:border-blue-500/30 transition-colors"
+                    class="bg-[var(--bg-surface)] border border-[var(--border-subtle)] rounded-xl overflow-hidden transition-colors"
+                    :class="expandedId === proc.id ? 'border-blue-500/30' : 'hover:border-blue-500/20'"
                 >
-                    <div class="flex items-start justify-between gap-3">
-                        <div class="min-w-0 flex-1">
-                            <div class="flex items-center gap-2 mb-1">
-                                <h3 class="text-sm font-semibold text-[var(--text-primary)] truncate">{{ proc.name }}</h3>
-                                <span class="text-xs text-[var(--text-muted)] shrink-0 font-mono">/{{ proc.slug }}</span>
+                    <!-- Procedure row -->
+                    <div class="p-4">
+                        <div class="flex items-start justify-between gap-3">
+                            <div class="min-w-0 flex-1">
+                                <div class="flex items-center gap-2 mb-1">
+                                    <h3 class="text-sm font-semibold text-[var(--text-primary)] truncate">{{ proc.name }}</h3>
+                                    <span class="text-xs text-[var(--text-muted)] shrink-0 font-mono">/{{ proc.slug }}</span>
+                                </div>
+                                <p class="text-xs text-[var(--text-muted)] line-clamp-2">{{ proc.skill_prompt }}</p>
+                                <div class="flex items-center gap-3 mt-2">
+                                    <span class="text-xs text-[var(--text-muted)] flex items-center gap-1">
+                                        <Paperclip class="w-3 h-3" />{{ proc.files?.length || 0 }} file{{ proc.files?.length !== 1 ? 's' : '' }}
+                                    </span>
+                                </div>
                             </div>
-                            <p class="text-xs text-[var(--text-muted)] line-clamp-2">{{ proc.skill_prompt }}</p>
-                            <div class="flex items-center gap-3 mt-2">
-                                <span class="text-xs text-[var(--text-muted)] flex items-center gap-1">
-                                    <Paperclip class="w-3 h-3" />{{ proc.files?.length || 0 }} file{{ proc.files?.length !== 1 ? 's' : '' }}
-                                </span>
+                            <div class="flex items-center gap-1 shrink-0">
+                                <!-- run error inline -->
+                                <span v-if="runError === proc.id" class="text-xs text-red-400 mr-1">Failed to start</span>
+                                <button
+                                    @click="runProcedure(proc)"
+                                    :disabled="runningId === proc.id"
+                                    class="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg transition-colors bg-blue-500/10 text-blue-400 hover:bg-blue-500/20 disabled:opacity-50"
+                                    title="Run procedure"
+                                >
+                                    <div v-if="runningId === proc.id" class="w-3 h-3 border-2 border-blue-400/30 border-t-blue-400 rounded-full animate-spin"></div>
+                                    <Play v-else class="w-3.5 h-3.5 fill-current" />
+                                    Run
+                                </button>
+                                <!-- sessions toggle -->
+                                <button
+                                    @click="toggleSessions(proc)"
+                                    class="p-2 rounded-lg transition-colors"
+                                    :class="expandedId === proc.id ? 'text-blue-400 bg-blue-500/10' : 'text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-elevated)]'"
+                                    title="View invocations"
+                                >
+                                    <History class="w-4 h-4" />
+                                </button>
+                                <button
+                                    @click="copyLink(proc)"
+                                    class="p-2 text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-elevated)] rounded-lg transition-colors"
+                                    title="Copy share link"
+                                >
+                                    <component :is="copiedId === proc.id ? Check : Link" class="w-4 h-4" :class="copiedId === proc.id ? 'text-green-400' : ''" />
+                                </button>
+                                <button
+                                    @click="openEdit(proc)"
+                                    class="p-2 text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-elevated)] rounded-lg transition-colors"
+                                    title="Edit"
+                                >
+                                    <Pencil class="w-4 h-4" />
+                                </button>
+                                <!-- delete: first click shows confirm, second click deletes -->
+                                <button
+                                    v-if="deletingId !== proc.id"
+                                    @click="deletingId = proc.id"
+                                    class="p-2 text-[var(--text-muted)] hover:text-red-400 hover:bg-red-500/10 rounded-lg transition-colors"
+                                    title="Delete"
+                                >
+                                    <Trash2 class="w-4 h-4" />
+                                </button>
+                                <div v-else class="flex items-center gap-1">
+                                    <button @click="doDelete(proc)" class="px-2 py-1 text-[10px] rounded-lg font-medium bg-red-500/20 text-red-400 hover:bg-red-500/30 transition-colors">Delete</button>
+                                    <button @click="deletingId = null" class="px-2 py-1 text-[10px] rounded-lg font-medium bg-[var(--bg-elevated)] text-[var(--text-muted)] hover:text-[var(--text-primary)] transition-colors">Cancel</button>
+                                </div>
                             </div>
                         </div>
-                        <div class="flex items-center gap-1 shrink-0">
-                            <!-- run error inline -->
-                            <span v-if="runError === proc.id" class="text-xs text-red-400 mr-1">Failed to start</span>
-                            <button
-                                @click="runProcedure(proc)"
-                                :disabled="runningId === proc.id"
-                                class="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg transition-colors bg-blue-500/10 text-blue-400 hover:bg-blue-500/20 disabled:opacity-50"
-                                title="Run procedure"
+                    </div>
+
+                    <!-- Sessions panel -->
+                    <div v-if="expandedId === proc.id" class="border-t border-[var(--border-subtle)]">
+                        <div class="px-4 py-2 flex items-center justify-between">
+                            <span class="text-xs font-medium text-[var(--text-secondary)]">Invocations</span>
+                            <span v-if="!sessionsLoading && sessions[proc.id]" class="text-xs text-[var(--text-muted)]">{{ sessions[proc.id].length }}</span>
+                        </div>
+
+                        <div v-if="sessionsLoading" class="flex items-center justify-center py-6">
+                            <div class="w-4 h-4 border-2 border-blue-500/30 border-t-blue-500 rounded-full animate-spin"></div>
+                        </div>
+
+                        <div v-else-if="!sessions[proc.id] || sessions[proc.id].length === 0" class="px-4 pb-4 text-xs text-[var(--text-muted)]">
+                            No invocations yet.
+                        </div>
+
+                        <div v-else class="divide-y divide-[var(--border-subtle)]">
+                            <a
+                                v-for="s in sessions[proc.id]"
+                                :key="s.id"
+                                :href="`/c/${s.conversation_id}`"
+                                class="flex items-center gap-3 px-4 py-2.5 hover:bg-[var(--bg-elevated)] transition-colors group"
                             >
-                                <div v-if="runningId === proc.id" class="w-3 h-3 border-2 border-blue-400/30 border-t-blue-400 rounded-full animate-spin"></div>
-                                <Play v-else class="w-3.5 h-3.5 fill-current" />
-                                Run
-                            </button>
-                            <button
-                                @click="copyLink(proc)"
-                                class="p-2 text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-elevated)] rounded-lg transition-colors"
-                                title="Copy share link"
-                            >
-                                <component :is="copiedId === proc.id ? Check : Link" class="w-4 h-4" :class="copiedId === proc.id ? 'text-green-400' : ''" />
-                            </button>
-                            <button
-                                @click="openEdit(proc)"
-                                class="p-2 text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-elevated)] rounded-lg transition-colors"
-                                title="Edit"
-                            >
-                                <Pencil class="w-4 h-4" />
-                            </button>
-                            <!-- delete: first click shows confirm, second click deletes -->
-                            <button
-                                v-if="deletingId !== proc.id"
-                                @click="deletingId = proc.id"
-                                class="p-2 text-[var(--text-muted)] hover:text-red-400 hover:bg-red-500/10 rounded-lg transition-colors"
-                                title="Delete"
-                            >
-                                <Trash2 class="w-4 h-4" />
-                            </button>
-                            <div v-else class="flex items-center gap-1">
-                                <button @click="doDelete(proc)" class="px-2 py-1 text-[10px] rounded-lg font-medium bg-red-500/20 text-red-400 hover:bg-red-500/30 transition-colors">Delete</button>
-                                <button @click="deletingId = null" class="px-2 py-1 text-[10px] rounded-lg font-medium bg-[var(--bg-elevated)] text-[var(--text-muted)] hover:text-[var(--text-primary)] transition-colors">Cancel</button>
-                            </div>
+                                <!-- status dot -->
+                                <span
+                                    class="w-2 h-2 rounded-full shrink-0"
+                                    :class="{
+                                        'bg-green-400': s.status === 'done',
+                                        'bg-blue-400 animate-pulse': s.status === 'in_progress',
+                                        'bg-yellow-400': s.status === 'waiting_for_user',
+                                        'bg-[var(--text-muted)]': !['done','in_progress','waiting_for_user'].includes(s.status)
+                                    }"
+                                ></span>
+
+                                <!-- preview / date -->
+                                <div class="flex-1 min-w-0">
+                                    <p class="text-xs text-[var(--text-primary)] truncate">{{ s.preview || 'Untitled conversation' }}</p>
+                                    <p class="text-[10px] text-[var(--text-muted)] mt-0.5">{{ formatDate(s.created_at) }}</p>
+                                </div>
+
+                                <!-- status label -->
+                                <span
+                                    class="text-[10px] font-medium px-1.5 py-0.5 rounded-md shrink-0"
+                                    :class="{
+                                        'bg-green-500/10 text-green-400': s.status === 'done',
+                                        'bg-blue-500/10 text-blue-400': s.status === 'in_progress',
+                                        'bg-yellow-500/10 text-yellow-400': s.status === 'waiting_for_user',
+                                        'bg-[var(--bg-elevated)] text-[var(--text-muted)]': !['done','in_progress','waiting_for_user'].includes(s.status)
+                                    }"
+                                >{{ statusLabel(s.status) }}</span>
+
+                                <!-- open arrow -->
+                                <ExternalLink class="w-3.5 h-3.5 text-[var(--text-muted)] opacity-0 group-hover:opacity-100 transition-opacity shrink-0" />
+                            </a>
                         </div>
                     </div>
                 </div>
@@ -210,10 +279,10 @@
 
 <script setup>
 import { ref, watch, onMounted } from 'vue'
-import { Plus, Workflow, Pencil, Trash2, Link, Check, X, FileText, Upload, Paperclip, Loader2, Play } from 'lucide-vue-next'
+import { Plus, Workflow, Pencil, Trash2, Link, Check, X, FileText, Upload, Paperclip, Loader2, Play, History, ExternalLink } from 'lucide-vue-next'
 import { useApi } from '../composables/useApi.js'
 
-const { getProcedures, createProcedure, updateProcedure, deleteProcedure, uploadProcedureFile, deleteProcedureFile, createProcedureSession } = useApi()
+const { getProcedures, createProcedure, updateProcedure, deleteProcedure, uploadProcedureFile, deleteProcedureFile, createProcedureSession, getProcedureSessions } = useApi()
 
 const runningId = ref(null)
 const runError = ref(null)
@@ -244,6 +313,10 @@ const uploading = ref(false)
 const modalError = ref('')
 const copiedId = ref(null)
 
+const expandedId = ref(null)
+const sessions = ref({})
+const sessionsLoading = ref(false)
+
 const form = ref({ name: '', slug: '', skill_prompt: '', completion_condition: '' })
 
 const formatBytes = (b) => {
@@ -251,6 +324,36 @@ const formatBytes = (b) => {
     if (b < 1024) return b + ' B'
     if (b < 1024 * 1024) return (b / 1024).toFixed(0) + ' KB'
     return (b / (1024 * 1024)).toFixed(1) + ' MB'
+}
+
+const formatDate = (iso) => {
+    if (!iso) return ''
+    const d = new Date(iso)
+    return d.toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })
+}
+
+const statusLabel = (s) => {
+    if (s === 'done') return 'Done'
+    if (s === 'in_progress') return 'In progress'
+    if (s === 'waiting_for_user') return 'Waiting'
+    return s
+}
+
+const toggleSessions = async (proc) => {
+    if (expandedId.value === proc.id) {
+        expandedId.value = null
+        return
+    }
+    expandedId.value = proc.id
+    if (sessions.value[proc.id]) return
+    sessionsLoading.value = true
+    try {
+        sessions.value[proc.id] = await getProcedureSessions(proc.id)
+    } catch {
+        sessions.value[proc.id] = []
+    } finally {
+        sessionsLoading.value = false
+    }
 }
 
 const slugify = (s) => s.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '')
@@ -330,7 +433,6 @@ const handleFileUpload = async (e) => {
     try {
         const result = await uploadProcedureFile(editingId.value, file)
         currentFiles.value.push({ id: result.id, original_name: result.original_name, file_size: result.file_size })
-        // Refresh procedure list
         await load()
     } catch (err) {
         modalError.value = err.message

@@ -2708,6 +2708,15 @@ async def get_procedure(procedure_id: str):
     return {**proc, "is_active": bool(proc.get("is_active", 1)), "files": files_safe}
 
 
+@app.get("/procedures/{procedure_id}/sessions")
+async def list_procedure_sessions(procedure_id: str):
+    proc = db.get_procedure(procedure_id)
+    if not proc:
+        raise HTTPException(status_code=404, detail="Procedure not found")
+    sessions = db.get_procedure_sessions(procedure_id)
+    return [dict(s) for s in sessions]
+
+
 @app.put("/procedures/{procedure_id}")
 async def update_procedure(procedure_id: str, payload: dict):
     proc = db.get_procedure(procedure_id)
